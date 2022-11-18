@@ -1,4 +1,4 @@
-# main.py
+# propertiesbrowser.py
 # Copyright (C) 2022  Jason Allen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,20 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
-import sys
-from PyQt6.QtCore import QDir
-from PyQt6.QtWidgets import QApplication
-from jade.mainwindow import MainWindow
+from PyQt6.QtWidgets import QWidget
 
-app = QApplication(sys.argv)
-QDir.addSearchPath('icons', os.path.join(sys.path[0], 'icons'))
 
-window = MainWindow()
-if (len(app.arguments()) > 1):
-    window.openDrawing(app.arguments()[1])
-else:
-    window.newDrawing()
-window.show()
-
-app.exec()
+class PropertiesBrowser(QWidget):
+    def __init__(self) -> None:
+        super().__init__()

@@ -1,4 +1,4 @@
-# main.py
+# drawingunits.py
 # Copyright (C) 2022  Jason Allen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,20 +14,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
-import sys
-from PyQt6.QtCore import QDir
-from PyQt6.QtWidgets import QApplication
-from jade.mainwindow import MainWindow
+from enum import Enum
 
-app = QApplication(sys.argv)
-QDir.addSearchPath('icons', os.path.join(sys.path[0], 'icons'))
 
-window = MainWindow()
-if (len(app.arguments()) > 1):
-    window.openDrawing(app.arguments()[1])
-else:
-    window.newDrawing()
-window.show()
+class DrawingUnits(Enum):
+    Millimeters = 0
+    Centimeters = 1
+    Meters = 2
+    Kilometers = 3
+    Mils = 4
+    Inches = 5
+    Feet = 6
+    Miles = 7
 
-app.exec()
+
+# ======================================================================================================================
+
+class DrawingMode(Enum):
+    SelectMode = 0
+    ScrollMode = 1
+    ZoomMode = 2
+    PlaceMode = 3
