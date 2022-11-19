@@ -17,7 +17,7 @@
 import typing
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QAction, QActionGroup, QBrush, QContextMenuEvent, QIcon, QKeySequence, QUndoStack
-from PyQt6.QtWidgets import QMenu, QStackedWidget, QWidget
+from PyQt6.QtWidgets import QMenu, QStackedWidget, QVBoxLayout, QWidget
 from .drawingpage import DrawingPage
 from .drawingtypes import DrawingUnits
 
@@ -32,6 +32,10 @@ class Drawing(QWidget):
         super().__init__()
 
         self._stackedWidget: QStackedWidget = QStackedWidget()
+        layout = QVBoxLayout()
+        layout.addWidget(self._stackedWidget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
 
         self._units: DrawingUnits = DrawingUnits.Millimeters
 
@@ -207,7 +211,41 @@ class Drawing(QWidget):
     # ==================================================================================================================
 
     def createNew(self) -> None:
-        pass
+        from PyQt6.QtCore import Qt, QLineF, QPointF, QRectF
+        from PyQt6.QtGui import QBrush, QColor, QPen
+        from .drawingarrow import DrawingArrow
+        from .drawinglineitem import DrawingLineItem
+        from .drawingrectitem import DrawingRectItem
+
+        # Todo: better createNew implementation
+        self._currentPage = DrawingPage()
+        self._currentPage.setSceneRect(QRectF(-20, -20, 800, 600))
+        self._currentPage.setBackgroundBrush(QBrush(QColor(255, 255, 255)))
+        self._currentPage.setGrid(5)
+        self._currentPage.setGridVisible(True)
+        self._currentPage.setGridBrush(QBrush(QColor(0, 128, 128)))
+        self._currentPage.setGridSpacingMajor(8)
+        self._currentPage.setGridSpacingMinor(2)
+
+        rectItem = DrawingRectItem()
+        rectItem.setPosition(QPointF(160, 80))
+        rectItem.setRect(QRectF(-40, -20, 80, 40))
+        rectItem.setCornerRadius(5)
+        rectItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        rectItem.setBrush(QBrush(QColor(224, 255, 255)))
+        self._currentPage.addItem(rectItem)
+
+        lineItem = DrawingLineItem()
+        lineItem.setPosition(QPointF(320, 80))
+        lineItem.setLine(QLineF(-20, -40, 40, 80))
+        lineItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        # lineItem.setStartArrow(DrawingArrow(DrawingArrow.Style.Concave, 10))
+        # lineItem.setEndArrow(DrawingArrow(DrawingArrow.Style.Triangle, 10))
+        self._currentPage.addItem(lineItem)
+
+        self._currentPage.setSelectedItems([rectItem, lineItem])
+
+        self._stackedWidget.addWidget(self._currentPage)
 
     def clear(self) -> None:
         pass
