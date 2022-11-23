@@ -68,7 +68,7 @@ class DrawingArrow:
             transform.rotate(angle)
             mappedPath = transform.map(self._path)
             shape = DrawingArrow.strokePath(mappedPath, pen)
-            shape.addPath(mappedPath)
+            shape = shape.united(mappedPath)
         return shape
 
     def paint(self, painter: QPainter, pen: QPen, position: QPointF, angle: float) -> None:

@@ -16,16 +16,20 @@
 
 import os
 import typing
-from PyQt6.QtCore import pyqtBoundSignal, Qt, QSize
-from PyQt6.QtGui import QAction, QBrush, QCloseEvent, QFont, QFontMetrics, QIcon, QKeySequence, QPen, QShowEvent
+from PyQt6.QtCore import pyqtBoundSignal, Qt, QLineF, QPointF, QRectF, QSize
+from PyQt6.QtGui import QAction, QBrush, QColor, QCloseEvent, QFont, QFontMetrics, QIcon, QKeySequence, QPen, QShowEvent
 from PyQt6.QtWidgets import QApplication, QComboBox, QDockWidget, QHBoxLayout, QLabel, QMainWindow, QToolBar, QWidget
-from .drawing import Drawing
+from .drawingwidget import DrawingWidget
 from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
 from .drawinglineitem import DrawingLineItem
 from .drawingrectitem import DrawingRectItem
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
+
+# Todo:
+#   For DrawingView/DrawingWidget, ensure no name collisions with each other and QAbstractScrollArea
+#   Ensure that undo/redo events set current page, selected items, and view rect as expected
 
 
 class MainWindow(QMainWindow):
@@ -43,8 +47,36 @@ class MainWindow(QMainWindow):
         # Main widget
         self._registerItemsWithFactory()
 
-        self._drawing: Drawing = Drawing()
+        self._drawing: DrawingWidget = DrawingWidget()
         self.setCentralWidget(self._drawing)
+
+        self._drawing.setSceneRect(QRectF(-20, -20, 800, 600))
+        self._drawing.setBackgroundBrush(QBrush(QColor(255, 255, 255)))
+        self._drawing.setGrid(5)
+        self._drawing.setGridVisible(True)
+        self._drawing.setGridBrush(QBrush(QColor(0, 128, 128)))
+        self._drawing.setGridSpacingMajor(8)
+        self._drawing.setGridSpacingMinor(2)
+
+        rectItem = DrawingRectItem()
+        rectItem.setPosition(QPointF(160, 80))
+        rectItem.setRect(QRectF(-40, -20, 80, 40))
+        rectItem.setCornerRadius(5)
+        rectItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                             Qt.PenJoinStyle.RoundJoin))
+        rectItem.setBrush(QBrush(QColor(224, 255, 255)))
+        self._drawing.addItem(rectItem)
+
+        lineItem = DrawingLineItem()
+        lineItem.setPosition(QPointF(320, 80))
+        lineItem.setLine(QLineF(-20, -40, 40, 80))
+        lineItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                             Qt.PenJoinStyle.RoundJoin))
+        lineItem.setStartArrow(DrawingArrow(DrawingArrow.Style.TriangleFilled, 10))
+        lineItem.setEndArrow(DrawingArrow(DrawingArrow.Style.Triangle, 10))
+        self._drawing.addItem(lineItem)
+
+        self._drawing.setSelectedItems([rectItem, lineItem])
 
         # Dock widgets
         self._pagesBrowser: PagesBrowser = PagesBrowser()
@@ -55,8 +87,8 @@ class MainWindow(QMainWindow):
         self._propertiesDock: QDockWidget = self._addDockWidget('Properties', self._propertiesBrowser,
                                                                 Qt.DockWidgetArea.RightDockWidgetArea)
         # Status bar widgets
-        self._modeLabel = self._addStatusBarLabel('Select Mode', 'Select Mode', self._drawing.modeChanged)
-        self._modifiedLabel = self._addStatusBarLabel('', 'Modified', self._drawing.modifiedChanged)
+        self._modeLabel = self._addStatusBarLabel('Select Mode', 'Select Mode', self._drawing.modeStringChanged)
+        self._modifiedLabel = self._addStatusBarLabel('', 'Modified', self._drawing.modifiedStringChanged)
         self._mouseInfoLabel = self._addStatusBarLabel('', '(XXXX.XX,XXXX.XX)', self._drawing.mouseInfoChanged)
 
         # Menus and toolbars
@@ -162,8 +194,8 @@ class MainWindow(QMainWindow):
         viewMenu = self.menuBar().addMenu('View')
         viewMenu.addAction(self._viewPropertiesAction)
         viewMenu.addSeparator()
-        viewMenu.addAction(self._drawing.insertPageAction)
-        viewMenu.addAction(self._drawing.removePageAction)
+        # viewMenu.addAction(self._drawing.insertPageAction)
+        # viewMenu.addAction(self._drawing.removePageAction)
         viewMenu.addAction(self._viewPagesAction)
         viewMenu.addSeparator()
         viewMenu.addAction(self._drawing.zoomInAction)
@@ -254,7 +286,7 @@ class MainWindow(QMainWindow):
 
         # Create a new drawing only if there is no open drawing (i.e. close was successful or unneeded)
         if (not self.isDrawingVisible()):
-            self._drawing.createNew()
+            # self._drawing.createNew()
             self._newDrawingCount = self._newDrawingCount + 1
             self._setFilePath(f'Untitled {self._newDrawingCount}')
             self._setDrawingVisible(True)
@@ -349,10 +381,8 @@ class MainWindow(QMainWindow):
         self._exportPngAction.setEnabled(visible)
         self._exportSvgAction.setEnabled(visible)
         self._exportVsdxAction.setEnabled(visible)
-        for action in self._drawing.actions():
-            action.setEnabled(visible)
-        for action in self._drawing.modeActions():
-            action.setEnabled(visible)
+
+        self._drawing.setActionsEnabled(visible)
 
     def _setFilePath(self, path: str) -> None:
         self._filePath = path
@@ -380,7 +410,7 @@ class MainWindow(QMainWindow):
         font.setPointSizeF(100)
 
         DrawingItem.setDefaultProperty(
-           'pen', QPen(QBrush(Qt.GlobalColor.black), 12, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+           'pen', QPen(QBrush(Qt.GlobalColor.black), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
                        Qt.PenJoinStyle.RoundJoin))
         DrawingItem.setDefaultProperty('brush', QBrush(Qt.GlobalColor.white))
         DrawingItem.setDefaultProperty('startArrow', DrawingArrow(DrawingArrow.Style.NoStyle, 100))

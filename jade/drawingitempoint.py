@@ -80,12 +80,12 @@ class DrawingItemPoint:
     # ==================================================================================================================
 
     def addConnection(self, point: 'DrawingItemPoint'):
-        # Assumes that the provided point is not one of this point's connections (self.isConnected(point) is False)
-        self._connections.append(point)
+        if (point not in self._connections):
+            self._connections.append(point)
 
     def removeConnection(self, point: 'DrawingItemPoint'):
-        # Assumes that the provided point is already one of this point's connections (self.isConnected(point) is True)
-        self._connections.remove(point)
+        if (point in self._connections):
+            self._connections.remove(point)
 
     def connections(self) -> list['DrawingItemPoint']:
         return self._connections

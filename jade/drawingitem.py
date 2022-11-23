@@ -70,8 +70,6 @@ class DrawingItem:
         self.setPosition(QPointF(otherItem.position()))
         self.setRotation(otherItem.rotation())
         self.setFlipped(otherItem.isFlipped())
-        for point in otherItem.points():
-            self.addPoint(point.clone())
         self.setPlaceType(otherItem.placeType())
 
     # ==================================================================================================================
@@ -103,7 +101,7 @@ class DrawingItem:
 
     def _updateTransform(self) -> None:
         self._transform.reset()
-        if (not self._flipped):
+        if (self._flipped):
             self._transform.scale(-1, 1)
         self._transform.rotate(90 * self._rotation)
 
@@ -150,19 +148,17 @@ class DrawingItem:
     # ==================================================================================================================
 
     def addPoint(self, point: DrawingItemPoint) -> None:
-        # Assumes point is not already a member of self._points
-        self._points.append(point)
-        point._item = self
+        self.insertPoint(len(self._points), point)
 
     def insertPoint(self, index: int, point: DrawingItemPoint) -> None:
-        # Assumes point is not already a member of self._points
-        self._points.insert(index, point)
-        point._item = self
+        if (point not in self._points):
+            self._points.insert(index, point)
+            point._item = self
 
     def removePoint(self, point: DrawingItemPoint) -> None:
-        # Assumes point is already a member of self._points
-        self._points.remove(point)
-        point._item = None
+        if (point in self._points):
+            self._points.remove(point)
+            point._item = None
 
     def points(self) -> list[DrawingItemPoint]:
         return self._points
@@ -645,20 +641,21 @@ class DrawingRectResizeItem(DrawingItem):
     # ==================================================================================================================
 
     def setRect(self, rect: QRectF) -> None:
-        self._rect = rect
-
         points = self.points()
-        center = rect.center()
-        points[DrawingRectResizeItem.PointIndex.TopLeft.value].setPosition(QPointF(rect.left(), rect.top()))
-        points[DrawingRectResizeItem.PointIndex.TopMiddle.value].setPosition(QPointF(center.x(), rect.top()))
-        points[DrawingRectResizeItem.PointIndex.TopRight.value].setPosition(QPointF(rect.right(), rect.top()))
-        points[DrawingRectResizeItem.PointIndex.MiddleRight.value].setPosition(QPointF(rect.right(), center.y()))
-        points[DrawingRectResizeItem.PointIndex.BottomRight.value].setPosition(QPointF(rect.right(), rect.bottom()))
-        points[DrawingRectResizeItem.PointIndex.BottomMiddle.value].setPosition(QPointF(center.x(), rect.bottom()))
-        points[DrawingRectResizeItem.PointIndex.BottomLeft.value].setPosition(QPointF(rect.left(), rect.bottom()))
-        points[DrawingRectResizeItem.PointIndex.MiddleLeft.value].setPosition(QPointF(rect.left(), center.y()))
+        if (len(points) >= 8):
+            self._rect = rect
 
-        self._updateGeometry()
+            center = rect.center()
+            points[DrawingRectResizeItem.PointIndex.TopLeft.value].setPosition(QPointF(rect.left(), rect.top()))
+            points[DrawingRectResizeItem.PointIndex.TopMiddle.value].setPosition(QPointF(center.x(), rect.top()))
+            points[DrawingRectResizeItem.PointIndex.TopRight.value].setPosition(QPointF(rect.right(), rect.top()))
+            points[DrawingRectResizeItem.PointIndex.MiddleRight.value].setPosition(QPointF(rect.right(), center.y()))
+            points[DrawingRectResizeItem.PointIndex.BottomRight.value].setPosition(QPointF(rect.right(), rect.bottom()))
+            points[DrawingRectResizeItem.PointIndex.BottomMiddle.value].setPosition(QPointF(center.x(), rect.bottom()))
+            points[DrawingRectResizeItem.PointIndex.BottomLeft.value].setPosition(QPointF(rect.left(), rect.bottom()))
+            points[DrawingRectResizeItem.PointIndex.MiddleLeft.value].setPosition(QPointF(rect.left(), center.y()))
+
+            self._updateGeometry()
 
     def rect(self) -> QRectF:
         return self._rect
@@ -684,74 +681,80 @@ class DrawingRectResizeItem(DrawingItem):
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
         points = self.points()
+        if (len(points) >= 8):
+            # Force the rect to be square if resizing a corner, if applicable
+            if (snapTo45Degrees):
+                otherCornerPoint = None
+                if (point == points[DrawingRectResizeItem.PointIndex.TopLeft.value]):
+                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.BottomRight.value]
+                elif (point == points[DrawingRectResizeItem.PointIndex.TopRight.value]):
+                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.BottomLeft.value]
+                elif (point == points[DrawingRectResizeItem.PointIndex.BottomRight.value]):
+                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.TopLeft.value]
+                elif (point == points[DrawingRectResizeItem.PointIndex.BottomLeft.value]):
+                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.TopRight.value]
 
-        if (snapTo45Degrees):
-            # Force the rect to be square if resizing a corner
-            otherCornerPoint = None
-            if (point == points[DrawingRectResizeItem.PointIndex.TopLeft.value]):
-                otherCornerPoint = points[DrawingRectResizeItem.PointIndex.BottomRight.value]
-            elif (point == points[DrawingRectResizeItem.PointIndex.TopRight.value]):
-                otherCornerPoint = points[DrawingRectResizeItem.PointIndex.BottomLeft.value]
-            elif (point == points[DrawingRectResizeItem.PointIndex.BottomRight.value]):
-                otherCornerPoint = points[DrawingRectResizeItem.PointIndex.TopLeft.value]
-            elif (point == points[DrawingRectResizeItem.PointIndex.BottomLeft.value]):
-                otherCornerPoint = points[DrawingRectResizeItem.PointIndex.TopRight.value]
+                if (otherCornerPoint is not None):
+                    otherCornerPosition = self.mapToScene(otherCornerPoint.position())
+                    delta = position - otherCornerPosition      # type: ignore
 
-            if (otherCornerPoint is not None):
-                otherCornerPosition = self.mapToScene(otherCornerPoint.position())
-                delta = position - otherCornerPosition      # type: ignore
+                    targetAngleDegrees = 0
+                    if (delta.y() >= 0):
+                        targetAngleDegrees = 45 if (delta.x() >= 0) else 135
+                    else:
+                        targetAngleDegrees = -45 if (delta.x() >= 0) else -135
 
-                targetAngleDegrees = 0
-                if (delta.y() >= 0):
-                    targetAngleDegrees = 45 if (delta.x() >= 0) else 135
-                else:
-                    targetAngleDegrees = -45 if (delta.x() >= 0) else -135
+                    if (targetAngleDegrees != 0):
+                        targetAngle = targetAngleDegrees * math.pi / 180
+                        length = max(abs(delta.x()), abs(delta.y())) * math.sqrt(2)
+                        position.setX(otherCornerPosition.x() + length * math.cos(targetAngle))
+                        position.setY(otherCornerPosition.y() + length * math.sin(targetAngle))
 
-                if (targetAngleDegrees != 0):
-                    targetAngle = targetAngleDegrees * math.pi / 180
-                    length = max(abs(delta.x()), abs(delta.y())) * math.sqrt(2)
-                    position.setX(otherCornerPosition.x() + length * math.cos(targetAngle))
-                    position.setY(otherCornerPosition.y() + length * math.sin(targetAngle))
+            # Move just the one point to its new position
+            super().resize(point, position, False)
 
-        # Move just the one point to its new position
-        super().resize(point, position, False)
+            # Adjust the other points as needed
+            rect = QRectF(points[DrawingRectResizeItem.PointIndex.TopLeft.value].position(),
+                          points[DrawingRectResizeItem.PointIndex.BottomRight.value].position())
 
-        # Adjust the other points as needed
-        rect = QRectF(points[DrawingRectResizeItem.PointIndex.TopLeft.value].position(),
-                      points[DrawingRectResizeItem.PointIndex.BottomRight.value].position())
+            pointIndex = points.index(point)
+            match (pointIndex):
+                case DrawingRectResizeItem.PointIndex.TopLeft.value:
+                    rect.setTopLeft(point.position())
+                case DrawingRectResizeItem.PointIndex.TopMiddle.value:
+                    rect.setTop(point.position().y())
+                case DrawingRectResizeItem.PointIndex.TopRight.value:
+                    rect.setTopRight(point.position())
+                case DrawingRectResizeItem.PointIndex.MiddleRight.value:
+                    rect.setRight(point.position().x())
+                case DrawingRectResizeItem.PointIndex.BottomRight.value:
+                    rect.setBottomRight(point.position())
+                case DrawingRectResizeItem.PointIndex.BottomMiddle.value:
+                    rect.setBottom(point.position().y())
+                case DrawingRectResizeItem.PointIndex.BottomLeft.value:
+                    rect.setBottomLeft(point.position())
+                case DrawingRectResizeItem.PointIndex.MiddleLeft.value:
+                    rect.setLeft(point.position().x())
 
-        pointIndex = points.index(point)
-        match (pointIndex):
-            case DrawingRectResizeItem.PointIndex.TopLeft.value:
-                rect.setTopLeft(point.position())
-            case DrawingRectResizeItem.PointIndex.TopMiddle.value:
-                rect.setTop(point.position().y())
-            case DrawingRectResizeItem.PointIndex.TopRight.value:
-                rect.setTopRight(point.position())
-            case DrawingRectResizeItem.PointIndex.MiddleRight.value:
-                rect.setRight(point.position().x())
-            case DrawingRectResizeItem.PointIndex.BottomRight.value:
-                rect.setBottomRight(point.position())
-            case DrawingRectResizeItem.PointIndex.BottomMiddle.value:
-                rect.setBottom(point.position().y())
-            case DrawingRectResizeItem.PointIndex.BottomLeft.value:
-                rect.setBottomLeft(point.position())
-            case DrawingRectResizeItem.PointIndex.MiddleLeft.value:
-                rect.setLeft(point.position().x())
+            # Keep the item's position as the center of the rect
+            center = rect.center()
+            self.setPosition(self.mapToScene(center))
+            rect.translate(-center)
 
-        # Keep the item's position as the center of the rect
-        center = rect.center()
-        self.setPosition(self.mapToScene(center))
-        rect.translate(-center)
-
-        # Move all points to their final positions
-        self.setRect(rect)
+            # Move all points to their final positions
+            self.setRect(rect)
 
     def resizeStartPoint(self) -> DrawingItemPoint | None:
-        return self.points()[DrawingRectResizeItem.PointIndex.TopLeft.value]
+        points = self.points()
+        if (len(points) >= 8):
+            return self.points()[DrawingRectResizeItem.PointIndex.TopLeft.value]
+        return None
 
     def resizeEndPoint(self) -> DrawingItemPoint | None:
-        return self.points()[DrawingRectResizeItem.PointIndex.BottomRight.value]
+        points = self.points()
+        if (len(points) >= 8):
+            return self.points()[DrawingRectResizeItem.PointIndex.BottomRight.value]
+        return None
 
     # ==================================================================================================================
 

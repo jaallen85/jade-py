@@ -26,12 +26,3 @@ class DrawingUnits(Enum):
     Inches = 5
     Feet = 6
     Miles = 7
-
-
-# ======================================================================================================================
-
-class DrawingMode(Enum):
-    SelectMode = 0
-    ScrollMode = 1
-    ZoomMode = 2
-    PlaceMode = 3

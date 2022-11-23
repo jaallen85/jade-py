@@ -67,14 +67,15 @@ class DrawingLineItem(DrawingItem):
     # ==================================================================================================================
 
     def setLine(self, line: QLineF) -> None:
-        self._line = line
-
         points = self.points()
-        points[DrawingLineItem.PointIndex.StartPoint.value].setPosition(line.p1())
-        points[DrawingLineItem.PointIndex.MidPoint.value].setPosition((line.p1() + line.p2()) / 2)      # type: ignore
-        points[DrawingLineItem.PointIndex.EndPoint.value].setPosition(line.p2())
+        if (len(points) >= 3):
+            self._line = line
 
-        self._updateGeometry()
+            points[DrawingLineItem.PointIndex.StartPoint.value].setPosition(line.p1())
+            points[DrawingLineItem.PointIndex.MidPoint.value].setPosition((line.p1() + line.p2()) / 2)  # type: ignore
+            points[DrawingLineItem.PointIndex.EndPoint.value].setPosition(line.p2())
+
+            self._updateGeometry()
 
     def line(self) -> QLineF:
         return self._line
@@ -194,50 +195,50 @@ class DrawingLineItem(DrawingItem):
             lineAngle = self._line.angle()
 
             if (lineLength >= self._startArrow.size()):
-                self._startArrow.paint(painter, self._pen, self._line.p1(), lineAngle)
+                self._startArrow.paint(painter, self._pen, self._line.p1(), -lineAngle + 180)
             if (lineLength >= self._endArrow.size()):
-                self._endArrow.paint(painter, self._pen, self._line.p2(), lineAngle + 180)
+                self._endArrow.paint(painter, self._pen, self._line.p2(), -lineAngle)
 
     # ==================================================================================================================
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
         points = self.points()
+        if (len(points) >= 3):
+            # Force the line to be orthogonal or at 45 degrees, if applicable
+            if (snapTo45Degrees):
+                otherEndPoint = None
+                if (point == points[DrawingLineItem.PointIndex.StartPoint.value]):
+                    otherEndPoint = points[DrawingLineItem.PointIndex.EndPoint.value]
+                elif (point == points[DrawingLineItem.PointIndex.EndPoint.value]):
+                    otherEndPoint = points[DrawingLineItem.PointIndex.StartPoint.value]
 
-        if (snapTo45Degrees):
-            # Force the line to be orthogonal or at 45 degrees
-            otherEndPoint = None
-            if (point == points[DrawingLineItem.PointIndex.StartPoint.value]):
-                otherEndPoint = points[DrawingLineItem.PointIndex.EndPoint.value]
-            elif (point == points[DrawingLineItem.PointIndex.EndPoint.value]):
-                otherEndPoint = points[DrawingLineItem.PointIndex.StartPoint.value]
+                if (otherEndPoint is not None):
+                    otherEndPosition = self.mapToScene(otherEndPoint.position())
+                    delta = position - otherEndPosition      # type: ignore
 
-            if (otherEndPoint is not None):
-                otherEndPosition = self.mapToScene(otherEndPoint.position())
-                delta = position - otherEndPosition      # type: ignore
+                    angle = math.atan2(position.y() - otherEndPosition.y(), position.x() - otherEndPosition.x())
+                    targetAngleDegrees = round(angle * 180 / math.pi / 45) * 45
+                    targetAngle = targetAngleDegrees * math.pi / 180
 
-                angle = math.atan2(position.y() - otherEndPosition.y(), position.x() - otherEndPosition.x())
-                targetAngleDegrees = round(angle * 180 / math.pi / 45) * 45
-                targetAngle = targetAngleDegrees * math.pi / 180
+                    length = max(abs(delta.x()), abs(delta.y()))
+                    if (abs(targetAngleDegrees % 90) == 45):
+                        length = length * math.sqrt(2)
 
-                length = max(abs(delta.x()), abs(delta.y()))
-                if (abs(targetAngleDegrees % 90) == 45):
-                    length = length * math.sqrt(2)
+                    position.setX(otherEndPosition.x() + length * math.cos(targetAngle))
+                    position.setY(otherEndPosition.y() + length * math.sin(targetAngle))
 
-                position.setX(otherEndPosition.x() + length * math.cos(targetAngle))
-                position.setY(otherEndPosition.y() + length * math.sin(targetAngle))
+            # Move the point to its new position
+            super().resize(point, position, False)
 
-        # Move the point to its new position
-        super().resize(point, position, False)
+            # Keep the item's position as the center of the line
+            line = QLineF(points[DrawingLineItem.PointIndex.StartPoint.value].position(),
+                          points[DrawingLineItem.PointIndex.EndPoint.value].position())
+            center = line.center()
+            self.setPosition(self.mapToScene(center))
+            line.translate(-center)
 
-        # Keep the item's position as the center of the line
-        line = QLineF(points[DrawingLineItem.PointIndex.StartPoint.value].position(),
-                      points[DrawingLineItem.PointIndex.EndPoint.value].position())
-        center = line.center()
-        self.setPosition(self.mapToScene(center))
-        line.translate(-center)
-
-        # Move all points to their final positions
-        self.setLine(line)
+            # Move all points to their final positions
+            self.setLine(line)
 
     def resizeStartPoint(self) -> DrawingItemPoint | None:
         return self.points()[DrawingLineItem.PointIndex.StartPoint.value]
@@ -285,10 +286,10 @@ class DrawingLineItem(DrawingItem):
 
         if (self.isValid()):
             # Update bounding rect (bounding rect doesn't include arrows)
-            mCachedBoundingRect = QRectF(self._line.p1(), self._line.p2()).normalized()
+            self._cachedBoundingRect = QRectF(self._line.p1(), self._line.p2()).normalized()
 
             halfPenWidth = self._pen.widthF() / 2
-            mCachedBoundingRect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)
+            self._cachedBoundingRect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)
 
             # Update shape (shape does include arrows if applicable)
             drawPath = QPainterPath()
@@ -300,8 +301,6 @@ class DrawingLineItem(DrawingItem):
             lineAngle = self._line.angle()
 
             if (lineLength >= self._startArrow.size()):
-                self._cachedShape = self._cachedShape.united(self._startArrow.shape(self._pen, self._line.p1(),
-                                                                                    lineAngle))
+                self._cachedShape.addPath(self._startArrow.shape(self._pen, self._line.p1(), -lineAngle + 180))
             if (lineLength >= self._endArrow.size()):
-                self._cachedShape = self._cachedShape.united(self._endArrow.shape(self._pen, self._line.p2(),
-                                                                                  lineAngle + 180))
+                self._cachedShape.addPath(self._endArrow.shape(self._pen, self._line.p2(), -lineAngle))
