@@ -17,7 +17,7 @@
 import typing
 from enum import Enum
 from PyQt6.QtCore import pyqtSignal, Qt, QPointF
-from PyQt6.QtGui import QAction, QActionGroup, QCursor, QIcon, QKeySequence, QMouseEvent, QUndoCommand, QUndoStack
+from PyQt6.QtGui import QAction, QCursor, QIcon, QKeySequence, QMouseEvent, QUndoCommand, QUndoStack
 from PyQt6.QtWidgets import QApplication, QMenu
 from .drawingitem import DrawingItem
 from .drawingitemgroup import DrawingItemGroup
@@ -26,6 +26,7 @@ from .drawingview import DrawingView
 
 
 class DrawingWidget(DrawingView):
+    undoCommandCreated = pyqtSignal(QUndoCommand)
     cleanChanged = pyqtSignal(bool)
     modifiedStringChanged = pyqtSignal(str)
     currentItemsPropertyChanged = pyqtSignal(list)
@@ -33,8 +34,10 @@ class DrawingWidget(DrawingView):
     def __init__(self) -> None:
         super().__init__()
 
+        self._undoForwarding: bool = False
         self._undoStack: QUndoStack = QUndoStack()
         self._undoStack.setUndoLimit(64)
+        self._undoStack.cleanChanged.connect(self.cleanChanged)                 # type: ignore
         self._undoStack.cleanChanged.connect(self._emitModifiedStringChanged)   # type: ignore
 
         self._selectedItemsCenter: QPointF = QPointF()
@@ -52,26 +55,21 @@ class DrawingWidget(DrawingView):
 
     def _createActions(self) -> None:
         # Normal actions
-        self.undoAction: QAction = self._addNormalAction('Undo', self.undo, 'icons:edit-undo.png', 'Ctrl+Z')
-        self.redoAction: QAction = self._addNormalAction('Redo', self.redo, 'icons:edit-redo.png', 'Ctrl+Shift+Z')
+        self.undoAction: QAction = self._addNormalAction('Undo', self.undo, 'icons:edit-undo.png')
+        self.redoAction: QAction = self._addNormalAction('Redo', self.redo, 'icons:edit-redo.png')
 
-        self.cutAction: QAction = self._addNormalAction('Cut', self.cut, 'icons:edit-cut.png', 'Ctrl+X')
-        self.copyAction: QAction = self._addNormalAction('Copy', self.copy, 'icons:edit-copy.png', 'Ctrl+C')
-        self.pasteAction: QAction = self._addNormalAction('Paste', self.paste, 'icons:edit-paste.png', 'Ctrl+V')
-        self.deleteAction: QAction = self._addNormalAction('Delete', self.delete, 'icons:edit-delete.png', 'Delete')
+        self.cutAction: QAction = self._addNormalAction('Cut', self.cut, 'icons:edit-cut.png')
+        self.copyAction: QAction = self._addNormalAction('Copy', self.copy, 'icons:edit-copy.png')
+        self.pasteAction: QAction = self._addNormalAction('Paste', self.paste, 'icons:edit-paste.png')
+        self.deleteAction: QAction = self._addNormalAction('Delete', self.delete, 'icons:edit-delete.png')
 
-        self.selectAllAction: QAction = self._addNormalAction('Select All', self.selectAll,
-                                                              'icons:edit-select-all.png', 'Ctrl+A')
-        self.selectNoneAction: QAction = self._addNormalAction('Select None', self.selectNone, '', 'Ctrl+Shift+A')
-
-        self.rotateAction: QAction = self._addNormalAction('Rotate', self.rotate,
-                                                           'icons:object-rotate-right.png', 'R')
+        self.rotateAction: QAction = self._addNormalAction('Rotate', self.rotate, 'icons:object-rotate-right.png')
         self.rotateBackAction: QAction = self._addNormalAction('Rotate Back', self.rotateBack,
-                                                               'icons:object-rotate-left.png', 'Shift+R')
+                                                               'icons:object-rotate-left.png')
         self.flipHorizontalAction: QAction = self._addNormalAction('Flip Horizontal', self.flipHorizontal,
-                                                                   'icons:object-flip-horizontal.png', 'F')
+                                                                   'icons:object-flip-horizontal.png')
         self.flipVerticalAction: QAction = self._addNormalAction('Flip Vertical', self.flipVertical,
-                                                                 'icons:object-flip-vertical.png', 'Shift+F')
+                                                                 'icons:object-flip-vertical.png')
 
         self.bringForwardAction: QAction = self._addNormalAction('Bring Forward', self.bringForward,
                                                                  'icons:object-bring-forward.png')
@@ -82,38 +80,15 @@ class DrawingWidget(DrawingView):
         self.sendToBackAction: QAction = self._addNormalAction('Send to Back', self.sendToBack,
                                                                'icons:object-send-to-back.png')
 
-        self.groupAction: QAction = self._addNormalAction('Group', self.group, 'icons:merge.png', 'Ctrl+G')
-        self.ungroupAction: QAction = self._addNormalAction('Ungroup', self.ungroup, 'icons:split.png', 'Ctrl+Shift+G')
+        self.groupAction: QAction = self._addNormalAction('Group', self.group, 'icons:merge.png')
+        self.ungroupAction: QAction = self._addNormalAction('Ungroup', self.ungroup, 'icons:split.png')
 
         self.insertPointAction: QAction = self._addNormalAction('Insert Point', self.insertNewItemPoint)
         self.removePointAction: QAction = self._addNormalAction('Remove Point', self.removeCurrentItemPoint)
 
-        self.zoomInAction: QAction = self._addNormalAction('Zoom In', self.zoomIn, 'icons:zoom-in.png', '.')
-        self.zoomOutAction: QAction = self._addNormalAction('Zoom Out', self.zoomOut, 'icons:zoom-out.png', ',')
-        self.zoomFitAction: QAction = self._addNormalAction('Zoom Fit', self.zoomFit, 'icons:zoom-fit-best.png', '/')
-
-        # Mode actions
-        self._modeActionGroup: QActionGroup = QActionGroup(self)
-        self._modeActionGroup.triggered.connect(self._setModeFromAction)    # type: ignore
-        self.modeChanged.connect(self._updateActionsFromMode)
-
-        self.selectModeAction: QAction = self._addModeAction('Select Mode', '', 'icons:edit-select.png', 'Escape')
-        self.scrollModeAction: QAction = self._addModeAction('Scroll Mode', '', 'icons:transform-move.png')
-        self.zoomModeAction: QAction = self._addModeAction('Zoom Mode', '', 'icons:page-zoom.png')
-
-        self.placeLineAction: QAction = self._addModeAction('Place Line', 'line', 'icons:draw-line.png')
-        self.placeCurveAction: QAction = self._addModeAction('Place Curve', 'curve', 'icons:draw-curve.png')
-        self.placePolylineAction: QAction = self._addModeAction('Place Polyline', 'polyline', 'icons:draw-polyline.png')
-        self.placeRectAction: QAction = self._addModeAction('Place Rectangle', 'rect', 'icons:draw-rectangle.png')
-        self.placeEllipseAction: QAction = self._addModeAction('Place Ellipse', 'ellipse', 'icons:draw-ellipse.png')
-        self.placePolygonAction: QAction = self._addModeAction('Place Polygon', 'polygon', 'icons:draw-polygon.png')
-        self.placeTextAction: QAction = self._addModeAction('Place Text', 'text', 'icons:draw-text.png')
-        self.placeTextRectAction: QAction = self._addModeAction('Place Text Rectangle', 'textRect',
-                                                                'icons:text-rect.png')
-        self.placeTextEllipseAction: QAction = self._addModeAction('Place Text Ellipse', 'textEllipse',
-                                                                   'icons:text-ellipse.png')
-
-        self.selectModeAction.setChecked(True)
+        self.zoomInAction: QAction = self._addNormalAction('Zoom In', self.zoomIn, 'icons:zoom-in.png')
+        self.zoomOutAction: QAction = self._addNormalAction('Zoom Out', self.zoomOut, 'icons:zoom-out.png')
+        self.zoomFitAction: QAction = self._addNormalAction('Zoom Fit', self.zoomFit, 'icons:zoom-fit-best.png')
 
     def _createContextMenus(self) -> None:
         self._noItemContextMenu: QMenu = QMenu()
@@ -365,6 +340,12 @@ class DrawingWidget(DrawingView):
 
     # ==================================================================================================================
 
+    def setUndoForwarding(self, forwarding: bool) -> None:
+        self._undoForwarding = forwarding
+
+    def isUndoForwarding(self) -> bool:
+        return self._undoForwarding
+
     def undo(self) -> None:
         if (self._mode == DrawingView.Mode.SelectMode):
             self._undoStack.undo()
@@ -381,7 +362,10 @@ class DrawingWidget(DrawingView):
         return self._undoStack.isClean()
 
     def _pushUndoCommand(self, command: QUndoCommand) -> None:
-        self._undoStack.push(command)
+        if (self._undoForwarding):
+            self.undoCommandCreated.emit(command)
+        else:
+            self._undoStack.push(command)
 
     # ==================================================================================================================
 
@@ -654,20 +638,20 @@ class DrawingWidget(DrawingView):
 
     def _selectModeResizeItemUpdateEvent(self, event: QMouseEvent) -> None:
         shiftDown = ((event.modifiers() & Qt.KeyboardModifier.ShiftModifier) == Qt.KeyboardModifier.ShiftModifier)
-        self._selectMoveResizeItem(self.mapToScene(event.pos()), snapTo45Degrees=shiftDown, finalResize=False)
+        self._selectModeResizeItem(self.mapToScene(event.pos()), snapTo45Degrees=shiftDown, finalResize=False)
 
     def _selectModeResizeItemEndEvent(self, event: QMouseEvent) -> None:
         shiftDown = ((event.modifiers() & Qt.KeyboardModifier.ShiftModifier) == Qt.KeyboardModifier.ShiftModifier)
-        self._selectMoveResizeItem(self.mapToScene(event.pos()), snapTo45Degrees=shiftDown, finalResize=True)
+        self._selectModeResizeItem(self.mapToScene(event.pos()), snapTo45Degrees=shiftDown, finalResize=True)
 
         # Reset select mode resize item event variables
         self._selectResizeItemInitialPosition = QPointF()
         self._selectResizeItemPreviousPosition = QPointF()
 
-    def _selectMoveResizeItem(self, mousePosition: QPointF, snapTo45Degrees: bool, finalResize: bool) -> None:
+    def _selectModeResizeItem(self, mousePosition: QPointF, snapTo45Degrees: bool, finalResize: bool) -> None:
         if (self._selectMouseDownItem is not None and self._selectMouseDownPoint is not None):
             newPosition = self.roundPointToGrid(mousePosition)
-            if (newPosition != self._selectResizeItemPreviousPosition):
+            if (finalResize or newPosition != self._selectResizeItemPreviousPosition):
                 self._resizeItemCommand(self._selectMouseDownPoint, newPosition, snapTo45Degrees, finalResize,
                                         place=finalResize, disconnect=True)
 
@@ -945,6 +929,18 @@ class DrawingWidget(DrawingView):
     def _updateSelectionCenter(self) -> None:
         self._selectedItemsCenter = self._itemsCenter(self._selectedItems)
 
+    # ==================================================================================================================
+
+    def _addNormalAction(self, text: str, slot: typing.Callable, iconPath: str = '', shortcut: str = '') -> QAction:
+        action = QAction(text, self)
+        action.triggered.connect(slot)      # type: ignore
+        if (iconPath != ''):
+            action.setIcon(QIcon(iconPath))
+        if (shortcut != ''):
+            action.setShortcut(QKeySequence(shortcut))
+        self.addAction(action)
+        return action
+
     def _updateActionsFromSelection(self) -> None:
         canGroup = (len(self._selectedItems) > 1)
         canUngroup = False
@@ -960,53 +956,6 @@ class DrawingWidget(DrawingView):
         self.ungroupAction.setEnabled(canUngroup)
         self.insertPointAction.setEnabled(canInsertPoints)
         self.removePointAction.setEnabled(canRemovePoints)
-
-    # ==================================================================================================================
-
-    def setActionsEnabled(self, enable: bool) -> None:
-        for action in self.actions():
-            action.setEnabled(enable)
-        for action in self._modeActionGroup.actions():
-            action.setEnabled(enable)
-
-    def _addNormalAction(self, text: str, slot: typing.Callable, iconPath: str = '', shortcut: str = '') -> QAction:
-        action = QAction(text, self)
-        action.triggered.connect(slot)      # type: ignore
-        if (iconPath != ''):
-            action.setIcon(QIcon(iconPath))
-        if (shortcut != ''):
-            action.setShortcut(QKeySequence(shortcut))
-        self.addAction(action)
-        return action
-
-    def _addModeAction(self, text: str, itemKey: str = '', iconPath: str = '', shortcut: str = '') -> QAction:
-        action = QAction(text, self._modeActionGroup)
-        action.setProperty('key', itemKey)
-        if (iconPath != ''):
-            action.setIcon(QIcon(iconPath))
-        if (shortcut != ''):
-            action.setShortcut(QKeySequence(shortcut))
-        action.setCheckable(True)
-        action.setActionGroup(self._modeActionGroup)
-        return action
-
-    def _setModeFromAction(self, action: QAction) -> None:
-        if (action == self.selectModeAction):
-            self.setSelectMode()
-        elif (action == self.scrollModeAction):
-            self.setScrollMode()
-        elif (action == self.zoomModeAction):
-            self.setZoomMode()
-        else:
-            item = DrawingItem.create(action.property('key'))
-            if (item is not None):
-                self.setPlaceMode([item])
-            else:
-                self.setSelectMode()
-
-    def _updateActionsFromMode(self, mode: int):
-        if (mode == DrawingView.Mode.SelectMode.value and not self.selectModeAction.isChecked()):
-            self.selectModeAction.setChecked(True)
 
 
 # ======================================================================================================================

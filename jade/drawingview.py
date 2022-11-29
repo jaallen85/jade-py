@@ -494,6 +494,7 @@ class DrawingView(QAbstractScrollArea):
 
         # Clear items from the scene
         self.setSelectMode()
+        self.setSelectedItems([])
         while (len(self._items) > 0):
             item = self._items[-1]
             self.removeItem(item)

@@ -1,0 +1,788 @@
+# drawingmultipagewidget.py
+# Copyright (C) 2022  Jason Allen
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import typing
+from PyQt6.QtCore import pyqtSignal, QRectF
+from PyQt6.QtGui import QAction, QActionGroup, QBrush, QIcon, QKeySequence, QUndoCommand, QUndoStack
+from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
+from .drawingitem import DrawingItem
+from .drawingtypes import DrawingUnits
+from .drawingwidget import DrawingSetWidgetPropertyCommand, DrawingWidget
+
+
+class DrawingMultiPageWidget(QWidget):
+    propertyChanged = pyqtSignal(str, object)
+
+    pageInserted = pyqtSignal(DrawingWidget, int)
+    pageRemoved = pyqtSignal(DrawingWidget, int)
+    currentPageChanged = pyqtSignal(DrawingWidget)
+    currentPageIndexChanged = pyqtSignal(int)
+    currentPagePropertyChanged = pyqtSignal(str, object)
+
+    scaleChanged = pyqtSignal(float)
+    modeChanged = pyqtSignal(int)
+    modeStringChanged = pyqtSignal(str)
+    mouseInfoChanged = pyqtSignal(str)
+    currentItemsChanged = pyqtSignal(list)
+    currentItemsPropertyChanged = pyqtSignal(list)
+
+    cleanChanged = pyqtSignal(bool)
+    modifiedStringChanged = pyqtSignal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._units: DrawingUnits = DrawingUnits.Millimeters
+
+        self._grid: float = 0
+        self._gridVisible: bool = False
+        self._gridBrush: QBrush = QBrush()
+        self._gridSpacingMajor: int = 0
+        self._gridSpacingMinor: int = 0
+
+        self._defaultSceneRect: QRectF = QRectF()
+        self._defaultBackgroundBrush: QBrush = QBrush()
+
+        self._pages: list[DrawingWidget] = []
+        self._currentPage: DrawingWidget | None = None
+        self._newPageCount: int = 0
+
+        self._stackedWidget: QStackedWidget = QStackedWidget()
+        layout = QVBoxLayout()
+        layout.addWidget(self._stackedWidget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        self._undoStack: QUndoStack = QUndoStack()
+        self._undoStack.setUndoLimit(64)
+        self._undoStack.cleanChanged.connect(self.cleanChanged)                 # type: ignore
+        self._undoStack.cleanChanged.connect(self._emitModifiedStringChanged)   # type: ignore
+
+        self._createActions()
+        self.currentItemsChanged.connect(self._updateActionsFromSelection)
+
+    def _createActions(self) -> None:
+        # Normal actions
+        self.undoAction: QAction = self._addNormalAction('Undo', self.undo, 'icons:edit-undo.png', 'Ctrl+Z')
+        self.redoAction: QAction = self._addNormalAction('Redo', self.redo, 'icons:edit-redo.png', 'Ctrl+Shift+Z')
+
+        self.cutAction: QAction = self._addNormalAction('Cut', self.cut, 'icons:edit-cut.png', 'Ctrl+X')
+        self.copyAction: QAction = self._addNormalAction('Copy', self.copy, 'icons:edit-copy.png', 'Ctrl+C')
+        self.pasteAction: QAction = self._addNormalAction('Paste', self.paste, 'icons:edit-paste.png', 'Ctrl+V')
+        self.deleteAction: QAction = self._addNormalAction('Delete', self.delete, 'icons:edit-delete.png', 'Delete')
+
+        self.selectAllAction: QAction = self._addNormalAction('Select All', self.selectAll,
+                                                              'icons:edit-select-all.png', 'Ctrl+A')
+        self.selectNoneAction: QAction = self._addNormalAction('Select None', self.selectNone, '', 'Ctrl+Shift+A')
+
+        self.rotateAction: QAction = self._addNormalAction('Rotate', self.rotate,
+                                                           'icons:object-rotate-right.png', 'R')
+        self.rotateBackAction: QAction = self._addNormalAction('Rotate Back', self.rotateBack,
+                                                               'icons:object-rotate-left.png', 'Shift+R')
+        self.flipHorizontalAction: QAction = self._addNormalAction('Flip Horizontal', self.flipHorizontal,
+                                                                   'icons:object-flip-horizontal.png', 'F')
+        self.flipVerticalAction: QAction = self._addNormalAction('Flip Vertical', self.flipVertical,
+                                                                 'icons:object-flip-vertical.png', 'Shift+F')
+
+        self.bringForwardAction: QAction = self._addNormalAction('Bring Forward', self.bringForward,
+                                                                 'icons:object-bring-forward.png')
+        self.sendBackwardAction: QAction = self._addNormalAction('Send Backward', self.sendBackward,
+                                                                 'icons:object-send-backward.png')
+        self.bringToFrontAction: QAction = self._addNormalAction('Bring to Front', self.bringToFront,
+                                                                 'icons:object-bring-to-front.png')
+        self.sendToBackAction: QAction = self._addNormalAction('Send to Back', self.sendToBack,
+                                                               'icons:object-send-to-back.png')
+
+        self.groupAction: QAction = self._addNormalAction('Group', self.group, 'icons:merge.png', 'Ctrl+G')
+        self.ungroupAction: QAction = self._addNormalAction('Ungroup', self.ungroup, 'icons:split.png', 'Ctrl+Shift+G')
+
+        self.insertPointAction: QAction = self._addNormalAction('Insert Point', self.insertNewItemPoint)
+        self.removePointAction: QAction = self._addNormalAction('Remove Point', self.removeCurrentItemPoint)
+
+        self.insertPageAction: QAction = self._addNormalAction('Insert Page', self.insertNewPage)
+        self.removePageAction: QAction = self._addNormalAction('Remove Page', self.removeCurrentPage)
+
+        self.zoomInAction: QAction = self._addNormalAction('Zoom In', self.zoomIn, 'icons:zoom-in.png', '.')
+        self.zoomOutAction: QAction = self._addNormalAction('Zoom Out', self.zoomOut, 'icons:zoom-out.png', ',')
+        self.zoomFitAction: QAction = self._addNormalAction('Zoom Fit', self.zoomFit, 'icons:zoom-fit-best.png', '/')
+
+        # Mode actions
+        self._modeActionGroup: QActionGroup = QActionGroup(self)
+        self._modeActionGroup.triggered.connect(self._setModeFromAction)    # type: ignore
+        self.modeChanged.connect(self._updateActionsFromMode)
+
+        self.selectModeAction: QAction = self._addModeAction('Select Mode', '', 'icons:edit-select.png', 'Escape')
+        self.scrollModeAction: QAction = self._addModeAction('Scroll Mode', '', 'icons:transform-move.png')
+        self.zoomModeAction: QAction = self._addModeAction('Zoom Mode', '', 'icons:page-zoom.png')
+
+        self.placeLineAction: QAction = self._addModeAction('Place Line', 'line', 'icons:draw-line.png')
+        self.placeCurveAction: QAction = self._addModeAction('Place Curve', 'curve', 'icons:draw-curve.png')
+        self.placePolylineAction: QAction = self._addModeAction('Place Polyline', 'polyline', 'icons:draw-polyline.png')
+        self.placeRectAction: QAction = self._addModeAction('Place Rectangle', 'rect', 'icons:draw-rectangle.png')
+        self.placeEllipseAction: QAction = self._addModeAction('Place Ellipse', 'ellipse', 'icons:draw-ellipse.png')
+        self.placePolygonAction: QAction = self._addModeAction('Place Polygon', 'polygon', 'icons:draw-polygon.png')
+        self.placeTextAction: QAction = self._addModeAction('Place Text', 'text', 'icons:draw-text.png')
+        self.placeTextRectAction: QAction = self._addModeAction('Place Text Rectangle', 'textRect',
+                                                                'icons:text-rect.png')
+        self.placeTextEllipseAction: QAction = self._addModeAction('Place Text Ellipse', 'textEllipse',
+                                                                   'icons:text-ellipse.png')
+
+        self.selectModeAction.setChecked(True)
+
+    # ==================================================================================================================
+
+    def setUnits(self, units: DrawingUnits) -> None:
+        if (self._units != units):
+            self._units = units
+
+            self.blockSignals(True)
+            for page in self._pages:
+                page.setUnits(self._units)
+            self.blockSignals(False)
+
+            self.propertyChanged.emit('units', self._units)
+
+    def units(self) -> DrawingUnits:
+        return self._units
+
+    # ==================================================================================================================
+
+    def setGrid(self, grid: float) -> None:
+        if (self._grid != grid and grid >= 0):
+            self._grid = grid
+
+            self.blockSignals(True)
+            for page in self._pages:
+                page.setGrid(self._grid)
+            self.blockSignals(False)
+
+            self.propertyChanged.emit('grid', self._grid)
+
+    def setGridVisible(self, visible: bool) -> None:
+        if (self._gridVisible != visible):
+            self._gridVisible = visible
+
+            self.blockSignals(True)
+            for page in self._pages:
+                page.setGridVisible(self._gridVisible)
+            self.blockSignals(False)
+
+            self.propertyChanged.emit('gridVisible', self._gridVisible)
+
+    def setGridBrush(self, brush: QBrush) -> None:
+        if (self._gridBrush != brush):
+            self._gridBrush = brush
+
+            self.blockSignals(True)
+            for page in self._pages:
+                page.setGridBrush(self._gridBrush)
+            self.blockSignals(False)
+
+            self.propertyChanged.emit('gridBrush', self._gridBrush)
+
+    def setGridSpacingMajor(self, spacing: int) -> None:
+        if (self._gridSpacingMajor != spacing and spacing >= 0):
+            self._gridSpacingMajor = spacing
+
+            self.blockSignals(True)
+            for page in self._pages:
+                page.setGridSpacingMajor(self._gridSpacingMajor)
+            self.blockSignals(False)
+
+            self.propertyChanged.emit('gridSpacingMajor', self._gridSpacingMajor)
+
+    def setGridSpacingMinor(self, spacing: int) -> None:
+        if (self._gridSpacingMinor != spacing and spacing >= 0):
+            self._gridSpacingMinor = spacing
+
+            self.blockSignals(True)
+            for page in self._pages:
+                page.setGridSpacingMinor(self._gridSpacingMinor)
+            self.blockSignals(False)
+
+            self.propertyChanged.emit('gridSpacingMinor', self._gridSpacingMinor)
+
+    def grid(self) -> float:
+        return self._grid
+
+    def isGridVisible(self) -> bool:
+        return self._gridVisible
+
+    def gridBrush(self) -> QBrush:
+        return self._gridBrush
+
+    def gridSpacingMajor(self) -> int:
+        return self._gridSpacingMajor
+
+    def gridSpacingMinor(self) -> int:
+        return self._gridSpacingMinor
+
+    # ==================================================================================================================
+
+    def setDefaultSceneRect(self, rect: QRectF) -> None:
+        if (self._defaultSceneRect != rect and rect.isValid()):
+            self._defaultSceneRect = rect
+            self.propertyChanged.emit('defaultSceneRect', self._defaultSceneRect)
+
+    def setDefaultBackgroundBrush(self, brush: QBrush) -> None:
+        if (self._defaultBackgroundBrush != brush):
+            self._defaultBackgroundBrush = brush
+            self.propertyChanged.emit('defaultBackgroundBrush', self._defaultBackgroundBrush)
+
+    def defaultSceneRect(self) -> QRectF:
+        return self._defaultSceneRect
+
+    def defaultBackgroundBrush(self) -> QBrush:
+        return self._defaultBackgroundBrush
+
+    # ==================================================================================================================
+
+    def setProperty(self, name: str, value: typing.Any) -> bool:
+        match (name):
+            case 'units':
+                if (isinstance(value, int)):
+                    self.setUnits(DrawingUnits(value))
+            case 'grid':
+                if (isinstance(value, float)):
+                    self.setGrid(value)
+            case 'gridVisible':
+                if (isinstance(value, bool)):
+                    self.setGridVisible(value)
+            case 'gridBrush':
+                if (isinstance(value, QBrush)):
+                    self.setGridBrush(value)
+            case 'gridSpacingMajor':
+                if (isinstance(value, int)):
+                    self.setGridSpacingMajor(value)
+            case 'gridSpacingMinor':
+                if (isinstance(value, int)):
+                    self.setGridSpacingMinor(value)
+            case 'defaultSceneRect':
+                if (isinstance(value, QRectF)):
+                    self.setDefaultSceneRect(value)
+            case 'defaultBackgroundBrush':
+                if (isinstance(value, QBrush)):
+                    self.setDefaultBackgroundBrush(value)
+        return True
+
+    def property(self, name: str) -> typing.Any:
+        match (name):
+            case 'units':
+                return self.units().value
+            case 'grid':
+                return self.grid()
+            case 'gridVisible':
+                return self.isGridVisible()
+            case 'gridBrush':
+                return self.gridBrush()
+            case 'gridSpacingMajor':
+                return self.gridSpacingMajor()
+            case 'gridSpacingMinor':
+                return self.gridSpacingMinor()
+            case 'defaultSceneRect':
+                return self.defaultSceneRect()
+            case 'defaultBackgroundBrush':
+                return self.defaultBackgroundBrush()
+        return None
+
+    # ==================================================================================================================
+
+    def addPage(self, page: DrawingWidget) -> None:
+        self.insertPage(len(self._pages), page)
+
+    def insertPage(self, index: int, page: DrawingWidget) -> None:
+        if (page not in self._pages):
+            self._pages.insert(index, page)
+            self._stackedWidget.insertWidget(index, page)
+
+            self.pageInserted.emit(page, index)
+
+            page.setUndoForwarding(True)
+            page.undoCommandCreated.connect(self._pushUndoCommand)
+
+            page.scaleChanged.connect(self._emitScaleChanged)
+            page.modeChanged.connect(self._emitModeChanged)
+            page.modeStringChanged.connect(self._emitModeStringChanged)
+            page.mouseInfoChanged.connect(self._emitMouseInfoChanged)
+            page.currentItemsChanged.connect(self._emitCurrentItemsChanged)
+            page.currentItemsPropertyChanged.connect(self._emitCurrentItemsPropertyChanged)
+            page.propertyChanged.connect(self._emitCurrentPagePropertyChanged)
+
+            self.setCurrentPage(page)
+
+    def removePage(self, page: DrawingWidget) -> None:
+        if (page in self._pages):
+            index = self._pages.index(page)
+
+            newCurrentPageIndex = -1
+            if (index > 0):
+                newCurrentPageIndex = index - 1
+            elif (index < len(self._pages) - 1):
+                newCurrentPageIndex = index + 1
+
+            self._pages.remove(page)
+            self._stackedWidget.removeWidget(page)
+            page.setParent(None)    # type: ignore
+
+            page.scaleChanged.disconnect(self._emitScaleChanged)
+            page.modeChanged.disconnect(self._emitModeChanged)
+            page.modeStringChanged.disconnect(self._emitModeStringChanged)
+            page.mouseInfoChanged.disconnect(self._emitMouseInfoChanged)
+            page.currentItemsChanged.disconnect(self._emitCurrentItemsChanged)
+            page.currentItemsPropertyChanged.disconnect(self._emitCurrentItemsPropertyChanged)
+            page.propertyChanged.disconnect(self._emitCurrentPagePropertyChanged)
+
+            self.pageRemoved.emit(page, index)
+
+            self.setCurrentPageIndex(newCurrentPageIndex)
+
+    def movePage(self, page: DrawingWidget, newIndex: int) -> None:
+        if (page in self._pages):
+            index = self._pages.index(page)
+
+            self._pages.remove(page)
+            self._stackedWidget.removeWidget(page)
+            page.setParent(None)    # type: ignore
+
+            self.pageRemoved.emit(page, index)
+
+            self._pages.insert(newIndex, page)
+            self._stackedWidget.insertWidget(newIndex, page)
+
+            self.pageInserted.emit(page, newIndex)
+
+            self.setCurrentPage(page)
+
+    def pages(self) -> list[DrawingWidget]:
+        return self._pages
+
+    # ==================================================================================================================
+
+    def setCurrentPage(self, page: DrawingWidget | None) -> None:
+        # Only allow us to use a page that is part of the view as the current page, but also allow None
+        if (page is None or page in self._pages):
+            self.setSelectMode()
+            self.setSelectedItems([])
+
+            self._currentPage = page
+            if (self._currentPage is not None):
+                self._stackedWidget.setCurrentWidget(self._currentPage)
+            else:
+                self._stackedWidget.setCurrentIndex(-1)
+
+            self.currentPageChanged.emit(self._currentPage)
+            self.currentPageIndexChanged.emit(self.currentPageIndex())
+
+            self.scaleChanged.emit(self.scale())
+            self.mouseInfoChanged.emit('')
+
+    def setCurrentPageIndex(self, index: int) -> None:
+        if (0 <= index < len(self._pages)):
+            self.setCurrentPage(self._pages[index])
+        else:
+            self.setCurrentPage(None)
+
+    def currentPage(self) -> DrawingWidget | None:
+        return self._currentPage
+
+    def currentPageIndex(self) -> int:
+        if (self._currentPage is not None and self._currentPage in self._pages):
+            return self._pages.index(self._currentPage)
+        return -1
+
+    # ==================================================================================================================
+
+    def clear(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def undo(self) -> None:
+        if (self.mode() == DrawingWidget.Mode.SelectMode):
+            self._undoStack.undo()
+        else:
+            self.setSelectMode()
+
+    def redo(self) -> None:
+        if (self.mode() == DrawingWidget.Mode.SelectMode):
+            self._undoStack.redo()
+        else:
+            self.setSelectMode()
+
+    def isClean(self) -> bool:
+        return self._undoStack.isClean()
+
+    def _pushUndoCommand(self, command: QUndoCommand) -> None:
+        self._undoStack.push(command)
+
+    # ==================================================================================================================
+
+    def cut(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.cut()
+
+    def copy(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.copy()
+
+    def paste(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.paste()
+
+    def delete(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.delete()
+
+    # ==================================================================================================================
+
+    def setSelectedItems(self, items: list[DrawingItem]):
+        if (self._currentPage is not None):
+            self._currentPage.setSelectedItems(items)
+
+    def selectAll(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.selectAll()
+
+    def selectNone(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.selectNone()
+
+    def selectedItems(self) -> list[DrawingItem]:
+        if (self._currentPage is not None):
+            return self._currentPage.selectedItems()
+        return []
+
+    # ==================================================================================================================
+
+    def rotate(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.rotate()
+
+    def rotateBack(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.rotateBack()
+
+    def flipHorizontal(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.flipHorizontal()
+
+    def flipVertical(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.flipVertical()
+
+    # ==================================================================================================================
+
+    def bringForward(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.bringForward()
+
+    def sendBackward(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.sendBackward()
+
+    def bringToFront(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.bringToFront()
+
+    def sendToBack(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.sendToBack()
+
+    # ==================================================================================================================
+
+    def group(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.group()
+
+    def ungroup(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.ungroup()
+
+    # ==================================================================================================================
+
+    def insertNewItemPoint(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.insertNewItemPoint()
+
+    def removeCurrentItemPoint(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.removeCurrentItemPoint()
+
+    # ==================================================================================================================
+
+    def insertNewPage(self) -> None:
+        # Determine a unique name for the new page
+        name = ''
+        nameIsUnique = False
+        while (not nameIsUnique):
+            self._newPageCount = self._newPageCount + 1
+            name = f'Page{self._newPageCount}'
+            nameIsUnique = True
+            for page in self._pages:
+                if (name == page.name()):
+                    nameIsUnique = False
+                    break
+
+        # Create the new page and add it to the view
+        newPage = DrawingWidget()
+        newPage.setName(name)
+        newPage.setUnits(self._units)
+        newPage.setSceneRect(self._defaultSceneRect)
+        newPage.setBackgroundBrush(self._defaultBackgroundBrush)
+        newPage.setGrid(self._grid)
+        newPage.setGridVisible(self._gridVisible)
+        newPage.setGridBrush(self._gridBrush)
+        newPage.setGridSpacingMajor(self._gridSpacingMajor)
+        newPage.setGridSpacingMinor(self._gridSpacingMinor)
+        self._pushUndoCommand(DrawingInsertPageCommand(self, newPage, self.currentPageIndex() + 1))
+        self.zoomFit()
+
+    def removeCurrentPage(self) -> None:
+        if (self._currentPage is not None):
+            self._pushUndoCommand(DrawingRemovePageCommand(self, self._currentPage))
+
+    def moveCurrentPage(self, newIndex: int) -> None:
+        if (self._currentPage is not None):
+            self._pushUndoCommand(DrawingMovePageCommand(self, self._currentPage, newIndex))
+
+    def renameCurrentPage(self, name: str) -> None:
+        if (self._currentPage is not None):
+            self._pushUndoCommand(DrawingSetWidgetPropertyCommand(self._currentPage, 'name', name))
+
+    # ==================================================================================================================
+
+    def setScale(self, scale: float) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.setScale(scale)
+
+    def zoomIn(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.zoomIn()
+
+    def zoomOut(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.zoomOut()
+
+    def zoomFit(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.zoomFit()
+
+    def scale(self) -> float:
+        if (self._currentPage is not None):
+            return self._currentPage.scale()
+        return 1.0
+
+    # ==================================================================================================================
+
+    def setSelectMode(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.setSelectMode()
+
+    def setScrollMode(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.setScrollMode()
+
+    def setZoomMode(self) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.setZoomMode()
+
+    def setPlaceMode(self, items: list[DrawingItem]) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.setPlaceMode(items)
+
+    def mode(self) -> DrawingWidget.Mode:
+        if (self._currentPage is not None):
+            return self._currentPage.mode()
+        return DrawingWidget.Mode.SelectMode
+
+    # ==================================================================================================================
+
+    def _emitScaleChanged(self, scale: float) -> None:
+        self.scaleChanged.emit(scale)
+
+    def _emitModeChanged(self, mode: DrawingWidget.Mode) -> None:
+        self.modeChanged.emit(mode)
+
+    def _emitModeStringChanged(self, modeStr: str) -> None:
+        self.modeStringChanged.emit(modeStr)
+
+    def _emitMouseInfoChanged(self, mouseInfo: str) -> None:
+        self.mouseInfoChanged.emit(mouseInfo)
+
+    def _emitCurrentItemsChanged(self, items: list[DrawingItem]) -> None:
+        self.currentItemsChanged.emit(items)
+
+    def _emitCurrentItemsPropertyChanged(self, items: list[DrawingItem]) -> None:
+        self.currentItemsPropertyChanged.emit(items)
+
+    def _emitCurrentPagePropertyChanged(self, name: str, value: typing.Any) -> None:
+        self.currentPagePropertyChanged.emit(name, value)
+
+    def _emitModifiedStringChanged(self, clean: bool) -> None:
+        self.modifiedStringChanged.emit('Modified' if (not clean) else '')
+
+    # ==================================================================================================================
+
+    def setActionsEnabled(self, enable: bool) -> None:
+        for action in self.actions():
+            action.setEnabled(enable)
+        for action in self._modeActionGroup.actions():
+            action.setEnabled(enable)
+
+    def _addNormalAction(self, text: str, slot: typing.Callable, iconPath: str = '', shortcut: str = '') -> QAction:
+        action = QAction(text, self)
+        action.triggered.connect(slot)      # type: ignore
+        if (iconPath != ''):
+            action.setIcon(QIcon(iconPath))
+        if (shortcut != ''):
+            action.setShortcut(QKeySequence(shortcut))
+        self.addAction(action)
+        return action
+
+    def _addModeAction(self, text: str, itemKey: str = '', iconPath: str = '', shortcut: str = '') -> QAction:
+        action = QAction(text, self._modeActionGroup)
+        action.setProperty('key', itemKey)
+        if (iconPath != ''):
+            action.setIcon(QIcon(iconPath))
+        if (shortcut != ''):
+            action.setShortcut(QKeySequence(shortcut))
+        action.setCheckable(True)
+        action.setActionGroup(self._modeActionGroup)
+        return action
+
+    def _setModeFromAction(self, action: QAction) -> None:
+        if (action == self.selectModeAction):
+            self.setSelectMode()
+        elif (action == self.scrollModeAction):
+            self.setScrollMode()
+        elif (action == self.zoomModeAction):
+            self.setZoomMode()
+        else:
+            item = DrawingItem.create(action.property('key'))
+            if (item is not None):
+                self.setPlaceMode([item])
+            else:
+                self.setSelectMode()
+
+    def _updateActionsFromMode(self, mode: int):
+        if (mode == DrawingWidget.Mode.SelectMode.value and not self.selectModeAction.isChecked()):
+            self.selectModeAction.setChecked(True)
+
+    def _updateActionsFromSelection(self) -> None:
+        if (self._currentPage is not None):
+            self.groupAction.setEnabled(self._currentPage.groupAction.isEnabled())
+            self.ungroupAction.setEnabled(self._currentPage.ungroupAction.isEnabled())
+            self.insertPointAction.setEnabled(self._currentPage.insertPointAction.isEnabled())
+            self.removePointAction.setEnabled(self._currentPage.removePointAction.isEnabled())
+
+
+# ======================================================================================================================
+
+class DrawingInsertPageCommand(QUndoCommand):
+    def __init__(self, widget: DrawingMultiPageWidget, page: DrawingWidget, index: int,
+                 parent: QUndoCommand | None = None) -> None:
+        super().__init__('Insert Page', parent)
+
+        # Assumes page is not already a member of widget.pages()
+        self._widget: DrawingMultiPageWidget = widget
+        self._page: DrawingWidget = page
+        self._index: int = index
+        self._undone: bool = True
+
+    def __del__(self) -> None:
+        if (self._undone):
+            del self._page
+
+    def redo(self) -> None:
+        self._undone = False
+        self._widget.insertPage(self._index, self._page)
+        super().redo()
+
+    def undo(self) -> None:
+        super().undo()
+        self._widget.removePage(self._page)
+        self._undone = True
+
+
+# ======================================================================================================================
+
+class DrawingRemovePageCommand(QUndoCommand):
+    def __init__(self, widget: DrawingMultiPageWidget, page: DrawingWidget, parent: QUndoCommand | None = None) -> None:
+        super().__init__('Remove Page', parent)
+
+        # Assumes page is a member of widget.pages()
+        self._widget: DrawingMultiPageWidget = widget
+        self._page: DrawingWidget = page
+        self._index: int = self._widget.pages().index(self._page)
+        self._undone: bool = True
+
+    def __del__(self) -> None:
+        if (not self._undone):
+            del self._page
+
+    def redo(self) -> None:
+        self._undone = False
+        self._widget.removePage(self._page)
+        super().redo()
+
+    def undo(self) -> None:
+        super().undo()
+        self._widget.insertPage(self._index, self._page)
+        self._undone = True
+
+
+# ======================================================================================================================
+
+class DrawingMovePageCommand(QUndoCommand):
+    def __init__(self, widget: DrawingMultiPageWidget, page: DrawingWidget, newIndex: int,
+                 parent: QUndoCommand | None = None) -> None:
+        super().__init__('Remove Page', parent)
+
+        # Assumes page is a member of widget.pages()
+        self._widget: DrawingMultiPageWidget = widget
+        self._page: DrawingWidget = page
+        self._newIndex: int = newIndex
+        self._originalIndex: int = self._widget.pages().index(self._page)
+
+    def redo(self) -> None:
+        self._widget.movePage(self._page, self._newIndex)
+        super().redo()
+
+    def undo(self) -> None:
+        super().undo()
+        self._widget.movePage(self._page, self._originalIndex)
+
+
+# ======================================================================================================================
+
+class DrawingSetPropertyCommand(QUndoCommand):
+    def __init__(self, widget: DrawingMultiPageWidget, name: str, value: typing.Any,
+                 parent: QUndoCommand | None = None) -> None:
+        super().__init__('Set Property', parent)
+
+        self._widget: DrawingMultiPageWidget = widget
+        self._name: str = name
+        self._value: typing.Any = value
+
+        self._originalValue: typing.Any = self._widget.property(self._name)
+
+    def redo(self) -> None:
+        self._widget.setProperty(self._name, self._value)
+        super().redo()
+
+    def undo(self) -> None:
+        super().undo()
+        self._widget.setProperty(self._name, self._originalValue)

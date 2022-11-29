@@ -19,7 +19,7 @@ import typing
 from PyQt6.QtCore import pyqtBoundSignal, Qt, QLineF, QPointF, QRectF, QSize
 from PyQt6.QtGui import QAction, QBrush, QColor, QCloseEvent, QFont, QFontMetrics, QIcon, QKeySequence, QPen, QShowEvent
 from PyQt6.QtWidgets import QApplication, QComboBox, QDockWidget, QHBoxLayout, QLabel, QMainWindow, QToolBar, QWidget
-from .drawingwidget import DrawingWidget
+from .drawingmultipagewidget import DrawingMultiPageWidget
 from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
 from .drawinglineitem import DrawingLineItem
@@ -28,8 +28,8 @@ from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
-#   For DrawingView/DrawingWidget, ensure no name collisions with each other and QAbstractScrollArea
 #   Ensure that undo/redo events set current page, selected items, and view rect as expected
+#   Start working on properties browser
 
 
 class MainWindow(QMainWindow):
@@ -47,39 +47,11 @@ class MainWindow(QMainWindow):
         # Main widget
         self._registerItemsWithFactory()
 
-        self._drawing: DrawingWidget = DrawingWidget()
+        self._drawing: DrawingMultiPageWidget = DrawingMultiPageWidget()
         self.setCentralWidget(self._drawing)
 
-        self._drawing.setSceneRect(QRectF(-20, -20, 800, 600))
-        self._drawing.setBackgroundBrush(QBrush(QColor(255, 255, 255)))
-        self._drawing.setGrid(5)
-        self._drawing.setGridVisible(True)
-        self._drawing.setGridBrush(QBrush(QColor(0, 128, 128)))
-        self._drawing.setGridSpacingMajor(8)
-        self._drawing.setGridSpacingMinor(2)
-
-        rectItem = DrawingRectItem()
-        rectItem.setPosition(QPointF(160, 80))
-        rectItem.setRect(QRectF(-40, -20, 80, 40))
-        rectItem.setCornerRadius(5)
-        rectItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
-                             Qt.PenJoinStyle.RoundJoin))
-        rectItem.setBrush(QBrush(QColor(224, 255, 255)))
-        self._drawing.addItem(rectItem)
-
-        lineItem = DrawingLineItem()
-        lineItem.setPosition(QPointF(320, 80))
-        lineItem.setLine(QLineF(-20, -40, 40, 80))
-        lineItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
-                             Qt.PenJoinStyle.RoundJoin))
-        lineItem.setStartArrow(DrawingArrow(DrawingArrow.Style.TriangleFilled, 10))
-        lineItem.setEndArrow(DrawingArrow(DrawingArrow.Style.Triangle, 10))
-        self._drawing.addItem(lineItem)
-
-        self._drawing.setSelectedItems([rectItem, lineItem])
-
         # Dock widgets
-        self._pagesBrowser: PagesBrowser = PagesBrowser()
+        self._pagesBrowser: PagesBrowser = PagesBrowser(self._drawing)
         self._pagesDock: QDockWidget = self._addDockWidget('Pages', self._pagesBrowser,
                                                            Qt.DockWidgetArea.LeftDockWidgetArea)
 
@@ -102,6 +74,37 @@ class MainWindow(QMainWindow):
         self.resize(1690, 900)
 
         self._loadSettings()
+
+        self._drawing.setDefaultSceneRect(QRectF(-20, -20, 800, 600))
+        self._drawing.setDefaultBackgroundBrush(QBrush(QColor(255, 255, 255)))
+        self._drawing.setGrid(5)
+        self._drawing.setGridVisible(True)
+        self._drawing.setGridBrush(QBrush(QColor(0, 128, 128)))
+        self._drawing.setGridSpacingMajor(8)
+        self._drawing.setGridSpacingMinor(2)
+
+        self._drawing.insertNewPage()
+        self._drawing._undoStack.clear()
+
+        rectItem = DrawingRectItem()
+        rectItem.setPosition(QPointF(160, 80))
+        rectItem.setRect(QRectF(-40, -20, 80, 40))
+        rectItem.setCornerRadius(5)
+        rectItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                             Qt.PenJoinStyle.RoundJoin))
+        rectItem.setBrush(QBrush(QColor(224, 255, 255)))
+        self._drawing.currentPage().addItem(rectItem)
+
+        lineItem = DrawingLineItem()
+        lineItem.setPosition(QPointF(320, 80))
+        lineItem.setLine(QLineF(-20, -40, 40, 80))
+        lineItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                             Qt.PenJoinStyle.RoundJoin))
+        lineItem.setStartArrow(DrawingArrow(DrawingArrow.Style.TriangleFilled, 10))
+        lineItem.setEndArrow(DrawingArrow(DrawingArrow.Style.Triangle, 10))
+        self._drawing.currentPage().addItem(lineItem)
+
+        self._drawing.currentPage().setSelectedItems([rectItem, lineItem])
 
     def _createActions(self) -> None:
         self._newAction: QAction = self._addNormalAction('New...', self.newDrawing, 'icons:document-new.png', 'Ctrl+N')
@@ -194,8 +197,8 @@ class MainWindow(QMainWindow):
         viewMenu = self.menuBar().addMenu('View')
         viewMenu.addAction(self._viewPropertiesAction)
         viewMenu.addSeparator()
-        # viewMenu.addAction(self._drawing.insertPageAction)
-        # viewMenu.addAction(self._drawing.removePageAction)
+        viewMenu.addAction(self._drawing.insertPageAction)
+        viewMenu.addAction(self._drawing.removePageAction)
         viewMenu.addAction(self._viewPagesAction)
         viewMenu.addSeparator()
         viewMenu.addAction(self._drawing.zoomInAction)
