@@ -27,10 +27,6 @@ from .drawingrectitem import DrawingRectItem
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
-# Todo:
-#   Ensure that undo/redo events set current page, selected items, and view rect as expected
-#   Start working on properties browser
-
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:

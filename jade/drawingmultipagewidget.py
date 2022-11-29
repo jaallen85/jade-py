@@ -20,7 +20,7 @@ from PyQt6.QtGui import QAction, QActionGroup, QBrush, QIcon, QKeySequence, QUnd
 from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
 from .drawingitem import DrawingItem
 from .drawingtypes import DrawingUnits
-from .drawingwidget import DrawingSetWidgetPropertyCommand, DrawingWidget
+from .drawingwidget import DrawingItemsUndoCommand, DrawingUndoCommand, DrawingWidget
 
 
 class DrawingMultiPageWidget(QWidget):
@@ -412,13 +412,33 @@ class DrawingMultiPageWidget(QWidget):
 
     def undo(self) -> None:
         if (self.mode() == DrawingWidget.Mode.SelectMode):
+            # Get the command that will be undone by the call to self._undoStack.undo()
+            command = self._undoStack.command(self._undoStack.index() - 1)
+
             self._undoStack.undo()
+
+            if (isinstance(command, DrawingUndoCommand)):
+                self.setCurrentPage(command.widget())
+                if (self._currentPage is not None):
+                    self._currentPage.zoomToRect(command.viewRect())
+                    if (isinstance(command, DrawingItemsUndoCommand)):
+                        self._currentPage.setSelectedItems(command.items())
         else:
             self.setSelectMode()
 
     def redo(self) -> None:
         if (self.mode() == DrawingWidget.Mode.SelectMode):
+            # Get the command that will be redone by the call to self._undoStack.redo()
+            command = self._undoStack.command(self._undoStack.index())
+
             self._undoStack.redo()
+
+            if (isinstance(command, DrawingUndoCommand)):
+                self.setCurrentPage(command.widget())
+                if (self._currentPage is not None):
+                    self._currentPage.zoomToRect(command.viewRect())
+                    if (isinstance(command, DrawingItemsUndoCommand)):
+                        self._currentPage.setSelectedItems(command.items())
         else:
             self.setSelectMode()
 
@@ -560,7 +580,7 @@ class DrawingMultiPageWidget(QWidget):
 
     def renameCurrentPage(self, name: str) -> None:
         if (self._currentPage is not None):
-            self._pushUndoCommand(DrawingSetWidgetPropertyCommand(self._currentPage, 'name', name))
+            self._currentPage.updateProperty('name', name)
 
     # ==================================================================================================================
 
@@ -607,6 +627,19 @@ class DrawingMultiPageWidget(QWidget):
         if (self._currentPage is not None):
             return self._currentPage.mode()
         return DrawingWidget.Mode.SelectMode
+
+    # ==================================================================================================================
+
+    def updateProperty(self, name: str, value: typing.Any) -> None:
+        self._pushUndoCommand(DrawingSetPropertyCommand(self, name, value))
+
+    def updateCurrentPageProperty(self, name: str, value: typing.Any) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.updateProperty(name, value)
+
+    def updateCurrentItemsProperty(self, name: str, value: typing.Any) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.updateCurrentItemsProperty(name, value)
 
     # ==================================================================================================================
 

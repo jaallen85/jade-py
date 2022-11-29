@@ -16,7 +16,7 @@
 
 import typing
 from enum import Enum
-from PyQt6.QtCore import pyqtSignal, Qt, QPointF
+from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRectF
 from PyQt6.QtGui import QAction, QCursor, QIcon, QKeySequence, QMouseEvent, QUndoCommand, QUndoStack
 from PyQt6.QtWidgets import QApplication, QMenu
 from .drawingitem import DrawingItem
@@ -205,6 +205,8 @@ class DrawingWidget(DrawingView):
     def _reorderItems(self, items: list[DrawingItem]) -> None:
         # Assumes that all members of self.items() are present in items with no extras
         self._items = items
+        if (self._mode == DrawingView.Mode.SelectMode):
+            self.setSelectedItems(items)
         self.viewport().update()
 
     def moveItems(self, items: list[DrawingItem], positions: dict[DrawingItem, QPointF]) -> None:
@@ -347,14 +349,30 @@ class DrawingWidget(DrawingView):
         return self._undoForwarding
 
     def undo(self) -> None:
-        if (self._mode == DrawingView.Mode.SelectMode):
+        if (self.mode() == DrawingWidget.Mode.SelectMode):
+            # Get the command that will be undone by the call to self._undoStack.undo()
+            command = self._undoStack.command(self._undoStack.index() - 1)
+
             self._undoStack.undo()
+
+            if (isinstance(command, DrawingUndoCommand)):
+                self.zoomToRect(command.viewRect())
+                if (isinstance(command, DrawingItemsUndoCommand)):
+                    self.setSelectedItems(command.items())
         else:
             self.setSelectMode()
 
     def redo(self) -> None:
-        if (self._mode == DrawingView.Mode.SelectMode):
+        if (self.mode() == DrawingWidget.Mode.SelectMode):
+            # Get the command that will be redone by the call to self._undoStack.redo()
+            command = self._undoStack.command(self._undoStack.index())
+
             self._undoStack.redo()
+
+            if (isinstance(command, DrawingUndoCommand)):
+                self.zoomToRect(command.viewRect())
+                if (isinstance(command, DrawingItemsUndoCommand)):
+                    self.setSelectedItems(command.items())
         else:
             self.setSelectMode()
 
@@ -962,19 +980,59 @@ class DrawingWidget(DrawingView):
 # ======================================================================================================================
 # ======================================================================================================================
 
-class DrawingUndoCompressibleCommandId(Enum):
-    MoveItemsId = 0
-    ResizeItemId = 1
+class DrawingUndoCommand(QUndoCommand):
+    def __init__(self, widget: DrawingWidget, text: str, parent: QUndoCommand | None = None) -> None:
+        super().__init__(text, parent)
+
+        self._widget: DrawingWidget = widget
+        self._viewRect: QRectF = self._widget.visibleRect()
+
+    def widget(self) -> DrawingWidget:
+        return self._widget
+
+    def viewRect(self) -> QRectF:
+        return self._viewRect
 
 
 # ======================================================================================================================
 
-class DrawingAddItemsCommand(QUndoCommand):
+class DrawingItemsUndoCommand(DrawingUndoCommand):
+    class Id(Enum):
+        MoveItemsId = 0
+        ResizeItemId = 1
+
+    # ==================================================================================================================
+
+    def __init__(self, widget: DrawingWidget, items: list[DrawingItem], text: str,
+                 parent: QUndoCommand | None = None) -> None:
+        super().__init__(widget, text, parent)
+
+        self._items = items
+
+    def items(self) -> list[DrawingItem]:
+        return self._items
+
+    # ==================================================================================================================
+
+    def mergeChildren(self, command: QUndoCommand) -> None:
+        for commandChildIndex in range(command.childCount()):
+            commandChild = command.child(commandChildIndex)
+            if (isinstance(commandChild, DrawingResizeItemCommand)):
+                DrawingResizeItemCommand(commandChild.widget(), commandChild.point(), commandChild.position(),
+                                         commandChild.shouldSnapTo45Degrees(), commandChild.isFinalResize(), self)
+            elif (isinstance(commandChild, DrawingItemPointConnectCommand)):
+                DrawingItemPointConnectCommand(commandChild.point1(), commandChild.point2(), self)
+            elif (isinstance(commandChild, DrawingItemPointDisconnectCommand)):
+                DrawingItemPointDisconnectCommand(commandChild.point1(), commandChild.point2(), self)
+
+
+# ======================================================================================================================
+
+class DrawingAddItemsCommand(DrawingUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], parent: QUndoCommand | None = None) -> None:
-        super().__init__('Add Items', parent)
+        super().__init__(widget, 'Add Items', parent)
 
         # Assumes each item in items is a not already a member of widget.items()
-        self._widget: DrawingWidget = widget
         self._items: list[DrawingItem] = items
         self._undone: bool = True
 
@@ -995,12 +1053,11 @@ class DrawingAddItemsCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingRemoveItemsCommand(QUndoCommand):
+class DrawingRemoveItemsCommand(DrawingUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], parent: QUndoCommand | None = None) -> None:
-        super().__init__('Remove Items', parent)
+        super().__init__(widget, 'Remove Items', parent)
 
         # Assumes each item in items is a member of widget.items()
-        self._widget: DrawingWidget = widget
         self._items: list[DrawingItem] = items
         self._undone: bool = True
 
@@ -1025,12 +1082,11 @@ class DrawingRemoveItemsCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingReorderItemsCommand(QUndoCommand):
+class DrawingReorderItemsCommand(DrawingUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], parent: QUndoCommand | None = None) -> None:
-        super().__init__('Reorder Items', parent)
+        super().__init__(widget, 'Reorder Items', parent)
 
         # Assumes each item in items is a member of widget.items() and no items have been added or removed
-        self._widget: DrawingWidget = widget
         self._items: list[DrawingItem] = items
         self._originalItems: list[DrawingItem] = self._widget.items()
 
@@ -1045,14 +1101,12 @@ class DrawingReorderItemsCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingMoveItemsCommand(QUndoCommand):
+class DrawingMoveItemsCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], positions: dict[DrawingItem, QPointF],
                  finalMove: bool, parent: QUndoCommand | None = None) -> None:
-        super().__init__('Move Items', parent)
+        super().__init__(widget, items, 'Move Items', parent)
 
         # Assumes each item in items is a member of widget.items() and has a corresponding position in positions
-        self._widget: DrawingWidget = widget
-        self._items: list[DrawingItem] = items
         self._positions: dict[DrawingItem, QPointF] = positions
         self._finalMove: bool = finalMove
 
@@ -1061,25 +1115,14 @@ class DrawingMoveItemsCommand(QUndoCommand):
             self._originalPositions[item] = item.position()
 
     def id(self) -> int:
-        return DrawingUndoCompressibleCommandId.MoveItemsId.value
+        return DrawingItemsUndoCommand.Id.MoveItemsId.value
 
     def mergeWith(self, command: QUndoCommand) -> bool:
         if (isinstance(command, DrawingMoveItemsCommand) and self._widget == command._widget and
                 self._items == command._items and not self._finalMove):
             self._positions = command._positions
             self._finalMove = command._finalMove
-
-            # Merge children
-            for commandChildIndex in range(command.childCount()):
-                commandChild = command.child(commandChildIndex)
-                if (isinstance(commandChild, DrawingResizeItemCommand)):
-                    DrawingResizeItemCommand(commandChild.widget(), commandChild.point(), commandChild.position(),
-                                             commandChild.shouldSnapTo45Degrees(), commandChild.isFinalResize(), self)
-                elif (isinstance(commandChild, DrawingItemPointConnectCommand)):
-                    DrawingItemPointConnectCommand(commandChild.point1(), commandChild.point2(), self)
-                elif (isinstance(commandChild, DrawingItemPointDisconnectCommand)):
-                    DrawingItemPointDisconnectCommand(commandChild.point1(), commandChild.point2(), self)
-
+            self.mergeChildren(command)
             return True
         return False
 
@@ -1094,22 +1137,18 @@ class DrawingMoveItemsCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingResizeItemCommand(QUndoCommand):
+class DrawingResizeItemCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool,
                  finalResize: bool, parent: QUndoCommand | None = None) -> None:
-        super().__init__('Resize Item', parent)
+        super().__init__(widget, [point.item()], 'Resize Item', parent)
 
         # Assume the point is a member of a valid item which is in turn a member of widget.items()
-        self._widget: DrawingWidget = widget
         self._point: DrawingItemPoint = point
         self._position: QPointF = position
         self._snapTo45Degrees: bool = snapTo45Degrees
         self._finalResize: bool = finalResize
 
         self._originalPosition: QPointF = point.item().mapToScene(point.position())
-
-    def widget(self) -> DrawingWidget:
-        return self._widget
 
     def point(self) -> DrawingItemPoint:
         return self._point
@@ -1124,7 +1163,7 @@ class DrawingResizeItemCommand(QUndoCommand):
         return self._finalResize
 
     def id(self) -> int:
-        return DrawingUndoCompressibleCommandId.ResizeItemId.value
+        return DrawingItemsUndoCommand.Id.ResizeItemId.value
 
     def mergeWith(self, command: QUndoCommand) -> bool:
         if (isinstance(command, DrawingResizeItemCommand) and self._widget == command._widget and
@@ -1132,15 +1171,7 @@ class DrawingResizeItemCommand(QUndoCommand):
             self._position = command._position
             self._snapTo45Degrees = command._snapTo45Degrees
             self._finalResize = command._finalResize
-
-            # Merge children
-            for commandChildIndex in range(command.childCount()):
-                commandChild = command.child(commandChildIndex)
-                if (isinstance(commandChild, DrawingItemPointConnectCommand)):
-                    DrawingItemPointConnectCommand(commandChild.point1(), commandChild.point2(), self)
-                elif (isinstance(commandChild, DrawingItemPointDisconnectCommand)):
-                    DrawingItemPointDisconnectCommand(commandChild.point1(), commandChild.point2(), self)
-
+            self.mergeChildren(command)
             return True
         return False
 
@@ -1155,14 +1186,12 @@ class DrawingResizeItemCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingRotateItemsCommand(QUndoCommand):
+class DrawingRotateItemsCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], position: QPointF,
                  parent: QUndoCommand | None = None) -> None:
-        super().__init__('Rotate Items', parent)
+        super().__init__(widget, items, 'Rotate Items', parent)
 
         # Assumes each item in items is a member of widget.items()
-        self._widget: DrawingWidget = widget
-        self._items: list[DrawingItem] = items
         self._position: QPointF = position
 
     def redo(self) -> None:
@@ -1176,14 +1205,12 @@ class DrawingRotateItemsCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingRotateBackItemsCommand(QUndoCommand):
+class DrawingRotateBackItemsCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], position: QPointF,
                  parent: QUndoCommand | None = None) -> None:
-        super().__init__('Rotate Back Items', parent)
+        super().__init__(widget, items, 'Rotate Back Items', parent)
 
         # Assumes each item in items is a member of widget.items()
-        self._widget: DrawingWidget = widget
-        self._items: list[DrawingItem] = items
         self._position: QPointF = position
 
     def redo(self) -> None:
@@ -1197,14 +1224,12 @@ class DrawingRotateBackItemsCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingFlipItemsHorizontalCommand(QUndoCommand):
+class DrawingFlipItemsHorizontalCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], position: QPointF,
                  parent: QUndoCommand | None = None) -> None:
-        super().__init__('Flip Items Horizontal', parent)
+        super().__init__(widget, items, 'Flip Items Horizontal', parent)
 
         # Assumes each item in items is a member of widget.items()
-        self._widget: DrawingWidget = widget
-        self._items: list[DrawingItem] = items
         self._position: QPointF = position
 
     def redo(self) -> None:
@@ -1218,14 +1243,12 @@ class DrawingFlipItemsHorizontalCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingFlipItemsVerticalCommand(QUndoCommand):
+class DrawingFlipItemsVerticalCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], position: QPointF,
                  parent: QUndoCommand | None = None) -> None:
-        super().__init__('Flip Items Vertical', parent)
+        super().__init__(widget, items, 'Flip Items Vertical', parent)
 
         # Assumes each item in items is a member of widget.items()
-        self._widget: DrawingWidget = widget
-        self._items: list[DrawingItem] = items
         self._position: QPointF = position
 
     def redo(self) -> None:
@@ -1239,13 +1262,12 @@ class DrawingFlipItemsVerticalCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingItemInsertPointCommand(QUndoCommand):
+class DrawingItemInsertPointCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, item: DrawingItem, point: DrawingItemPoint, index: int,
                  parent: QUndoCommand | None = None) -> None:
-        super().__init__('Insert Point', parent)
+        super().__init__(widget, [item], 'Insert Point', parent)
 
         # Assumes the item is a member of widget.items() and that point is not already a member of item.points()
-        self._widget: DrawingWidget = widget
         self._item: DrawingItem = item
         self._point: DrawingItemPoint = point
         self._index: int = index
@@ -1268,13 +1290,12 @@ class DrawingItemInsertPointCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingItemRemovePointCommand(QUndoCommand):
+class DrawingItemRemovePointCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, item: DrawingItem, point: DrawingItemPoint,
                  parent: QUndoCommand | None = None) -> None:
-        super().__init__('Remove Point', parent)
+        super().__init__(widget, [item], 'Remove Point', parent)
 
         # Assumes the item is a member of widget.items() and that point is a member of item.points()
-        self._widget: DrawingWidget = widget
         self._item: DrawingItem = item
         self._point: DrawingItemPoint = point
         self._index: int = item.points().index(point)
@@ -1351,14 +1372,12 @@ class DrawingItemPointDisconnectCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingSetItemsPropertyCommand(QUndoCommand):
+class DrawingSetItemsPropertyCommand(DrawingItemsUndoCommand):
     def __init__(self, widget: DrawingWidget, items: list[DrawingItem], name: str, value: typing.Any,
                  parent: QUndoCommand | None = None) -> None:
-        super().__init__('Set Items Property', parent)
+        super().__init__(widget, items, 'Set Items Property', parent)
 
         # Assumes each item in items is a member of widget.items()
-        self._widget: DrawingWidget = widget
-        self._items: list[DrawingItem] = items
         self._name: str = name
         self._value: typing.Any = value
 
@@ -1377,11 +1396,10 @@ class DrawingSetItemsPropertyCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingSetWidgetPropertyCommand(QUndoCommand):
+class DrawingSetWidgetPropertyCommand(DrawingUndoCommand):
     def __init__(self, widget: DrawingWidget, name: str, value: typing.Any, parent: QUndoCommand | None = None) -> None:
-        super().__init__('Set Property', parent)
+        super().__init__(widget, 'Set Property', parent)
 
-        self._widget: DrawingWidget = widget
         self._name: str = name
         self._value: typing.Any = value
 

@@ -15,9 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PyQt6.QtCore import Qt, QRect, QSize
-from PyQt6.QtGui import QAction, QBrush, QContextMenuEvent, QDropEvent, QFontMetrics, QIcon, QKeySequence, QPainter, \
-                        QPen, QPixmap, QResizeEvent, QTransform
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QAction, QContextMenuEvent, QDropEvent, QIcon, QKeySequence
 from PyQt6.QtWidgets import QListWidget, QListWidgetItem, QMenu
 from .drawingmultipagewidget import DrawingMultiPageWidget
 from .drawingwidget import DrawingWidget
@@ -81,7 +80,7 @@ class PagesBrowser(QListWidget):
         self.insertItem(index, newItem)
         self.blockSignals(False)
 
-    def _removeItem(self, page: DrawingWidget, index: int) -> None:
+    def _removeItem(self, _: DrawingWidget, index: int) -> None:
         self.blockSignals(True)
         item = self.takeItem(index)
         del item
@@ -97,9 +96,6 @@ class PagesBrowser(QListWidget):
             self.blockSignals(True)
             self.currentItem().setText(value)
             self.blockSignals(False)
-
-            # Force things to be re-laid out
-            self.setMovement(QListWidget.Movement.Static)
 
     # ==================================================================================================================
 
