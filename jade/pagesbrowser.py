@@ -31,14 +31,7 @@ class PagesBrowser(QListWidget):
         self.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.setDragDropMode(QListWidget.DragDropMode.InternalMove)
 
-        self.setViewMode(QListWidget.ViewMode.IconMode)
-        self.setMovement(QListWidget.Movement.Static)
-        self.setMinimumWidth(QFontMetrics(self.font()).boundingRect('X' * 32).width())
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
         self._drawing: DrawingMultiPageWidget = drawing
-
-        self._iconHeight: int = 100
 
         self._contextMenu: QMenu = QMenu()
         self._contextMenu.addAction(self._drawing.insertPageAction)
@@ -50,20 +43,10 @@ class PagesBrowser(QListWidget):
         self._drawing.currentPageIndexChanged.connect(self._updateCurrentItem)
         self._drawing.currentPagePropertyChanged.connect(self._updateCurrentItemText)
 
-        self._drawing.propertyChanged.connect(self._updateCurrentPageIcon)
-        self._drawing.currentPagePropertyChanged.connect(self._updateCurrentPageIcon)
-        self._drawing.currentItemsPropertyChanged.connect(self._updateCurrentPageIcon)
-
         self.currentRowChanged.connect(self._updateCurrentPage)     # type: ignore
         self.itemChanged.connect(self._updateCurrentPageName)       # type: ignore
 
     # ==================================================================================================================
-
-    def resizeEvent(self, event: QResizeEvent) -> None:
-        gridWidth = self.width() - 4
-        gridHeight = self._iconHeight + QFontMetrics(self.font()).height() + 4
-        self.setIconSize(QSize(gridWidth, self._iconHeight))
-        self.setGridSize(QSize(gridWidth, gridHeight))
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         self._contextMenu.popup(event.globalPos())
@@ -95,7 +78,6 @@ class PagesBrowser(QListWidget):
         newItem = QListWidgetItem(page.name())
         newItem.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable |
                          Qt.ItemFlag.ItemIsDragEnabled)
-        newItem.setIcon(QIcon(self._paintPageToPixmap(page, self._iconHeight)))
         self.insertItem(index, newItem)
         self.blockSignals(False)
 
@@ -127,36 +109,6 @@ class PagesBrowser(QListWidget):
     def _updateCurrentPageName(self, item: QListWidgetItem) -> None:
         if (item is not None):
             self._drawing.renameCurrentPage(item.text())
-
-    # ==================================================================================================================
-
-    def _updateCurrentPageIcon(self) -> None:
-        currentPage = self._drawing.currentPage()
-        currentPageIndex = self._drawing.currentPageIndex()
-        if (currentPage is not None and 0 <= currentPageIndex < self.count()):
-            item = self.item(currentPageIndex)
-            item.setIcon(QIcon(self._paintPageToPixmap(currentPage, self._iconHeight)))
-
-    def _paintPageToPixmap(self, page: DrawingWidget, height: int) -> QPixmap:
-        sceneRect = page.sceneRect()
-        width = round(height / sceneRect.height() * sceneRect.width())
-        scale = min((width - 1) / sceneRect.width(), (height - 1) / sceneRect.height())
-
-        transform = QTransform()
-        transform.scale(scale, scale)
-        transform.translate(-sceneRect.left(), -sceneRect.top())
-
-        # Draw page onto pixmap
-        pixmap = QPixmap(width, height)
-        with QPainter(pixmap) as painter:
-            painter.setBrush(QBrush(Qt.GlobalColor.white))
-            painter.setPen(QPen(Qt.PenStyle.NoPen))
-            painter.drawRect(QRect(0, 0, width, height))
-
-            painter.setTransform(transform, True)
-            page.paint(painter, True)
-
-        return pixmap
 
     # ==================================================================================================================
 
