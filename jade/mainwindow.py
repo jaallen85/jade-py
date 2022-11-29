@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
         self._pagesDock: QDockWidget = self._addDockWidget('Pages', self._pagesBrowser,
                                                            Qt.DockWidgetArea.LeftDockWidgetArea)
 
-        self._propertiesBrowser: PropertiesBrowser = PropertiesBrowser()
+        self._propertiesBrowser: PropertiesBrowser = PropertiesBrowser(self._drawing)
         self._propertiesDock: QDockWidget = self._addDockWidget('Properties', self._propertiesBrowser,
                                                                 Qt.DockWidgetArea.RightDockWidgetArea)
         # Status bar widgets
@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
         # Final window setup
         self.setWindowTitle('Jade')
         self.setWindowIcon(QIcon('icons:jade.png'))
-        self.resize(1690, 900)
+        self.resize(1696, 900)
 
         self._loadSettings()
 

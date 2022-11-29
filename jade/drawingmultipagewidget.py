@@ -15,10 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PyQt6.QtCore import pyqtSignal, QRectF
+from PyQt6.QtCore import pyqtSignal, QPointF, QRectF
 from PyQt6.QtGui import QAction, QActionGroup, QBrush, QIcon, QKeySequence, QUndoCommand, QUndoStack
 from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
 from .drawingitem import DrawingItem
+from .drawingitempoint import DrawingItemPoint
 from .drawingtypes import DrawingUnits
 from .drawingwidget import DrawingItemsUndoCommand, DrawingUndoCommand, DrawingWidget
 
@@ -484,6 +485,24 @@ class DrawingMultiPageWidget(QWidget):
         if (self._currentPage is not None):
             return self._currentPage.selectedItems()
         return []
+
+    # ==================================================================================================================
+
+    def moveCurrentItemsDelta(self, delta: QPointF) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.moveCurrentItemsDelta(delta)
+
+    def moveCurrentItem(self, position: QPointF) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.moveCurrentItem(position)
+
+    def sizeCurrentItem(self, rect: QRectF) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.sizeCurrentItem(rect)
+
+    def resizeCurrentItem(self, point: DrawingItemPoint, position: QPointF) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.resizeCurrentItem(point, position)
 
     # ==================================================================================================================
 

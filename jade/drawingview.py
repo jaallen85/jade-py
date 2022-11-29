@@ -280,8 +280,8 @@ class DrawingView(QAbstractScrollArea):
             rect = self._sceneRect
 
         # Update view to the new scale
-        scaleX = self.maximumViewportSize().width() / rect.width()
-        scaleY = self.maximumViewportSize().height() / rect.height()
+        scaleX = (self.maximumViewportSize().width() - 3) / rect.width()
+        scaleY = (self.maximumViewportSize().height() - 3) / rect.height()
         scale = min(scaleX, scaleY)
 
         self._updateTransformAndScrollBars(scale)
