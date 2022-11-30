@@ -356,7 +356,8 @@ class DrawingWidget(DrawingView):
             self._undoStack.undo()
 
             if (isinstance(command, DrawingUndoCommand)):
-                self.zoomToRect(command.viewRect())
+                if (command.viewRect().isValid()):
+                    self.zoomToRect(command.viewRect())
                 if (isinstance(command, DrawingItemsUndoCommand)):
                     self.setSelectedItems(command.items())
         else:
@@ -370,7 +371,8 @@ class DrawingWidget(DrawingView):
             self._undoStack.redo()
 
             if (isinstance(command, DrawingUndoCommand)):
-                self.zoomToRect(command.viewRect())
+                if (command.viewRect().isValid()):
+                    self.zoomToRect(command.viewRect())
                 if (isinstance(command, DrawingItemsUndoCommand)):
                     self.setSelectedItems(command.items())
         else:
@@ -1428,6 +1430,9 @@ class DrawingSetWidgetPropertyCommand(DrawingUndoCommand):
         self._value: typing.Any = value
 
         self._originalValue: typing.Any = self._widget.property(self._name)
+
+        if (self._name == 'sceneRect'):
+            self._viewRect = QRectF()
 
     def redo(self) -> None:
         self._widget.setProperty(self._name, self._value)

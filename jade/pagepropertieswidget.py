@@ -15,9 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QSizeF
-from PyQt6.QtGui import QColor, QFontMetrics, QIntValidator
+from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRectF, QSizeF
+from PyQt6.QtGui import QBrush, QColor, QFontMetrics, QIntValidator
 from PyQt6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
+from .drawingtypes import DrawingUnits
 from .drawingwidget import DrawingWidget
 from .helperwidgets import ColorWidget, PositionWidget, SizeEdit, SizeWidget
 
@@ -80,7 +81,7 @@ class PagePropertiesWidget(QWidget):
 
     def _createGridGroup(self, labelWidth: int) -> QGroupBox:
         self._gridEdit: SizeEdit = SizeEdit()
-        self._sceneRectSizeWidget.sizeChanged.connect(self._handleGridChange)
+        self._gridEdit.sizeChanged.connect(self._handleGridChange)
 
         self._gridVisibleCombo: QComboBox = QComboBox()
         self._gridVisibleCombo.addItems(['Hidden', 'Visible'])
@@ -96,6 +97,9 @@ class PagePropertiesWidget(QWidget):
         self._gridSpacingMinorWidget: QLineEdit = QLineEdit('1')
         self._gridSpacingMinorWidget.setValidator(QIntValidator(1, int(1E6), self._gridSpacingMinorWidget))
         self._gridSpacingMinorWidget.editingFinished.connect(self._handleGridSpacingMinorChange)    # type: ignore
+
+        self._cachedGridSpacingMajor: int = 0
+        self._cachedGridSpacingMinor: int = 0
 
         gridGroup = QGroupBox('Grid')
         gridLayout = QFormLayout()
@@ -115,43 +119,83 @@ class PagePropertiesWidget(QWidget):
     # ==================================================================================================================
 
     def setDrawingProperty(self, name: str, value: typing.Any) -> None:
-        pass
+        self.blockSignals(True)
+        if (name == 'units' and isinstance(value, DrawingUnits)):
+            self._unitsCombo.setCurrentIndex(value.value)
+            self._sceneRectTopLeftWidget.setUnits(value)
+            self._sceneRectSizeWidget.setUnits(value)
+            self._gridEdit.setUnits(value)
+        elif (name == 'grid' and isinstance(value, float)):
+            self._gridEdit.setSize(value)
+        elif (name == 'gridVisible' and isinstance(value, bool)):
+            self._gridVisibleCombo.setCurrentIndex(1 if value else 0)
+        elif (name == 'gridBrush' and isinstance(value, QBrush)):
+            self._gridColorWidget.setColor(value.color())
+        elif (name == 'gridSpacingMajor' and isinstance(value, int)):
+            self._gridSpacingMajorWidget.setText(str(value))
+            self._cachedGridSpacingMajor = value
+        elif (name == 'gridSpacingMinor' and isinstance(value, int)):
+            self._gridSpacingMinorWidget.setText(str(value))
+            self._cachedGridSpacingMinor = value
+        self.blockSignals(False)
 
     def setPage(self, page: DrawingWidget) -> None:
-        pass
+        self.blockSignals(True)
+        self._sceneRectTopLeftWidget.setPosition(page.sceneRect().topLeft())
+        self._sceneRectSizeWidget.setSize(page.sceneRect().size())
+        self._backgroundColorWidget.setColor(page.backgroundBrush().color())
+        self.blockSignals(False)
 
     def setPageProperty(self, name: str, value: typing.Any) -> None:
-        pass
+        self.blockSignals(True)
+        if (name == 'sceneRect' and isinstance(value, QRectF)):
+            self._sceneRectTopLeftWidget.setPosition(value.topLeft())
+            self._sceneRectSizeWidget.setSize(value.size())
+        elif (name == 'backgroundBrush' and isinstance(value, QBrush)):
+            self._backgroundColorWidget.setColor(value.color())
+        self.blockSignals(False)
 
     # ==================================================================================================================
 
     def _handleUnitsChange(self, index: int) -> None:
-        pass
+        self.drawingPropertyChanged.emit('units', index)
 
     # ==================================================================================================================
 
     def _handleSceneRectTopLeftChange(self, position: QPointF) -> None:
-        pass
+        self.pagePropertyChanged.emit('sceneRect', QRectF(position, self._sceneRectSizeWidget.size()).normalized())
 
     def _handleSceneRectSizeChange(self, size: QSizeF) -> None:
-        pass
+        self.pagePropertyChanged.emit('sceneRect', QRectF(self._sceneRectTopLeftWidget.position(), size).normalized())
 
     def _handleBackgroundColorChange(self, color: QColor) -> None:
-        pass
+        self.pagePropertyChanged.emit('backgroundBrush', QBrush(color))
 
     # ==================================================================================================================
 
     def _handleGridChange(self, value: float) -> None:
-        pass
+        self.drawingPropertyChanged.emit('grid', value)
 
     def _handleGridVisibleChange(self, index: int) -> None:
-        pass
+        self.drawingPropertyChanged.emit('gridVisible', (index == 1))
 
     def _handleGridColorChange(self, color: QColor) -> None:
-        pass
+        self.drawingPropertyChanged.emit('gridBrush', QBrush(color))
 
-    def _handleGridSpacingMajorChange(self, text: str) -> None:
-        pass
+    def _handleGridSpacingMajorChange(self) -> None:
+        try:
+            self.drawingPropertyChanged.emit('gridSpacingMajor', int(self._gridSpacingMajorWidget.text()))
+            self.blockSignals(True)
+            self._gridSpacingMajorWidget.clearFocus()
+            self.blockSignals(False)
+        except ValueError:
+            self._gridSpacingMajorWidget.setText(str(self._cachedGridSpacingMajor))
 
-    def _handleGridSpacingMinorChange(self, text: str) -> None:
-        pass
+    def _handleGridSpacingMinorChange(self) -> None:
+        try:
+            self.drawingPropertyChanged.emit('gridSpacingMinor', int(self._gridSpacingMinorWidget.text()))
+            self.blockSignals(True)
+            self._gridSpacingMinorWidget.clearFocus()
+            self.blockSignals(False)
+        except ValueError:
+            self._gridSpacingMinorWidget.setText(str(self._cachedGridSpacingMinor))

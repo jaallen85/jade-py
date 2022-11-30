@@ -122,18 +122,32 @@ class DrawingView(QAbstractScrollArea):
 
     def setUnits(self, units: DrawingUnits) -> None:
         if (self._units != units):
+            scale = DrawingUnits.convert(1, self._units, units)
+
             self._units = units
+
+            self._sceneRect = QRectF(QPointF(self._sceneRect.left() * scale, self._sceneRect.top() * scale),
+                                     QPointF(self._sceneRect.right() * scale, self._sceneRect.bottom() * scale))
+            self._grid = self._grid * scale
+
+            for item in self._items:
+                item.scale(scale)
+
             self.propertyChanged.emit('units', self._units)
+
+            self.setScale(self.scale() / scale)
 
     def setSceneRect(self, rect: QRectF) -> None:
         if (self._sceneRect != rect and rect.isValid()):
             self._sceneRect = rect
             self.propertyChanged.emit('sceneRect', self._sceneRect)
+            self.zoomFit()
 
     def setBackgroundBrush(self, brush: QBrush) -> None:
         if (self._backgroundBrush != brush):
             self._backgroundBrush = brush
             self.propertyChanged.emit('backgroundBrush', self._backgroundBrush)
+            self.viewport().update()
 
     def units(self) -> DrawingUnits:
         return self._units
@@ -150,26 +164,31 @@ class DrawingView(QAbstractScrollArea):
         if (self._grid != grid and grid >= 0):
             self._grid = grid
             self.propertyChanged.emit('grid', self._grid)
+            self.viewport().update()
 
     def setGridVisible(self, visible: bool) -> None:
         if (self._gridVisible != visible):
             self._gridVisible = visible
             self.propertyChanged.emit('gridVisible', self._gridVisible)
+            self.viewport().update()
 
     def setGridBrush(self, brush: QBrush) -> None:
         if (self._gridBrush != brush):
             self._gridBrush = brush
             self.propertyChanged.emit('gridBrush', self._gridBrush)
+            self.viewport().update()
 
     def setGridSpacingMajor(self, spacing: int) -> None:
         if (self._gridSpacingMajor != spacing and spacing >= 0):
             self._gridSpacingMajor = spacing
             self.propertyChanged.emit('gridSpacingMajor', self._gridSpacingMajor)
+            self.viewport().update()
 
     def setGridSpacingMinor(self, spacing: int) -> None:
         if (self._gridSpacingMinor != spacing and spacing >= 0):
             self._gridSpacingMinor = spacing
             self.propertyChanged.emit('gridSpacingMinor', self._gridSpacingMinor)
+            self.viewport().update()
 
     def grid(self) -> float:
         return self._grid
@@ -275,7 +294,7 @@ class DrawingView(QAbstractScrollArea):
             else:
                 self.centerOn(self._sceneRect.center())
 
-    def zoomToRect(self, rect: QRectF) -> None:
+    def zoomToRect(self, rect: QRectF = QRectF()) -> None:
         if (not rect.isValid()):
             rect = self._sceneRect
 

@@ -147,9 +147,12 @@ class DrawingMultiPageWidget(QWidget):
 
     def setUnits(self, units: DrawingUnits) -> None:
         if (self._units != units):
+            scale = DrawingUnits.convert(1, self._units, units)
+
             self._units = units
 
             self.blockSignals(True)
+            self._grid = self._grid * scale
             for page in self._pages:
                 page.setUnits(self._units)
             self.blockSignals(False)
@@ -421,7 +424,8 @@ class DrawingMultiPageWidget(QWidget):
             if (isinstance(command, DrawingUndoCommand)):
                 self.setCurrentPage(command.widget())
                 if (self._currentPage is not None):
-                    self._currentPage.zoomToRect(command.viewRect())
+                    if (command.viewRect().isValid()):
+                        self._currentPage.zoomToRect(command.viewRect())
                     if (isinstance(command, DrawingItemsUndoCommand)):
                         self._currentPage.setSelectedItems(command.items())
         else:
@@ -437,7 +441,8 @@ class DrawingMultiPageWidget(QWidget):
             if (isinstance(command, DrawingUndoCommand)):
                 self.setCurrentPage(command.widget())
                 if (self._currentPage is not None):
-                    self._currentPage.zoomToRect(command.viewRect())
+                    if (command.viewRect().isValid()):
+                        self._currentPage.zoomToRect(command.viewRect())
                     if (isinstance(command, DrawingItemsUndoCommand)):
                         self._currentPage.setSelectedItems(command.items())
         else:

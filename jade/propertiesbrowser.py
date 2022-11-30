@@ -74,6 +74,8 @@ class PropertiesBrowser(QStackedWidget):
 
     def setDrawingProperty(self, name: str, value: typing.Any) -> None:
         self._pagePropertiesWidget.setDrawingProperty(name, value)
+        self._multipleItemsPropertiesWidget.setDrawingProperty(name, value)
+        self._singleItemsPropertiesWidget.setDrawingProperty(name, value)
         self.setCurrentIndex(0)
 
     def setPage(self, page: DrawingWidget) -> None:

@@ -122,6 +122,12 @@ class DrawingRectItem(DrawingRectResizeItem):
 
     # ==================================================================================================================
 
+    def scale(self, scale: float) -> None:
+        self._cornerRadius = self._cornerRadius * scale
+        super().scale(scale)
+
+    # ==================================================================================================================
+
     def writeToXml(self, element: ElementTree.Element) -> None:
         # Write position, rotation, and flipped
         super().writeToXml(element)

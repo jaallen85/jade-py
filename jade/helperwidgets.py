@@ -68,13 +68,17 @@ class PositionEdit(QLineEdit):
                 position = float(match.string[:match.start(0)].strip())
                 units = DrawingUnits.fromString(match.group(0))
                 self.setPosition(DrawingUnits.convert(position, units, self._units))
+                self.blockSignals(True)
                 self.clearFocus()
+                self.blockSignals(False)
             except ValueError:
                 self.setText(self._cachedText)
         else:
             try:
                 self.setPosition(float(self.text()))
+                self.blockSignals(True)
                 self.clearFocus()
+                self.blockSignals(False)
             except ValueError:
                 self.setText(self._cachedText)
 
@@ -128,13 +132,17 @@ class SizeEdit(QLineEdit):
                 size = float(match.string[:match.start(0)].strip())
                 units = DrawingUnits.fromString(match.group(0))
                 self.setSize(DrawingUnits.convert(size, units, self._units))
+                self.blockSignals(True)
                 self.clearFocus()
+                self.blockSignals(False)
             except ValueError:
                 self.setText(self._cachedText)
         else:
             try:
                 self.setSize(float(self.text()))
+                self.blockSignals(True)
                 self.clearFocus()
+                self.blockSignals(False)
             except ValueError:
                 self.setText(self._cachedText)
 

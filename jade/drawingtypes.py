@@ -28,7 +28,7 @@ class DrawingUnits(Enum):
     Miles = 7
 
     def toString(self) -> str:
-        match (self.value):
+        match (self):
             case DrawingUnits.Millimeters:
                 return 'mm'
             case DrawingUnits.Centimeters:
@@ -48,7 +48,7 @@ class DrawingUnits(Enum):
         return 'm'
 
     def conversionFactorToMeters(self) -> float:
-        match (self.value):
+        match (self):
             case DrawingUnits.Millimeters:
                 return 1E-3
             case DrawingUnits.Centimeters:
@@ -68,7 +68,7 @@ class DrawingUnits(Enum):
         return 1.0
 
     def conversionFactorFromMeters(self) -> float:
-        match (self.value):
+        match (self):
             case DrawingUnits.Millimeters:
                 return 1E3
             case DrawingUnits.Centimeters:

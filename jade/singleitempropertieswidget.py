@@ -14,12 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import typing
 from PyQt6.QtCore import pyqtSignal, Qt, QLineF, QPointF, QRectF, QSizeF
 from PyQt6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QPen
 from PyQt6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QVBoxLayout, QWidget
 from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
 from .drawingitempoint import DrawingItemPoint
+from .drawingtypes import DrawingUnits
 from .helperwidgets import ColorWidget, PositionWidget, SizeWidget, SizeEdit
 
 
@@ -154,6 +156,27 @@ class SingleItemPropertiesWidget(QWidget):
         self._arrowGroup.setLayout(self._arrowLayout)
 
         return self._arrowGroup
+
+    # ==================================================================================================================
+
+    def setDrawingProperty(self, name: str, value: typing.Any) -> None:
+        self.blockSignals(True)
+
+        if (name == 'units' and isinstance(value, DrawingUnits)):
+            self._lineStartWidget.setUnits(value)
+            self._lineEndWidget.setUnits(value)
+            self._lineSizeWidget.setUnits(value)
+
+            self._rectTopLeftWidget.setUnits(value)
+            self._rectBottomRightWidget.setUnits(value)
+            self._rectSizeWidget.setUnits(value)
+
+            self._penWidthEdit.setUnits(value)
+
+            self._startArrowSizeEdit.setUnits(value)
+            self._endArrowSizeEdit.setUnits(value)
+
+        self.blockSignals(False)
 
     # ==================================================================================================================
 

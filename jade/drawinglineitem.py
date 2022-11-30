@@ -248,6 +248,18 @@ class DrawingLineItem(DrawingItem):
 
     # ==================================================================================================================
 
+    def scale(self, scale: float) -> None:
+        super().scale(scale)
+
+        self._pen.setWidthF(self._pen.widthF() * scale)
+        self._startArrow.setSize(self._startArrow.size() * scale)
+        self._endArrow.setSize(self._endArrow.size() * scale)
+
+        self.setLine(QLineF(QPointF(self._line.x1() * scale, self._line.y1() * scale),
+                            QPointF(self._line.x2() * scale, self._line.y2() * scale)))
+
+    # ==================================================================================================================
+
     def writeToXml(self, element: ElementTree.Element) -> None:
         # Write position, rotation, and flipped
         super().writeToXml(element)

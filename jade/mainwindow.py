@@ -24,6 +24,7 @@ from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
 from .drawinglineitem import DrawingLineItem
 from .drawingrectitem import DrawingRectItem
+from .drawingtypes import DrawingUnits
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
@@ -71,9 +72,11 @@ class MainWindow(QMainWindow):
 
         self._loadSettings()
 
+        self._drawing.setUnits(DrawingUnits.Centimeters)
+        self._drawing.setUnits(DrawingUnits.Millimeters)
         self._drawing.setDefaultSceneRect(QRectF(-20, -20, 800, 600))
         self._drawing.setDefaultBackgroundBrush(QBrush(QColor(255, 255, 255)))
-        self._drawing.setGrid(5)
+        self._drawing.setGrid(5.0)
         self._drawing.setGridVisible(True)
         self._drawing.setGridBrush(QBrush(QColor(0, 128, 128)))
         self._drawing.setGridSpacingMajor(8)

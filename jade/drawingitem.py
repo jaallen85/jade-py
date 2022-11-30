@@ -254,6 +254,11 @@ class DrawingItem:
 
     # ==================================================================================================================
 
+    def scale(self, scale: float) -> None:
+        self._position = QPointF(self._position.x() * scale, self._position.y() * scale)
+
+    # ==================================================================================================================
+
     def canInsertPoints(self) -> bool:
         return False
 
@@ -755,6 +760,14 @@ class DrawingRectResizeItem(DrawingItem):
         if (len(points) >= 8):
             return self.points()[DrawingRectResizeItem.PointIndex.BottomRight.value]
         return None
+
+    # ==================================================================================================================
+
+    def scale(self, scale: float) -> None:
+        super().scale(scale)
+        self._pen.setWidthF(self._pen.widthF() * scale)
+        self.setRect(QRectF(QPointF(self._rect.left() * scale, self._rect.top() * scale),
+                            QPointF(self._rect.right() * scale, self._rect.bottom() * scale)))
 
     # ==================================================================================================================
 
