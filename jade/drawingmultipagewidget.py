@@ -48,7 +48,7 @@ class DrawingMultiPageWidget(QWidget):
 
         self._units: DrawingUnits = DrawingUnits.Millimeters
 
-        self._grid: float = 0
+        self._grid: float = 0.0
         self._gridVisible: bool = False
         self._gridBrush: QBrush = QBrush()
         self._gridSpacingMajor: int = 0
@@ -495,10 +495,6 @@ class DrawingMultiPageWidget(QWidget):
     def moveCurrentItem(self, position: QPointF) -> None:
         if (self._currentPage is not None):
             self._currentPage.moveCurrentItem(position)
-
-    def sizeCurrentItem(self, rect: QRectF) -> None:
-        if (self._currentPage is not None):
-            self._currentPage.sizeCurrentItem(rect)
 
     def resizeCurrentItem(self, point: DrawingItemPoint, position: QPointF) -> None:
         if (self._currentPage is not None):

@@ -69,7 +69,7 @@ class DrawingView(QAbstractScrollArea):
         self._sceneRect: QRectF = QRectF()
         self._backgroundBrush: QBrush = QBrush()
 
-        self._grid: float = 0
+        self._grid: float = 0.0
         self._gridVisible: bool = False
         self._gridBrush: QBrush = QBrush()
         self._gridSpacingMajor: int = 0
@@ -280,8 +280,8 @@ class DrawingView(QAbstractScrollArea):
             rect = self._sceneRect
 
         # Update view to the new scale
-        scaleX = (self.maximumViewportSize().width() - 3) / rect.width()
-        scaleY = (self.maximumViewportSize().height() - 3) / rect.height()
+        scaleX = (self.maximumViewportSize().width() - 1) / rect.width()
+        scaleY = (self.maximumViewportSize().height() - 1) / rect.height()
         scale = min(scaleX, scaleY)
 
         self._updateTransformAndScrollBars(scale)
@@ -321,7 +321,7 @@ class DrawingView(QAbstractScrollArea):
 
     def visibleRect(self) -> QRectF:
         return QRectF(self.mapToScene(QPoint(0, 0)),
-                      self.mapToScene(QPoint(self.viewport().width(), self.viewport().height())))
+                      self.mapToScene(QPoint(self.viewport().width() - 1, self.viewport().height() - 1)))
 
     def mapToScene(self, position: QPoint) -> QPointF:
         scrollPosition = QPoint(self.horizontalScrollBar().value(), self.verticalScrollBar().value())
@@ -649,7 +649,7 @@ class DrawingView(QAbstractScrollArea):
         super().resizeEvent(event)
         self._updateTransformAndScrollBars()
 
-    def _updateTransformAndScrollBars(self, scale: float = 0) -> None:
+    def _updateTransformAndScrollBars(self, scale: float = 0.0) -> None:
         if (scale <= 0):
             scale = self.scale()
 

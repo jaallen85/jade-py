@@ -436,15 +436,6 @@ class DrawingWidget(DrawingView):
                     newPositions[item] = position
                 self._moveItemsCommand(self._selectedItems, newPositions, finalMove=True, place=True)
 
-    def sizeCurrentItem(self, rect: QRectF) -> None:
-        if (self._mode == DrawingView.Mode.SelectMode):
-            if (len(self._selectedItems) == 1):
-                resizeStartPoint = self._selectedItems[0].resizeStartPoint()
-                resizeEndPoint = self._selectedItems[0].resizeEndPoint()
-                if (resizeStartPoint is not None and resizeEndPoint is not None):
-                    self._resizeItemCommand2(resizeStartPoint, rect.topLeft(), resizeEndPoint, rect.bottomRight(),
-                                             finalResize=True, place=True, disconnect=False)
-
     def resizeCurrentItem(self, point: DrawingItemPoint, position: QPointF) -> None:
         if (self._mode == DrawingView.Mode.SelectMode):
             if (len(self._selectedItems) == 1):
@@ -848,29 +839,6 @@ class DrawingWidget(DrawingView):
         if (place):
             self._placeItems([point.item()], resizeCommand)
         resizeCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(resizeCommand)
-
-    def _resizeItemCommand2(self, point1: DrawingItemPoint, position1: QPointF, point2: DrawingItemPoint,
-                            position2: QPointF, finalResize: bool, place: bool, disconnect: bool,
-                            command: QUndoCommand | None = None) -> None:
-        # Assume point1 and point2 are members of the same valid item which is in turn a member of self.items()
-        resizeCommand = DrawingUndoCommand(self, 'Resize Item', command)
-
-        resize1Command = DrawingResizeItemCommand(self, point1, position1, False, place, resizeCommand)
-        resize2Command = DrawingResizeItemCommand(self, point2, position2, False, place, resizeCommand)
-        resize1Command.redo()
-        resize2Command.redo()
-        if (disconnect):
-            self._disconnectAll(point1, resize1Command)
-            self._disconnectAll(point2, resize2Command)
-        self._tryToMaintainConnections([point1.item()], True, not point1.isFree(), point1, resize1Command)
-        self._tryToMaintainConnections([point2.item()], True, not point2.isFree(), point2, resize2Command)
-        if (place):
-            self._placeItems([point1.item()], resize1Command)
-        resize1Command.undo()
-        resize2Command.undo()
-
         if (command is None):
             self._pushUndoCommand(resizeCommand)
 

@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
         # Final window setup
         self.setWindowTitle('Jade')
         self.setWindowIcon(QIcon('icons:jade.png'))
-        self.resize(1696, 900)
+        self.resize(1698, 900)
 
         self._loadSettings()
 
@@ -91,13 +91,22 @@ class MainWindow(QMainWindow):
         rectItem.setBrush(QBrush(QColor(224, 255, 255)))
         self._drawing.currentPage().addItem(rectItem)
 
+        rectItem = DrawingRectItem()
+        rectItem.setPosition(QPointF(160, 160))
+        rectItem.setRect(QRectF(-40, -20, 80, 40))
+        rectItem.setCornerRadius(5)
+        rectItem.setPen(QPen(QBrush(QColor(128, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                             Qt.PenJoinStyle.RoundJoin))
+        rectItem.setBrush(QBrush(QColor(224, 255, 255)))
+        self._drawing.currentPage().addItem(rectItem)
+
         lineItem = DrawingLineItem()
         lineItem.setPosition(QPointF(320, 80))
         lineItem.setLine(QLineF(-20, -40, 40, 80))
         lineItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
                              Qt.PenJoinStyle.RoundJoin))
-        lineItem.setStartArrow(DrawingArrow(DrawingArrow.Style.TriangleFilled, 10))
-        lineItem.setEndArrow(DrawingArrow(DrawingArrow.Style.Triangle, 10))
+        lineItem.setStartArrow(DrawingArrow(DrawingArrow.Style.TriangleFilled, 10.0))
+        lineItem.setEndArrow(DrawingArrow(DrawingArrow.Style.Triangle, 10.0))
         self._drawing.currentPage().addItem(lineItem)
 
         self._drawing.currentPage().setSelectedItems([rectItem, lineItem])

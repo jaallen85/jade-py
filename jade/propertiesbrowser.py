@@ -53,7 +53,7 @@ class PropertiesBrowser(QStackedWidget):
         self._drawing.currentPageChanged.connect(self.setPage)
         self._drawing.currentPagePropertyChanged.connect(self.setPageProperty)
         self._drawing.currentItemsChanged.connect(self.setItems)
-        self._drawing.currentItemsPropertyChanged.connect(self.setItemsProperty)
+        self._drawing.currentItemsPropertyChanged.connect(self.setItems)
 
         self._pagePropertiesWidget.drawingPropertyChanged.connect(self._drawing.updateProperty)
         self._pagePropertiesWidget.pagePropertyChanged.connect(self._drawing.updateCurrentPageProperty)
@@ -61,9 +61,8 @@ class PropertiesBrowser(QStackedWidget):
         self._multipleItemsPropertiesWidget.itemsMovedDelta.connect(self._drawing.moveCurrentItemsDelta)
         self._multipleItemsPropertiesWidget.itemsPropertyChanged.connect(self._drawing.updateCurrentItemsProperty)
 
-        self._singleItemsPropertiesWidget.itemPositionChanged.connect(self._drawing.moveCurrentItem)
-        self._singleItemsPropertiesWidget.itemSizeChanged.connect(self._drawing.sizeCurrentItem)
-        self._singleItemsPropertiesWidget.itemPointPositionChanged.connect(self._drawing.resizeCurrentItem)
+        self._singleItemsPropertiesWidget.itemMoved.connect(self._drawing.moveCurrentItem)
+        self._singleItemsPropertiesWidget.itemResized.connect(self._drawing.resizeCurrentItem)
         self._singleItemsPropertiesWidget.itemPropertyChanged.connect(self._drawing.updateCurrentItemsProperty)
 
     # ==================================================================================================================
@@ -91,16 +90,6 @@ class PropertiesBrowser(QStackedWidget):
             self.setCurrentIndex(1)
         elif (len(items) == 1):
             self._singleItemsPropertiesWidget.setItem(items[0])
-            self.setCurrentIndex(2)
-        else:
-            self.setCurrentIndex(0)
-
-    def setItemsProperty(self, items: list[DrawingItem]) -> None:
-        if (len(items) > 1):
-            self._multipleItemsPropertiesWidget.setItemsProperty(items)
-            self.setCurrentIndex(1)
-        elif (len(items) == 1):
-            self._singleItemsPropertiesWidget.setItemProperty(items[0])
             self.setCurrentIndex(2)
         else:
             self.setCurrentIndex(0)

@@ -33,7 +33,7 @@ class DrawingArrow:
 
     # ==================================================================================================================
 
-    def __init__(self, style: 'DrawingArrow.Style' = Style.NoStyle, size: float = 0) -> None:
+    def __init__(self, style: 'DrawingArrow.Style' = Style.NoStyle, size: float = 0.0) -> None:
         self._style: DrawingArrow.Style = style
         self._size: float = size
         self._path: QPainterPath = QPainterPath()

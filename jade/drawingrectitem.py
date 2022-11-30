@@ -25,7 +25,7 @@ class DrawingRectItem(DrawingRectResizeItem):
     def __init__(self) -> None:
         super().__init__()
 
-        self._cornerRadius: float = 0
+        self._cornerRadius: float = 0.0
         self._brush: QBrush = QBrush()
 
         self._cachedShape: QPainterPath = QPainterPath()
@@ -118,7 +118,7 @@ class DrawingRectItem(DrawingRectResizeItem):
         if (self.isValid()):
             painter.setBrush(self._brush)
             painter.setPen(self._pen)
-            painter.drawRoundedRect(self._rect, self._cornerRadius, self._cornerRadius)
+            painter.drawRoundedRect(self._rect.normalized(), self._cornerRadius, self._cornerRadius)
 
     # ==================================================================================================================
 

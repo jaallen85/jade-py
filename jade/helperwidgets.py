@@ -25,7 +25,7 @@ from .drawingtypes import DrawingUnits
 class PositionEdit(QLineEdit):
     positionChanged = pyqtSignal(float)
 
-    def __init__(self, position: float = 0, units: DrawingUnits = DrawingUnits.Millimeters) -> None:
+    def __init__(self, position: float = 0.0, units: DrawingUnits = DrawingUnits.Millimeters) -> None:
         super().__init__()
         self._position: float = position
         self._units: DrawingUnits = units
@@ -84,7 +84,7 @@ class PositionEdit(QLineEdit):
 class SizeEdit(QLineEdit):
     sizeChanged = pyqtSignal(float)
 
-    def __init__(self, size: float = 0, units: DrawingUnits = DrawingUnits.Millimeters) -> None:
+    def __init__(self, size: float = 0.0, units: DrawingUnits = DrawingUnits.Millimeters) -> None:
         super().__init__()
         size = max(size, 0)
         self._size: float = size
@@ -97,11 +97,13 @@ class SizeEdit(QLineEdit):
         return QFontMetrics(self.font()).boundingRect('-8888.88 888').size() + QSize(16, 2)     # type: ignore
 
     def setSize(self, size: float) -> None:
-        if ((self._size != size or self._size == 0) and size >= 0):
+        if (self._size != size or self._size == 0):
             self._size = size
             self._cachedText = self.sizeToString(self._size, self._units)
             self.setText(self._cachedText)
             self.sizeChanged.emit(self._size)
+        else:
+            self.setText(self._cachedText)
 
     def setUnits(self, units: DrawingUnits) -> None:
         if (self._units != units):
@@ -109,7 +111,7 @@ class SizeEdit(QLineEdit):
             self._units = units
             self.setSize(newSize)
 
-    def size(self) -> float:
+    def size(self) -> float:    # type: ignore
         return self._size
 
     def units(self) -> DrawingUnits:
@@ -125,21 +127,14 @@ class SizeEdit(QLineEdit):
             try:
                 size = float(match.string[:match.start(0)].strip())
                 units = DrawingUnits.fromString(match.group(0))
-                if (size >= 0):
-                    self.setSize(DrawingUnits.convert(size, units, self._units))
-                    self.clearFocus()
-                else:
-                    self.setText(self._cachedText)
+                self.setSize(DrawingUnits.convert(size, units, self._units))
+                self.clearFocus()
             except ValueError:
                 self.setText(self._cachedText)
         else:
             try:
-                size = float(self.text())
-                if (size >= 0):
-                    self.setSize(size)
-                    self.clearFocus()
-                else:
-                    self.setText(self._cachedText)
+                self.setSize(float(self.text()))
+                self.clearFocus()
             except ValueError:
                 self.setText(self._cachedText)
 
@@ -210,7 +205,7 @@ class SizeWidget(QWidget):
         self._widthEdit.setUnits(units)
         self._heightEdit.setUnits(units)
 
-    def size(self) -> QSizeF:
+    def size(self) -> QSizeF:   # type: ignore
         return QSizeF(self._widthEdit.size(), self._heightEdit.size())
 
     def units(self) -> DrawingUnits:
@@ -410,7 +405,6 @@ class ColorSelectWidget(QWidget):
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if (self._hoverRect.isValid()):
             self.colorSelected.emit(self._hoverColor)
-            print(self._hoverColor.name(QColor.NameFormat.HexArgb))
 
     # ==================================================================================================================
 
