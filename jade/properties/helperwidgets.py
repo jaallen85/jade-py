@@ -19,7 +19,7 @@ from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRect, QSize, QSizeF
 from PyQt6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QMouseEvent, QPaintEvent, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QColorDialog, QHBoxLayout, QMenu, QLineEdit, QPushButton, QSizePolicy, QWidget, \
                             QWidgetAction
-from .drawingtypes import DrawingUnits
+from ..drawing.drawingtypes import DrawingUnits
 
 
 class PositionEdit(QLineEdit):

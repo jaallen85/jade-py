@@ -18,8 +18,8 @@ import typing
 from PyQt6.QtCore import pyqtSignal, Qt, QPointF
 from PyQt6.QtGui import QColor, QFontMetrics, QIcon
 from PyQt6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QGroupBox, QVBoxLayout, QWidget
-from .drawingitem import DrawingItem
-from .drawingtypes import DrawingUnits
+from ..drawing.drawingitem import DrawingItem
+from ..drawing.drawingtypes import DrawingUnits
 from .helperwidgets import ColorWidget, SizeEdit
 
 

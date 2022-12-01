@@ -18,8 +18,8 @@ import typing
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QContextMenuEvent, QDropEvent, QIcon, QKeySequence
 from PyQt6.QtWidgets import QListWidget, QListWidgetItem, QMenu
-from .drawingmultipagewidget import DrawingMultiPageWidget
-from .drawingwidget import DrawingWidget
+from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
+from .drawing.drawingwidget import DrawingWidget
 
 
 class PagesBrowser(QListWidget):

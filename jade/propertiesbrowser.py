@@ -17,12 +17,12 @@
 import typing
 from PyQt6.QtCore import QSize
 from PyQt6.QtWidgets import QScrollArea, QStackedWidget
-from .drawingitem import DrawingItem
-from .drawingwidget import DrawingWidget
-from .drawingmultipagewidget import DrawingMultiPageWidget
-from .multipleitempropertieswidget import MultipleItemPropertiesWidget
-from .pagepropertieswidget import PagePropertiesWidget
-from .singleitempropertieswidget import SingleItemPropertiesWidget
+from .drawing.drawingitem import DrawingItem
+from .drawing.drawingwidget import DrawingWidget
+from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
+from .properties.multipleitempropertieswidget import MultipleItemPropertiesWidget
+from .properties.pagepropertieswidget import PagePropertiesWidget
+from .properties.singleitempropertieswidget import SingleItemPropertiesWidget
 
 
 class PropertiesBrowser(QStackedWidget):

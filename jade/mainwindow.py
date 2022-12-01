@@ -19,12 +19,12 @@ import typing
 from PyQt6.QtCore import pyqtBoundSignal, Qt, QLineF, QPointF, QRectF, QSize
 from PyQt6.QtGui import QAction, QBrush, QColor, QCloseEvent, QFont, QFontMetrics, QIcon, QKeySequence, QPen, QShowEvent
 from PyQt6.QtWidgets import QApplication, QComboBox, QDockWidget, QHBoxLayout, QLabel, QMainWindow, QToolBar, QWidget
-from .drawingmultipagewidget import DrawingMultiPageWidget
-from .drawingarrow import DrawingArrow
-from .drawingitem import DrawingItem
-from .drawinglineitem import DrawingLineItem
-from .drawingrectitem import DrawingRectItem
-from .drawingtypes import DrawingUnits
+from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
+from .drawing.drawingarrow import DrawingArrow
+from .drawing.drawingitem import DrawingItem
+from .drawing.drawinglineitem import DrawingLineItem
+from .drawing.drawingrectitem import DrawingRectItem
+from .drawing.drawingtypes import DrawingUnits
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
