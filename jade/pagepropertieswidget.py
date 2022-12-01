@@ -139,12 +139,13 @@ class PagePropertiesWidget(QWidget):
             self._cachedGridSpacingMinor = value
         self.blockSignals(False)
 
-    def setPage(self, page: DrawingWidget) -> None:
-        self.blockSignals(True)
-        self._sceneRectTopLeftWidget.setPosition(page.sceneRect().topLeft())
-        self._sceneRectSizeWidget.setSize(page.sceneRect().size())
-        self._backgroundColorWidget.setColor(page.backgroundBrush().color())
-        self.blockSignals(False)
+    def setPage(self, page: DrawingWidget | None) -> None:
+        if (page is not None):
+            self.blockSignals(True)
+            self._sceneRectTopLeftWidget.setPosition(page.sceneRect().topLeft())
+            self._sceneRectSizeWidget.setSize(page.sceneRect().size())
+            self._backgroundColorWidget.setColor(page.backgroundBrush().color())
+            self.blockSignals(False)
 
     def setPageProperty(self, name: str, value: typing.Any) -> None:
         self.blockSignals(True)

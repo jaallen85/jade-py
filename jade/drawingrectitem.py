@@ -148,11 +148,11 @@ class DrawingRectItem(DrawingRectResizeItem):
         super().readFromXml(element)
 
         # Rect and corner radius
-        self.setRect(QRectF(self.readFloatAttribute(element, 'left', 0),
-                            self.readFloatAttribute(element, 'top', 0),
-                            self.readFloatAttribute(element, 'width', 0),
-                            self.readFloatAttribute(element, 'height', 0)))
-        self.setCornerRadius(self.readFloatAttribute(element, 'cornerRadius', 0))
+        self.setRect(QRectF(self.readFloatAttribute(element, 'left', 0.0),
+                            self.readFloatAttribute(element, 'top', 0.0),
+                            self.readFloatAttribute(element, 'width', 0.0),
+                            self.readFloatAttribute(element, 'height', 0.0)))
+        self.setCornerRadius(self.readFloatAttribute(element, 'cornerRadius', 0.0))
 
         # Pen and brush
         self.setPen(self.readPenFromXml(element, 'pen'))

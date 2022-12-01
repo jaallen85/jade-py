@@ -280,10 +280,10 @@ class DrawingLineItem(DrawingItem):
         super().readFromXml(element)
 
         # Line
-        self.setLine(QLineF(self.readFloatAttribute(element, 'x1', 0),
-                            self.readFloatAttribute(element, 'y1', 0),
-                            self.readFloatAttribute(element, 'x2', 0),
-                            self.readFloatAttribute(element, 'y2', 0)))
+        self.setLine(QLineF(self.readFloatAttribute(element, 'x1', 0.0),
+                            self.readFloatAttribute(element, 'y1', 0.0),
+                            self.readFloatAttribute(element, 'x2', 0.0),
+                            self.readFloatAttribute(element, 'y2', 0.0)))
 
         # Pen and arrows
         self.setPen(self.readPenFromXml(element, 'pen'))

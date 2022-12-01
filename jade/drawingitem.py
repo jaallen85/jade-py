@@ -282,8 +282,8 @@ class DrawingItem:
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         # Read position, rotation, and flipped
-        self.setPosition(QPointF(self.readFloatAttribute(element, 'translationX', 0),
-                                 self.readFloatAttribute(element, 'translationY', 0)))
+        self.setPosition(QPointF(self.readFloatAttribute(element, 'translationX', 0.0),
+                                 self.readFloatAttribute(element, 'translationY', 0.0)))
         self.setRotation(int(self.readIntAttribute(element, 'rotation', 0) / 90))
         self.setFlipped(self.readBoolAttribute(element, 'flipped', False))
 
@@ -364,20 +364,20 @@ class DrawingItem:
                 penStyle = Qt.PenStyle.DashDotDotLine
 
         return QPen(DrawingItem.readBrushFromXml(element, name),
-                    DrawingItem.readFloatAttribute(element, f'{name}Width', 0),
+                    DrawingItem.readFloatAttribute(element, f'{name}Width', 0.0),
                     penStyle, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
 
     @staticmethod
     def readArrowFromXml(element: ElementTree.Element, name: str) -> DrawingArrow:
         return DrawingArrow(
             DrawingArrow.styleFromString(DrawingItem.readStrAttribute(element, f'{name}Style', 'none')),
-            DrawingItem.readFloatAttribute(element, f'{name}Size', 0))
+            DrawingItem.readFloatAttribute(element, f'{name}Size', 0.0))
 
     @staticmethod
     def readFontFromXml(element: ElementTree.Element, name: str) -> QFont:
         font = QFont()
         font.setFamily(DrawingItem.readStrAttribute(element, f'{name}Name', font.family()))
-        font.setPointSizeF(DrawingItem.readFloatAttribute(element, f'{name}Size', 0))
+        font.setPointSizeF(DrawingItem.readFloatAttribute(element, f'{name}Size', 0.0))
         font.setBold(DrawingItem.readBoolAttribute(element, f'{name}Bold', False))
         font.setItalic(DrawingItem.readBoolAttribute(element, f'{name}Italic', False))
         font.setUnderline(DrawingItem.readBoolAttribute(element, f'{name}Underline', False))

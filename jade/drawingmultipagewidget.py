@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
+from xml.etree import ElementTree
 from PyQt6.QtCore import pyqtSignal, QPointF, QRectF
 from PyQt6.QtGui import QAction, QActionGroup, QBrush, QIcon, QKeySequence, QUndoCommand, QUndoStack
 from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
@@ -409,8 +410,83 @@ class DrawingMultiPageWidget(QWidget):
 
     # ==================================================================================================================
 
+    def createNew(self) -> None:
+        self.insertNewPage()
+        self._undoStack.clear()
+
+    def loadFromFile(self, path: str) -> None:
+        self.clear()
+
+        xml = ElementTree.parse(path)
+        drawingElement = xml.getroot()
+        if (drawingElement.tag == 'jade-drawing'):
+            self.setUnits(DrawingUnits(DrawingItem.readIntAttribute(drawingElement, 'units', 0)))
+            self.setGrid(DrawingItem.readFloatAttribute(drawingElement, 'grid', 0))
+            self.setGridVisible(DrawingItem.readBoolAttribute(drawingElement, 'gridVisible', False))
+            self.setGridBrush(QBrush(DrawingItem.readColorAttribute(drawingElement, 'gridColor')))
+            self.setGridSpacingMajor(DrawingItem.readIntAttribute(drawingElement, 'gridSpacingMajor', 0))
+            self.setGridSpacingMinor(DrawingItem.readIntAttribute(drawingElement, 'gridSpacingMinor', 0))
+
+            for index, pageElement in enumerate(drawingElement.findall('page')):
+                newPage = DrawingWidget()
+
+                newPage.setName(DrawingItem.readStrAttribute(pageElement, 'name', f'Page{index}'))
+                newPage.setSceneRect(QRectF(DrawingItem.readFloatAttribute(pageElement, 'sceneLeft', 0.0),
+                                            DrawingItem.readFloatAttribute(pageElement, 'sceneTop', 0.0),
+                                            DrawingItem.readFloatAttribute(pageElement, 'sceneWidth', 0.0),
+                                            DrawingItem.readFloatAttribute(pageElement, 'sceneHeight', 0.0)))
+                newPage.setBackgroundBrush(QBrush(DrawingItem.readColorAttribute(pageElement, 'backgroundColor')))
+
+                newPage.setUnits(self._units)
+                newPage.setGrid(self._grid)
+                newPage.setGridVisible(self._gridVisible)
+                newPage.setGridBrush(self._gridBrush)
+                newPage.setGridSpacingMajor(self._gridSpacingMajor)
+                newPage.setGridSpacingMinor(self._gridSpacingMinor)
+
+                items = DrawingItem.readItemsFromXml(pageElement)
+                for item in items:
+                    newPage.addItem(item)
+
+                self.addPage(newPage)
+                self.zoomFit()
+
+        self._undoStack.setClean()
+
+    def saveToFile(self, path: str) -> None:
+        drawingElement = ElementTree.Element('jade-drawing')
+
+        DrawingItem.writeIntAttribute(drawingElement, 'units', self.units().value)
+        DrawingItem.writeFloatAttribute(drawingElement, 'grid', self.grid())
+        DrawingItem.writeBoolAttribute(drawingElement, 'gridVisible', self.isGridVisible())
+        DrawingItem.writeColorAttribute(drawingElement, 'gridColor', self.gridBrush().color())
+        DrawingItem.writeIntAttribute(drawingElement, 'gridSpacingMajor', self.gridSpacingMajor())
+        DrawingItem.writeIntAttribute(drawingElement, 'gridSpacingMinor', self.gridSpacingMinor())
+
+        for page in self._pages:
+            pageElement = ElementTree.SubElement(drawingElement, 'page')
+            DrawingItem.writeStrAttribute(pageElement, 'name', page.name())
+            DrawingItem.writeFloatAttribute(pageElement, 'sceneLeft', page.sceneRect().left())
+            DrawingItem.writeFloatAttribute(pageElement, 'sceneTop', page.sceneRect().top())
+            DrawingItem.writeFloatAttribute(pageElement, 'sceneWidth', page.sceneRect().width())
+            DrawingItem.writeFloatAttribute(pageElement, 'sceneHeight', page.sceneRect().height())
+            DrawingItem.writeColorAttribute(pageElement, 'backgroundColor', page.backgroundBrush().color())
+
+            DrawingItem.writeItemsToXml(pageElement, page.items())
+
+        with open(path, 'w', encoding='utf-8') as file:
+            file.write(ElementTree.tostring(drawingElement, encoding='unicode', xml_declaration=True))
+
+        self._undoStack.setClean()
+
     def clear(self) -> None:
-        pass
+        self._undoStack.clear()
+
+        while (len(self._pages) > 0):
+            page = self._pages[-1]
+            self.removePage(page)
+            del page
+        self._newPageCount = 0
 
     # ==================================================================================================================
 
