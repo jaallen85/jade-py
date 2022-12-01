@@ -494,16 +494,18 @@ class DrawingMultiPageWidget(QWidget):
         if (self.mode() == DrawingWidget.Mode.SelectMode):
             # Get the command that will be undone by the call to self._undoStack.undo()
             command = self._undoStack.command(self._undoStack.index() - 1)
-
-            self._undoStack.undo()
-
             if (isinstance(command, DrawingUndoCommand)):
                 self.setCurrentPage(command.widget())
-                if (self._currentPage is not None):
-                    if (command.viewRect().isValid()):
-                        self._currentPage.zoomToRect(command.viewRect())
-                    if (isinstance(command, DrawingItemsUndoCommand)):
-                        self._currentPage.setSelectedItems(command.items())
+                if (command.viewRect().isValid()):
+                    self.zoomToRect(command.viewRect())
+                if (isinstance(command, DrawingItemsUndoCommand)):
+                    self.setSelectedItems(command.items())
+                else:
+                    self.setSelectedItems([])
+            else:
+                self.setSelectedItems([])
+
+            self._undoStack.undo()
         else:
             self.setSelectMode()
 
@@ -511,16 +513,18 @@ class DrawingMultiPageWidget(QWidget):
         if (self.mode() == DrawingWidget.Mode.SelectMode):
             # Get the command that will be redone by the call to self._undoStack.redo()
             command = self._undoStack.command(self._undoStack.index())
-
-            self._undoStack.redo()
-
             if (isinstance(command, DrawingUndoCommand)):
                 self.setCurrentPage(command.widget())
-                if (self._currentPage is not None):
-                    if (command.viewRect().isValid()):
-                        self._currentPage.zoomToRect(command.viewRect())
-                    if (isinstance(command, DrawingItemsUndoCommand)):
-                        self._currentPage.setSelectedItems(command.items())
+                if (command.viewRect().isValid()):
+                    self.zoomToRect(command.viewRect())
+                if (isinstance(command, DrawingItemsUndoCommand)):
+                    self.setSelectedItems(command.items())
+                else:
+                    self.setSelectedItems([])
+            else:
+                self.setSelectedItems([])
+
+            self._undoStack.redo()
         else:
             self.setSelectMode()
 
@@ -683,6 +687,10 @@ class DrawingMultiPageWidget(QWidget):
     def setScale(self, scale: float) -> None:
         if (self._currentPage is not None):
             self._currentPage.setScale(scale)
+
+    def zoomToRect(self, rect: QRectF = QRectF()) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.zoomToRect(rect)
 
     def zoomIn(self) -> None:
         if (self._currentPage is not None):

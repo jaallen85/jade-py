@@ -35,12 +35,30 @@ class MultipleItemPropertiesWidget(QWidget):
         self._labelWidth = QFontMetrics(self.font()).boundingRect("Minor Grid Spacing:").width() + 8
 
         layout = QVBoxLayout()
+        layout.addWidget(self._createRectGroup())
         layout.addWidget(self._createPenBrushGroup())
         layout.addWidget(self._createArrowGroup())
         layout.addWidget(QWidget(), 100)
         self.setLayout(layout)
 
     # ==================================================================================================================
+
+    def _createRectGroup(self) -> QGroupBox:
+        self._rectCornerRadiusEdit: SizeEdit = SizeEdit()
+        self._rectCornerRadiusEdit.sizeChanged.connect(self._handleRectCornerRadiusChange)
+        self._rectCornerRadiusCheck: QCheckBox = QCheckBox('Corner Radius:')
+        self._rectCornerRadiusCheck.clicked.connect(self._handleRectCornerRadiusCheckClicked)   # type: ignore
+
+        self._rectGroup: QGroupBox = QGroupBox('Rect')
+        self._rectLayout: QFormLayout = QFormLayout()
+        self._rectLayout.addRow(self._rectCornerRadiusCheck, self._rectCornerRadiusEdit)
+        self._rectLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        self._rectLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._rectLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self._rectLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
+        self._rectGroup.setLayout(self._rectLayout)
+
+        return self._rectGroup
 
     def _createPenBrushGroup(self) -> QGroupBox:
         self._penStyleCombo: QComboBox = QComboBox()
@@ -50,17 +68,17 @@ class MultipleItemPropertiesWidget(QWidget):
         self._penStyleCheck.clicked.connect(self._handlePenStyleCheckClicked)       # type: ignore
 
         self._penWidthEdit: SizeEdit = SizeEdit()
-        self._penWidthEdit.sizeChanged.connect(self._handlePenWidthChange)          # type: ignore
+        self._penWidthEdit.sizeChanged.connect(self._handlePenWidthChange)
         self._penWidthCheck: QCheckBox = QCheckBox('Pen Width:')
         self._penWidthCheck.clicked.connect(self._handlePenWidthCheckClicked)       # type: ignore
 
         self._penColorWidget: ColorWidget = ColorWidget()
-        self._penColorWidget.colorChanged.connect(self._handlePenColorChange)       # type: ignore
+        self._penColorWidget.colorChanged.connect(self._handlePenColorChange)
         self._penColorCheck: QCheckBox = QCheckBox('Pen Color:')
         self._penColorCheck.clicked.connect(self._handlePenColorCheckClicked)       # type: ignore
 
         self._brushColorWidget: ColorWidget = ColorWidget()
-        self._brushColorWidget.colorChanged.connect(self._handleBrushColorChange)   # type: ignore
+        self._brushColorWidget.colorChanged.connect(self._handleBrushColorChange)
         self._brushColorCheck: QCheckBox = QCheckBox('Brush Color:')
         self._brushColorCheck.clicked.connect(self._handleBrushColorCheckClicked)   # type: ignore
 
@@ -93,7 +111,7 @@ class MultipleItemPropertiesWidget(QWidget):
         self._startArrowStyleCheck.clicked.connect(self._handleStartArrowStyleCheckClicked)     # type: ignore
 
         self._startArrowSizeEdit: SizeEdit = SizeEdit()
-        self._startArrowSizeEdit.sizeChanged.connect(self._handleStartArrowSizeChange)          # type: ignore
+        self._startArrowSizeEdit.sizeChanged.connect(self._handleStartArrowSizeChange)
         self._startArrowSizeCheck: QCheckBox = QCheckBox('Start Arrow Size:')
         self._startArrowSizeCheck.clicked.connect(self._handleStartArrowSizeCheckClicked)       # type: ignore
 
@@ -106,7 +124,7 @@ class MultipleItemPropertiesWidget(QWidget):
         self._endArrowStyleCheck.clicked.connect(self._handleEndArrowStyleCheckClicked)     # type: ignore
 
         self._endArrowSizeEdit: SizeEdit = SizeEdit()
-        self._endArrowSizeEdit.sizeChanged.connect(self._handleEndArrowSizeChange)          # type: ignore
+        self._endArrowSizeEdit.sizeChanged.connect(self._handleEndArrowSizeChange)
         self._endArrowSizeCheck: QCheckBox = QCheckBox('End Arrow Size:')
         self._endArrowSizeCheck.clicked.connect(self._handleEndArrowSizeCheckClicked)       # type: ignore
 
@@ -129,6 +147,7 @@ class MultipleItemPropertiesWidget(QWidget):
     def setDrawingProperty(self, name: str, value: typing.Any) -> None:
         self.blockSignals(True)
         if (name == 'units' and isinstance(value, DrawingUnits)):
+            self._rectCornerRadiusEdit.setUnits(value)
             self._penWidthEdit.setUnits(value)
             self._startArrowSizeEdit.setUnits(value)
             self._endArrowSizeEdit.setUnits(value)
@@ -139,9 +158,21 @@ class MultipleItemPropertiesWidget(QWidget):
     def setItems(self, items: list[DrawingItem]) -> None:
         self._items = items
         self.blockSignals(True)
+        self._updateRectGroup()
         self._updatePenBrushGroup()
         self._updateArrowGroup()
         self.blockSignals(False)
+
+    def _updateRectGroup(self) -> None:
+        (cornerRadius, cornerRadiusMatches) = self._checkForProperty('cornerRadius')
+
+        showRectGroup = isinstance(cornerRadius, float)
+        self._rectGroup.setVisible(showRectGroup)
+
+        if (showRectGroup):
+            self._rectCornerRadiusEdit.setSize(cornerRadius)
+            self._rectCornerRadiusEdit.setEnabled(cornerRadiusMatches)
+            self._rectCornerRadiusCheck.setChecked(cornerRadiusMatches)
 
     def _updatePenBrushGroup(self) -> None:
         (penStyle, penStylesMatch) = self._checkForProperty('penStyle')
@@ -257,6 +288,16 @@ class MultipleItemPropertiesWidget(QWidget):
                         break
 
         return (propertyValue, propertyValuesMatch)
+
+    # ==================================================================================================================
+
+    def _handleRectCornerRadiusChange(self, size: float) -> None:
+        self.itemsPropertyChanged.emit('cornerRadius', size)
+
+    def _handleRectCornerRadiusCheckClicked(self, checked: bool) -> None:
+        self._rectCornerRadiusEdit.setEnabled(checked)
+        if (checked):
+            self._handleRectCornerRadiusChange(self._rectCornerRadiusEdit.size())
 
     # ==================================================================================================================
 

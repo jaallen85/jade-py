@@ -28,6 +28,31 @@ from .drawingtypes import DrawingUnits
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
+# Todo:
+#   - Add items:
+#     - DrawingCurveItem
+#     - DrawingEllipseItem
+#     - DrawingPathItem
+#     - DrawingPolygonItem
+#     - DrawingPolylineItem
+#     - DrawingTextItem
+#     - DrawingTextRectItem
+#     - DrawingTextEllipseItem
+#     - Electric items
+#     - Logic items
+#   - Single/multiple item properties:
+#     - Curve
+#     - Polygon/polyline
+#     - Text
+#   - Main window
+#   - Exporters:
+#     - Export to PNG
+#     - Export to SVG
+#     - Export to ODG
+#     - Export to VSDX
+#   - Preferences dialog (including figure out default drawing/page settings)
+#   - About dialog
+
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -88,7 +113,7 @@ class MainWindow(QMainWindow):
         rectItem = DrawingRectItem()
         rectItem.setPosition(QPointF(160, 80))
         rectItem.setRect(QRectF(-40, -20, 80, 40))
-        rectItem.setCornerRadius(5)
+        rectItem.setCornerRadius(5.0)
         rectItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
                              Qt.PenJoinStyle.RoundJoin))
         rectItem.setBrush(QBrush(QColor(224, 255, 255)))
@@ -97,7 +122,7 @@ class MainWindow(QMainWindow):
         rectItem = DrawingRectItem()
         rectItem.setPosition(QPointF(160, 160))
         rectItem.setRect(QRectF(-40, -20, 80, 40))
-        rectItem.setCornerRadius(5)
+        rectItem.setCornerRadius(10.0)
         rectItem.setPen(QPen(QBrush(QColor(128, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
                              Qt.PenJoinStyle.RoundJoin))
         rectItem.setBrush(QBrush(QColor(224, 255, 255)))

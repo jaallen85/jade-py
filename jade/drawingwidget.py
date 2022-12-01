@@ -360,6 +360,10 @@ class DrawingWidget(DrawingView):
                     self.zoomToRect(command.viewRect())
                 if (isinstance(command, DrawingItemsUndoCommand)):
                     self.setSelectedItems(command.items())
+                else:
+                    self.setSelectedItems([])
+            else:
+                self.setSelectedItems([])
         else:
             self.setSelectMode()
 
@@ -375,6 +379,10 @@ class DrawingWidget(DrawingView):
                     self.zoomToRect(command.viewRect())
                 if (isinstance(command, DrawingItemsUndoCommand)):
                     self.setSelectedItems(command.items())
+                else:
+                    self.setSelectedItems([])
+            else:
+                self.setSelectedItems([])
         else:
             self.setSelectMode()
 

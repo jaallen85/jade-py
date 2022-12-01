@@ -78,11 +78,15 @@ class SingleItemPropertiesWidget(QWidget):
         self._rectSizeWidget: SizeWidget = SizeWidget()
         self._rectSizeWidget.sizeChanged.connect(self._handleRectSizeChange)
 
+        self._rectCornerRadiusEdit: SizeEdit = SizeEdit()
+        self._rectCornerRadiusEdit.sizeChanged.connect(self._handleRectCornerRadiusChange)
+
         self._rectGroup: QGroupBox = QGroupBox('Rect')
         self._rectLayout: QFormLayout = QFormLayout()
         self._rectLayout.addRow('Top-Left:', self._rectTopLeftWidget)
         self._rectLayout.addRow('Bottom-Right:', self._rectBottomRightWidget)
         self._rectLayout.addRow('Size:', self._rectSizeWidget)
+        self._rectLayout.addRow('Corner Radius:', self._rectCornerRadiusEdit)
         self._rectLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
         self._rectLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._rectLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
@@ -97,13 +101,13 @@ class SingleItemPropertiesWidget(QWidget):
         self._penStyleCombo.activated.connect(self._handlePenStyleChange)           # type: ignore
 
         self._penWidthEdit: SizeEdit = SizeEdit()
-        self._penWidthEdit.sizeChanged.connect(self._handlePenWidthChange)          # type: ignore
+        self._penWidthEdit.sizeChanged.connect(self._handlePenWidthChange)
 
         self._penColorWidget: ColorWidget = ColorWidget()
-        self._penColorWidget.colorChanged.connect(self._handlePenColorChange)       # type: ignore
+        self._penColorWidget.colorChanged.connect(self._handlePenColorChange)
 
         self._brushColorWidget: ColorWidget = ColorWidget()
-        self._brushColorWidget.colorChanged.connect(self._handleBrushColorChange)   # type: ignore
+        self._brushColorWidget.colorChanged.connect(self._handleBrushColorChange)
 
         self._penBrushGroup: QGroupBox = QGroupBox('Pen / Brush')
         self._penBrushLayout: QFormLayout = QFormLayout()
@@ -132,7 +136,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._startArrowStyleCombo.activated.connect(self._handleStartArrowStyleChange)     # type: ignore
 
         self._startArrowSizeEdit: SizeEdit = SizeEdit()
-        self._startArrowSizeEdit.sizeChanged.connect(self._handleStartArrowSizeChange)      # type: ignore
+        self._startArrowSizeEdit.sizeChanged.connect(self._handleStartArrowSizeChange)
 
         self._endArrowStyleCombo: QComboBox = QComboBox()
         for index in range(self._startArrowStyleCombo.count()):
@@ -141,7 +145,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._endArrowStyleCombo.activated.connect(self._handleEndArrowStyleChange)         # type: ignore
 
         self._endArrowSizeEdit: SizeEdit = SizeEdit()
-        self._endArrowSizeEdit.sizeChanged.connect(self._handleEndArrowSizeChange)          # type: ignore
+        self._endArrowSizeEdit.sizeChanged.connect(self._handleEndArrowSizeChange)
 
         self._arrowGroup: QGroupBox = QGroupBox('Arrow')
         self._arrowLayout: QFormLayout = QFormLayout()
@@ -170,6 +174,7 @@ class SingleItemPropertiesWidget(QWidget):
             self._rectTopLeftWidget.setUnits(value)
             self._rectBottomRightWidget.setUnits(value)
             self._rectSizeWidget.setUnits(value)
+            self._rectCornerRadiusEdit.setUnits(value)
 
             self._penWidthEdit.setUnits(value)
 
@@ -205,13 +210,29 @@ class SingleItemPropertiesWidget(QWidget):
     def _updateRectGroup(self) -> None:
         if (self._item is not None):
             rect = self._item.property('rect')
-            if (isinstance(rect, QRectF)):
-                self._rectGroup.setVisible(True)
-                self._rectTopLeftWidget.setPosition(rect.topLeft())
-                self._rectBottomRightWidget.setPosition(rect.bottomRight())
-                self._rectSizeWidget.setSize(rect.size())
-            else:
-                self._rectGroup.setVisible(False)
+            cornerRadius = self._item.property('cornerRadius')
+
+            showRectGroup = (isinstance(rect, QRectF) or isinstance(cornerRadius, float))
+            self._rectGroup.setVisible(showRectGroup)
+
+            if (showRectGroup):
+                if (isinstance(rect, QRectF)):
+                    self._rectLayout.setRowVisible(self._rectTopLeftWidget, True)
+                    self._rectLayout.setRowVisible(self._rectBottomRightWidget, True)
+                    self._rectLayout.setRowVisible(self._rectSizeWidget, True)
+                    self._rectTopLeftWidget.setPosition(rect.topLeft())
+                    self._rectBottomRightWidget.setPosition(rect.bottomRight())
+                    self._rectSizeWidget.setSize(rect.size())
+                else:
+                    self._rectLayout.setRowVisible(self._rectTopLeftWidget, False)
+                    self._rectLayout.setRowVisible(self._rectBottomRightWidget, False)
+                    self._rectLayout.setRowVisible(self._rectSizeWidget, False)
+
+                if (isinstance(cornerRadius, float)):
+                    self._rectLayout.setRowVisible(self._rectCornerRadiusEdit, True)
+                    self._rectCornerRadiusEdit.setSize(cornerRadius)
+                else:
+                    self._rectLayout.setRowVisible(self._rectCornerRadiusEdit, False)
         else:
             self._rectGroup.setVisible(False)
 
@@ -304,6 +325,9 @@ class SingleItemPropertiesWidget(QWidget):
             position = QPointF(self._rectTopLeftWidget.position().x() + size.width(),
                                self._rectTopLeftWidget.position().y() + size.height())
             self.itemResized.emit(self._item.resizeEndPoint(), position)
+
+    def _handleRectCornerRadiusChange(self, size: float) -> None:
+        self.itemPropertyChanged.emit('cornerRadius', size)
 
     # ==================================================================================================================
 
