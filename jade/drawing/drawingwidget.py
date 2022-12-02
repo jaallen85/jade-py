@@ -17,8 +17,8 @@
 import typing
 from enum import Enum
 from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRectF
-from PyQt6.QtGui import QAction, QCursor, QIcon, QKeySequence, QMouseEvent, QUndoCommand, QUndoStack
-from PyQt6.QtWidgets import QApplication, QMenu
+from PyQt6.QtGui import QCursor, QMouseEvent, QUndoCommand
+from PyQt6.QtWidgets import QApplication
 from .drawingitem import DrawingItem
 from .drawingitemgroup import DrawingItemGroup
 from .drawingitempoint import DrawingItemPoint
@@ -34,12 +34,6 @@ class DrawingWidget(DrawingView):
     def __init__(self) -> None:
         super().__init__()
 
-        self._undoForwarding: bool = False
-        self._undoStack: QUndoStack = QUndoStack()
-        self._undoStack.setUndoLimit(64)
-        self._undoStack.cleanChanged.connect(self.cleanChanged)                 # type: ignore
-        self._undoStack.cleanChanged.connect(self._emitModifiedStringChanged)   # type: ignore
-
         self._selectedItemsCenter: QPointF = QPointF()
         self.currentItemsChanged.connect(self._updateSelectionCenter)
         self.currentItemsPropertyChanged.connect(self._updateSelectionCenter)
@@ -48,133 +42,6 @@ class DrawingWidget(DrawingView):
         self._selectMoveItemsPreviousDeltaPosition: QPointF = QPointF()
         self._selectResizeItemInitialPosition: QPointF = QPointF()
         self._selectResizeItemPreviousPosition: QPointF = QPointF()
-
-        self._createActions()
-        self._createContextMenus()
-        self.currentItemsChanged.connect(self._updateActionsFromSelection)
-
-    def _createActions(self) -> None:
-        # Normal actions
-        self.undoAction: QAction = self._addNormalAction('Undo', self.undo, 'icons:edit-undo.png')
-        self.redoAction: QAction = self._addNormalAction('Redo', self.redo, 'icons:edit-redo.png')
-
-        self.cutAction: QAction = self._addNormalAction('Cut', self.cut, 'icons:edit-cut.png')
-        self.copyAction: QAction = self._addNormalAction('Copy', self.copy, 'icons:edit-copy.png')
-        self.pasteAction: QAction = self._addNormalAction('Paste', self.paste, 'icons:edit-paste.png')
-        self.deleteAction: QAction = self._addNormalAction('Delete', self.delete, 'icons:edit-delete.png')
-
-        self.rotateAction: QAction = self._addNormalAction('Rotate', self.rotate, 'icons:object-rotate-right.png')
-        self.rotateBackAction: QAction = self._addNormalAction('Rotate Back', self.rotateBack,
-                                                               'icons:object-rotate-left.png')
-        self.flipHorizontalAction: QAction = self._addNormalAction('Flip Horizontal', self.flipHorizontal,
-                                                                   'icons:object-flip-horizontal.png')
-        self.flipVerticalAction: QAction = self._addNormalAction('Flip Vertical', self.flipVertical,
-                                                                 'icons:object-flip-vertical.png')
-
-        self.bringForwardAction: QAction = self._addNormalAction('Bring Forward', self.bringForward,
-                                                                 'icons:object-bring-forward.png')
-        self.sendBackwardAction: QAction = self._addNormalAction('Send Backward', self.sendBackward,
-                                                                 'icons:object-send-backward.png')
-        self.bringToFrontAction: QAction = self._addNormalAction('Bring to Front', self.bringToFront,
-                                                                 'icons:object-bring-to-front.png')
-        self.sendToBackAction: QAction = self._addNormalAction('Send to Back', self.sendToBack,
-                                                               'icons:object-send-to-back.png')
-
-        self.groupAction: QAction = self._addNormalAction('Group', self.group, 'icons:merge.png')
-        self.ungroupAction: QAction = self._addNormalAction('Ungroup', self.ungroup, 'icons:split.png')
-
-        self.insertPointAction: QAction = self._addNormalAction('Insert Point', self.insertNewItemPoint)
-        self.removePointAction: QAction = self._addNormalAction('Remove Point', self.removeCurrentItemPoint)
-
-        self.zoomInAction: QAction = self._addNormalAction('Zoom In', self.zoomIn, 'icons:zoom-in.png')
-        self.zoomOutAction: QAction = self._addNormalAction('Zoom Out', self.zoomOut, 'icons:zoom-out.png')
-        self.zoomFitAction: QAction = self._addNormalAction('Zoom Fit', self.zoomFit, 'icons:zoom-fit-best.png')
-
-    def _createContextMenus(self) -> None:
-        self._noItemContextMenu: QMenu = QMenu()
-        self._noItemContextMenu.addAction(self.undoAction)
-        self._noItemContextMenu.addAction(self.redoAction)
-        self._noItemContextMenu.addSeparator()
-        self._noItemContextMenu.addAction(self.cutAction)
-        self._noItemContextMenu.addAction(self.copyAction)
-        self._noItemContextMenu.addAction(self.pasteAction)
-        self._noItemContextMenu.addSeparator()
-        self._noItemContextMenu.addAction(self.zoomInAction)
-        self._noItemContextMenu.addAction(self.zoomOutAction)
-        self._noItemContextMenu.addAction(self.zoomFitAction)
-
-        self._singleItemContextMenu: QMenu = QMenu()
-        self._singleItemContextMenu.addAction(self.cutAction)
-        self._singleItemContextMenu.addAction(self.copyAction)
-        self._singleItemContextMenu.addAction(self.pasteAction)
-        self._singleItemContextMenu.addAction(self.deleteAction)
-        self._singleItemContextMenu.addSeparator()
-        self._singleItemContextMenu.addAction(self.rotateAction)
-        self._singleItemContextMenu.addAction(self.rotateBackAction)
-        self._singleItemContextMenu.addAction(self.flipHorizontalAction)
-        self._singleItemContextMenu.addAction(self.flipVerticalAction)
-        self._singleItemContextMenu.addSeparator()
-        self._singleItemContextMenu.addAction(self.bringForwardAction)
-        self._singleItemContextMenu.addAction(self.sendBackwardAction)
-        self._singleItemContextMenu.addAction(self.bringToFrontAction)
-        self._singleItemContextMenu.addAction(self.sendToBackAction)
-
-        self._singlePolyItemContextMenu: QMenu = QMenu()
-        self._singlePolyItemContextMenu.addAction(self.cutAction)
-        self._singlePolyItemContextMenu.addAction(self.copyAction)
-        self._singlePolyItemContextMenu.addAction(self.pasteAction)
-        self._singlePolyItemContextMenu.addAction(self.deleteAction)
-        self._singlePolyItemContextMenu.addSeparator()
-        self._singlePolyItemContextMenu.addAction(self.insertPointAction)
-        self._singlePolyItemContextMenu.addAction(self.removePointAction)
-        self._singlePolyItemContextMenu.addSeparator()
-        self._singlePolyItemContextMenu.addAction(self.rotateAction)
-        self._singlePolyItemContextMenu.addAction(self.rotateBackAction)
-        self._singlePolyItemContextMenu.addAction(self.flipHorizontalAction)
-        self._singlePolyItemContextMenu.addAction(self.flipVerticalAction)
-        self._singlePolyItemContextMenu.addSeparator()
-        self._singlePolyItemContextMenu.addAction(self.bringForwardAction)
-        self._singlePolyItemContextMenu.addAction(self.sendBackwardAction)
-        self._singlePolyItemContextMenu.addAction(self.bringToFrontAction)
-        self._singlePolyItemContextMenu.addAction(self.sendToBackAction)
-
-        self._singleGroupItemContextMenu: QMenu = QMenu()
-        self._singleGroupItemContextMenu.addAction(self.cutAction)
-        self._singleGroupItemContextMenu.addAction(self.copyAction)
-        self._singleGroupItemContextMenu.addAction(self.pasteAction)
-        self._singleGroupItemContextMenu.addAction(self.deleteAction)
-        self._singleGroupItemContextMenu.addSeparator()
-        self._singleGroupItemContextMenu.addAction(self.rotateAction)
-        self._singleGroupItemContextMenu.addAction(self.rotateBackAction)
-        self._singleGroupItemContextMenu.addAction(self.flipHorizontalAction)
-        self._singleGroupItemContextMenu.addAction(self.flipVerticalAction)
-        self._singleGroupItemContextMenu.addSeparator()
-        self._singleGroupItemContextMenu.addAction(self.bringForwardAction)
-        self._singleGroupItemContextMenu.addAction(self.sendBackwardAction)
-        self._singleGroupItemContextMenu.addAction(self.bringToFrontAction)
-        self._singleGroupItemContextMenu.addAction(self.sendToBackAction)
-        self._singleGroupItemContextMenu.addSeparator()
-        self._singleGroupItemContextMenu.addAction(self.groupAction)
-        self._singleGroupItemContextMenu.addAction(self.ungroupAction)
-
-        self._multipleItemContextMenu: QMenu = QMenu()
-        self._multipleItemContextMenu.addAction(self.cutAction)
-        self._multipleItemContextMenu.addAction(self.copyAction)
-        self._multipleItemContextMenu.addAction(self.pasteAction)
-        self._multipleItemContextMenu.addAction(self.deleteAction)
-        self._multipleItemContextMenu.addSeparator()
-        self._multipleItemContextMenu.addAction(self.rotateAction)
-        self._multipleItemContextMenu.addAction(self.rotateBackAction)
-        self._multipleItemContextMenu.addAction(self.flipHorizontalAction)
-        self._multipleItemContextMenu.addAction(self.flipVerticalAction)
-        self._multipleItemContextMenu.addSeparator()
-        self._multipleItemContextMenu.addAction(self.bringForwardAction)
-        self._multipleItemContextMenu.addAction(self.sendBackwardAction)
-        self._multipleItemContextMenu.addAction(self.bringToFrontAction)
-        self._multipleItemContextMenu.addAction(self.sendToBackAction)
-        self._multipleItemContextMenu.addSeparator()
-        self._multipleItemContextMenu.addAction(self.groupAction)
-        self._multipleItemContextMenu.addAction(self.ungroupAction)
 
     # ==================================================================================================================
 
@@ -339,61 +206,6 @@ class DrawingWidget(DrawingView):
             self.currentItemsPropertyChanged.emit(items)
 
         self.viewport().update()
-
-    # ==================================================================================================================
-
-    def setUndoForwarding(self, forwarding: bool) -> None:
-        self._undoForwarding = forwarding
-
-    def isUndoForwarding(self) -> bool:
-        return self._undoForwarding
-
-    def undo(self) -> None:
-        if (self.mode() == DrawingWidget.Mode.SelectMode):
-            # Get the command that will be undone by the call to self._undoStack.undo()
-            command = self._undoStack.command(self._undoStack.index() - 1)
-
-            self._undoStack.undo()
-
-            if (isinstance(command, DrawingUndoCommand)):
-                if (command.viewRect().isValid()):
-                    self.zoomToRect(command.viewRect())
-                if (isinstance(command, DrawingItemsUndoCommand)):
-                    self.setSelectedItems(command.items())
-                else:
-                    self.setSelectedItems([])
-            else:
-                self.setSelectedItems([])
-        else:
-            self.setSelectMode()
-
-    def redo(self) -> None:
-        if (self.mode() == DrawingWidget.Mode.SelectMode):
-            # Get the command that will be redone by the call to self._undoStack.redo()
-            command = self._undoStack.command(self._undoStack.index())
-
-            self._undoStack.redo()
-
-            if (isinstance(command, DrawingUndoCommand)):
-                if (command.viewRect().isValid()):
-                    self.zoomToRect(command.viewRect())
-                if (isinstance(command, DrawingItemsUndoCommand)):
-                    self.setSelectedItems(command.items())
-                else:
-                    self.setSelectedItems([])
-            else:
-                self.setSelectedItems([])
-        else:
-            self.setSelectMode()
-
-    def isClean(self) -> bool:
-        return self._undoStack.isClean()
-
-    def _pushUndoCommand(self, command: QUndoCommand) -> None:
-        if (self._undoForwarding):
-            self.undoCommandCreated.emit(command)
-        else:
-            self._undoStack.push(command)
 
     # ==================================================================================================================
 
@@ -717,29 +529,6 @@ class DrawingWidget(DrawingView):
 
     # ==================================================================================================================
 
-    def _selectModeRightMouseReleaseEvent(self, event: QMouseEvent) -> None:
-        # Show context menu depending on whether or not the right-click occurred on a selected item
-        # and if so, what kind of item it was.
-        menuPosition = event.globalPosition().toPoint()
-
-        if (self._selectMouseDownItem is not None and self._selectMouseDownItem.isSelected()):
-            if (len(self._selectedItems) == 1):
-                if (self.insertPointAction.isEnabled()):
-                    self._singlePolyItemContextMenu.popup(menuPosition)
-                elif (self.groupAction.isEnabled() or self.ungroupAction.isEnabled()):
-                    self._singleGroupItemContextMenu.popup(menuPosition)
-                else:
-                    self._singleItemContextMenu.popup(menuPosition)
-            else:
-                self._multipleItemContextMenu.popup(menuPosition)
-        else:
-            self.setSelectedItems([])
-            self._noItemContextMenu.popup(menuPosition)
-
-        super()._selectModeRightMouseReleaseEvent(event)
-
-    # ==================================================================================================================
-
     def _placeModeNoButtonMouseMoveEvent(self, event: QMouseEvent) -> None:
         # Move the place items within the scene relative to the center of those items.
         centerPosition = self.roundPointToGrid(self._itemsCenter(self._placeModeItems))
@@ -973,6 +762,11 @@ class DrawingWidget(DrawingView):
 
     # ==================================================================================================================
 
+    def _pushUndoCommand(self, command: QUndoCommand) -> None:
+        self.undoCommandCreated.emit(command)
+
+    # ==================================================================================================================
+
     def _emitModifiedStringChanged(self, clean: bool) -> None:
         self.modifiedStringChanged.emit('Modified' if (not clean) else '')
 
@@ -980,34 +774,6 @@ class DrawingWidget(DrawingView):
 
     def _updateSelectionCenter(self) -> None:
         self._selectedItemsCenter = self._itemsCenter(self._selectedItems)
-
-    # ==================================================================================================================
-
-    def _addNormalAction(self, text: str, slot: typing.Callable, iconPath: str = '', shortcut: str = '') -> QAction:
-        action = QAction(text, self)
-        action.triggered.connect(slot)      # type: ignore
-        if (iconPath != ''):
-            action.setIcon(QIcon(iconPath))
-        if (shortcut != ''):
-            action.setShortcut(QKeySequence(shortcut))
-        self.addAction(action)
-        return action
-
-    def _updateActionsFromSelection(self) -> None:
-        canGroup = (len(self._selectedItems) > 1)
-        canUngroup = False
-        canInsertPoints = False
-        canRemovePoints = False
-        if (len(self._selectedItems) == 1):
-            item = self._selectedItems[0]
-            canUngroup = (item.key() == 'group')
-            canInsertPoints = item.canInsertPoints()
-            canRemovePoints = item.canRemovePoints()
-
-        self.groupAction.setEnabled(canGroup)
-        self.ungroupAction.setEnabled(canUngroup)
-        self.insertPointAction.setEnabled(canInsertPoints)
-        self.removePointAction.setEnabled(canRemovePoints)
 
 
 # ======================================================================================================================

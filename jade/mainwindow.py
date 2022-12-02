@@ -38,7 +38,6 @@ from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
-#   - DrawingWidget undo/redo actions don't actually do anything
 #   - Add items:
 #     - DrawingPathItem
 #     - DrawingPolygonItem

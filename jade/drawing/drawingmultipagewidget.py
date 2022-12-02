@@ -17,9 +17,9 @@
 import typing
 from xml.etree import ElementTree
 from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRectF
-from PyQt6.QtGui import QAction, QActionGroup, QBrush, QColor, QFont, QIcon, QKeySequence, QPen, QUndoCommand, \
-                        QUndoStack
-from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
+from PyQt6.QtGui import QAction, QActionGroup, QBrush, QColor, QContextMenuEvent, QFont, QIcon, QKeySequence, QPen, \
+                        QUndoCommand, QUndoStack
+from PyQt6.QtWidgets import QMenu, QStackedWidget, QVBoxLayout, QWidget
 from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
 from .drawingitempoint import DrawingItemPoint
@@ -91,6 +91,7 @@ class DrawingMultiPageWidget(QWidget):
         self._undoStack.cleanChanged.connect(self._emitModifiedStringChanged)   # type: ignore
 
         self._createActions()
+        self._createContextMenus()
         self.currentItemsChanged.connect(self._updateActionsFromSelection)
 
     def _createActions(self) -> None:
@@ -160,6 +161,92 @@ class DrawingMultiPageWidget(QWidget):
                                                                    'icons:text-ellipse.png')
 
         self.selectModeAction.setChecked(True)
+
+    def _createContextMenus(self) -> None:
+        self._noItemContextMenu: QMenu = QMenu()
+        self._noItemContextMenu.addAction(self.undoAction)
+        self._noItemContextMenu.addAction(self.redoAction)
+        self._noItemContextMenu.addSeparator()
+        self._noItemContextMenu.addAction(self.cutAction)
+        self._noItemContextMenu.addAction(self.copyAction)
+        self._noItemContextMenu.addAction(self.pasteAction)
+        self._noItemContextMenu.addSeparator()
+        self._noItemContextMenu.addAction(self.zoomInAction)
+        self._noItemContextMenu.addAction(self.zoomOutAction)
+        self._noItemContextMenu.addAction(self.zoomFitAction)
+
+        self._singleItemContextMenu: QMenu = QMenu()
+        self._singleItemContextMenu.addAction(self.cutAction)
+        self._singleItemContextMenu.addAction(self.copyAction)
+        self._singleItemContextMenu.addAction(self.pasteAction)
+        self._singleItemContextMenu.addAction(self.deleteAction)
+        self._singleItemContextMenu.addSeparator()
+        self._singleItemContextMenu.addAction(self.rotateAction)
+        self._singleItemContextMenu.addAction(self.rotateBackAction)
+        self._singleItemContextMenu.addAction(self.flipHorizontalAction)
+        self._singleItemContextMenu.addAction(self.flipVerticalAction)
+        self._singleItemContextMenu.addSeparator()
+        self._singleItemContextMenu.addAction(self.bringForwardAction)
+        self._singleItemContextMenu.addAction(self.sendBackwardAction)
+        self._singleItemContextMenu.addAction(self.bringToFrontAction)
+        self._singleItemContextMenu.addAction(self.sendToBackAction)
+
+        self._singlePolyItemContextMenu: QMenu = QMenu()
+        self._singlePolyItemContextMenu.addAction(self.cutAction)
+        self._singlePolyItemContextMenu.addAction(self.copyAction)
+        self._singlePolyItemContextMenu.addAction(self.pasteAction)
+        self._singlePolyItemContextMenu.addAction(self.deleteAction)
+        self._singlePolyItemContextMenu.addSeparator()
+        self._singlePolyItemContextMenu.addAction(self.insertPointAction)
+        self._singlePolyItemContextMenu.addAction(self.removePointAction)
+        self._singlePolyItemContextMenu.addSeparator()
+        self._singlePolyItemContextMenu.addAction(self.rotateAction)
+        self._singlePolyItemContextMenu.addAction(self.rotateBackAction)
+        self._singlePolyItemContextMenu.addAction(self.flipHorizontalAction)
+        self._singlePolyItemContextMenu.addAction(self.flipVerticalAction)
+        self._singlePolyItemContextMenu.addSeparator()
+        self._singlePolyItemContextMenu.addAction(self.bringForwardAction)
+        self._singlePolyItemContextMenu.addAction(self.sendBackwardAction)
+        self._singlePolyItemContextMenu.addAction(self.bringToFrontAction)
+        self._singlePolyItemContextMenu.addAction(self.sendToBackAction)
+
+        self._singleGroupItemContextMenu: QMenu = QMenu()
+        self._singleGroupItemContextMenu.addAction(self.cutAction)
+        self._singleGroupItemContextMenu.addAction(self.copyAction)
+        self._singleGroupItemContextMenu.addAction(self.pasteAction)
+        self._singleGroupItemContextMenu.addAction(self.deleteAction)
+        self._singleGroupItemContextMenu.addSeparator()
+        self._singleGroupItemContextMenu.addAction(self.rotateAction)
+        self._singleGroupItemContextMenu.addAction(self.rotateBackAction)
+        self._singleGroupItemContextMenu.addAction(self.flipHorizontalAction)
+        self._singleGroupItemContextMenu.addAction(self.flipVerticalAction)
+        self._singleGroupItemContextMenu.addSeparator()
+        self._singleGroupItemContextMenu.addAction(self.bringForwardAction)
+        self._singleGroupItemContextMenu.addAction(self.sendBackwardAction)
+        self._singleGroupItemContextMenu.addAction(self.bringToFrontAction)
+        self._singleGroupItemContextMenu.addAction(self.sendToBackAction)
+        self._singleGroupItemContextMenu.addSeparator()
+        self._singleGroupItemContextMenu.addAction(self.groupAction)
+        self._singleGroupItemContextMenu.addAction(self.ungroupAction)
+
+        self._multipleItemContextMenu: QMenu = QMenu()
+        self._multipleItemContextMenu.addAction(self.cutAction)
+        self._multipleItemContextMenu.addAction(self.copyAction)
+        self._multipleItemContextMenu.addAction(self.pasteAction)
+        self._multipleItemContextMenu.addAction(self.deleteAction)
+        self._multipleItemContextMenu.addSeparator()
+        self._multipleItemContextMenu.addAction(self.rotateAction)
+        self._multipleItemContextMenu.addAction(self.rotateBackAction)
+        self._multipleItemContextMenu.addAction(self.flipHorizontalAction)
+        self._multipleItemContextMenu.addAction(self.flipVerticalAction)
+        self._multipleItemContextMenu.addSeparator()
+        self._multipleItemContextMenu.addAction(self.bringForwardAction)
+        self._multipleItemContextMenu.addAction(self.sendBackwardAction)
+        self._multipleItemContextMenu.addAction(self.bringToFrontAction)
+        self._multipleItemContextMenu.addAction(self.sendToBackAction)
+        self._multipleItemContextMenu.addSeparator()
+        self._multipleItemContextMenu.addAction(self.groupAction)
+        self._multipleItemContextMenu.addAction(self.ungroupAction)
 
     # ==================================================================================================================
 
@@ -400,9 +487,7 @@ class DrawingMultiPageWidget(QWidget):
 
             self.pageInserted.emit(page, index)
 
-            page.setUndoForwarding(True)
             page.undoCommandCreated.connect(self._pushUndoCommand)
-
             page.scaleChanged.connect(self._emitScaleChanged)
             page.modeChanged.connect(self._emitModeChanged)
             page.modeStringChanged.connect(self._emitModeStringChanged)
@@ -427,6 +512,7 @@ class DrawingMultiPageWidget(QWidget):
             self._stackedWidget.removeWidget(page)
             page.setParent(None)    # type: ignore
 
+            page.undoCommandCreated.disconnect(self._pushUndoCommand)
             page.scaleChanged.disconnect(self._emitScaleChanged)
             page.modeChanged.disconnect(self._emitModeChanged)
             page.modeStringChanged.disconnect(self._emitModeStringChanged)
@@ -843,6 +929,31 @@ class DrawingMultiPageWidget(QWidget):
 
     # ==================================================================================================================
 
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        if (self._currentPage is not None and self.mode() == DrawingWidget.Mode.SelectMode):
+            # Show context menu depending on whether or not the right-click occurred on a selected item
+            # and if so, what kind of item it was.
+            mouseDownItem = self._currentPage.itemAt(self._currentPage.mapToScene(event.pos()))
+            selectedItems = self._currentPage.selectedItems()
+
+            if (mouseDownItem is not None and mouseDownItem.isSelected()):
+                if (len(selectedItems) == 1):
+                    if (self.insertPointAction.isEnabled()):
+                        self._singlePolyItemContextMenu.popup(event.globalPos())
+                    elif (self.groupAction.isEnabled() or self.ungroupAction.isEnabled()):
+                        self._singleGroupItemContextMenu.popup(event.globalPos())
+                    else:
+                        self._singleItemContextMenu.popup(event.globalPos())
+                else:
+                    self._multipleItemContextMenu.popup(event.globalPos())
+            else:
+                self.setSelectedItems([])
+                self._noItemContextMenu.popup(event.globalPos())
+
+            event.accept()
+
+    # ==================================================================================================================
+
     def _emitScaleChanged(self, scale: float) -> None:
         self.scaleChanged.emit(scale)
 
@@ -932,12 +1043,21 @@ class DrawingMultiPageWidget(QWidget):
         if (mode == DrawingWidget.Mode.SelectMode.value and not self.selectModeAction.isChecked()):
             self.selectModeAction.setChecked(True)
 
-    def _updateActionsFromSelection(self) -> None:
-        if (self._currentPage is not None):
-            self.groupAction.setEnabled(self._currentPage.groupAction.isEnabled())
-            self.ungroupAction.setEnabled(self._currentPage.ungroupAction.isEnabled())
-            self.insertPointAction.setEnabled(self._currentPage.insertPointAction.isEnabled())
-            self.removePointAction.setEnabled(self._currentPage.removePointAction.isEnabled())
+    def _updateActionsFromSelection(self, items: list[DrawingItem]) -> None:
+        canGroup = (len(items) > 1)
+        canUngroup = False
+        canInsertPoints = False
+        canRemovePoints = False
+        if (len(items) == 1):
+            item = items[0]
+            canUngroup = (item.key() == 'group')
+            canInsertPoints = item.canInsertPoints()
+            canRemovePoints = item.canRemovePoints()
+
+        self.groupAction.setEnabled(canGroup)
+        self.ungroupAction.setEnabled(canUngroup)
+        self.insertPointAction.setEnabled(canInsertPoints)
+        self.removePointAction.setEnabled(canRemovePoints)
 
 
 # ======================================================================================================================
