@@ -337,7 +337,6 @@ class MainWindow(QMainWindow):
         pass
 
     def closeDrawing(self) -> None:
-        # Todo: fill out close method
         proceedToClose = self.isDrawingVisible()
         if (proceedToClose):
             self._setDrawingVisible(False)
@@ -441,7 +440,6 @@ class MainWindow(QMainWindow):
         pass
 
     def _loadSettings(self) -> None:
-        # Todo: try to load settings from file
         font = QFont('Arial')
         font.setPointSizeF(100)
 

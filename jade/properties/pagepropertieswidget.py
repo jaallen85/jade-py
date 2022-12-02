@@ -30,6 +30,9 @@ class PagePropertiesWidget(QWidget):
     def __init__(self) -> None:
         super().__init__()
 
+        self._cachedGridSpacingMajor: int = 0
+        self._cachedGridSpacingMinor: int = 0
+
         labelWidth = QFontMetrics(self.font()).boundingRect("Minor Grid Spacing:").width() + 8
 
         layout = QVBoxLayout()
@@ -97,9 +100,6 @@ class PagePropertiesWidget(QWidget):
         self._gridSpacingMinorWidget: QLineEdit = QLineEdit('1')
         self._gridSpacingMinorWidget.setValidator(QIntValidator(1, int(1E6), self._gridSpacingMinorWidget))
         self._gridSpacingMinorWidget.editingFinished.connect(self._handleGridSpacingMinorChange)    # type: ignore
-
-        self._cachedGridSpacingMajor: int = 0
-        self._cachedGridSpacingMinor: int = 0
 
         gridGroup = QGroupBox('Grid')
         gridLayout = QFormLayout()

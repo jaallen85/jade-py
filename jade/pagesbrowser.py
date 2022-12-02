@@ -16,7 +16,7 @@
 
 import typing
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QContextMenuEvent, QDropEvent, QIcon, QKeySequence
+from PyQt6.QtGui import QAction, QContextMenuEvent, QDropEvent
 from PyQt6.QtWidgets import QListWidget, QListWidgetItem, QMenu
 from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
 from .drawing.drawingwidget import DrawingWidget
@@ -32,11 +32,7 @@ class PagesBrowser(QListWidget):
 
         self._drawing: DrawingMultiPageWidget = drawing
 
-        self._contextMenu: QMenu = QMenu()
-        self._contextMenu.addAction(self._drawing.insertPageAction)
-        self._contextMenu.addAction(self._drawing.removePageAction)
-        self._contextMenu.addAction(self._addNormalAction('Rename Page', self._renamePage))
-
+        # Signals and slots
         self._drawing.pageInserted.connect(self._insertItem)
         self._drawing.pageRemoved.connect(self._removeItem)
         self._drawing.currentPageIndexChanged.connect(self._updateCurrentItem)
@@ -44,6 +40,16 @@ class PagesBrowser(QListWidget):
 
         self.currentRowChanged.connect(self._updateCurrentPage)     # type: ignore
         self.itemChanged.connect(self._updateCurrentPageName)       # type: ignore
+
+        # Menus and actions
+        renamePageAction = QAction('Rename Page', self)
+        renamePageAction.triggered.connect(self._renamePage)      # type: ignore
+        self.addAction(renamePageAction)
+
+        self._contextMenu: QMenu = QMenu()
+        self._contextMenu.addAction(self._drawing.insertPageAction)
+        self._contextMenu.addAction(self._drawing.removePageAction)
+        self._contextMenu.addAction(renamePageAction)
 
     # ==================================================================================================================
 
@@ -105,15 +111,3 @@ class PagesBrowser(QListWidget):
     def _updateCurrentPageName(self, item: QListWidgetItem) -> None:
         if (item is not None):
             self._drawing.renameCurrentPage(item.text())
-
-    # ==================================================================================================================
-
-    def _addNormalAction(self, text: str, slot: typing.Callable, iconPath: str = '', shortcut: str = '') -> QAction:
-        action = QAction(text, self)
-        action.triggered.connect(slot)      # type: ignore
-        if (iconPath != ''):
-            action.setIcon(QIcon(iconPath))
-        if (shortcut != ''):
-            action.setShortcut(QKeySequence(shortcut))
-        self.addAction(action)
-        return action

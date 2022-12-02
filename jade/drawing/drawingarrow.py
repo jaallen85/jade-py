@@ -113,7 +113,7 @@ class DrawingArrow:
             self._path.moveTo(QPointF(0, 0))
             self._path.lineTo(QPointF(-x, y))
 
-        elif (self._style == DrawingArrow.Style.Triangle or self._style == DrawingArrow.Style.TriangleFilled):
+        elif (self._style in (DrawingArrow.Style.Triangle, DrawingArrow.Style.TriangleFilled)):
             angle = math.pi / 6     # Makes the arrowhead a 60 degree angle
             sqrt2 = math.sqrt(2)
             x = self._size / sqrt2 * math.cos(angle)
@@ -124,7 +124,7 @@ class DrawingArrow:
             self._path.lineTo(QPointF(-x, y))
             self._path.closeSubpath()
 
-        elif (self._style == DrawingArrow.Style.Concave or self._style == DrawingArrow.Style.ConcaveFilled):
+        elif (self._style in (DrawingArrow.Style.Concave, DrawingArrow.Style.ConcaveFilled)):
             angle = math.pi / 6     # Makes the arrowhead a 60 degree angle
             sqrt2 = math.sqrt(2)
             x = self._size / sqrt2 * math.cos(angle)
@@ -137,7 +137,7 @@ class DrawingArrow:
             self._path.lineTo(QPointF(-x, y))
             self._path.closeSubpath()
 
-        elif (self._style == DrawingArrow.Style.Circle or self._style == DrawingArrow.Style.CircleFilled):
+        elif (self._style in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
             self._path.addEllipse(QPointF(0, 0), self._size / 2, self._size / 2)
 
     # ==================================================================================================================

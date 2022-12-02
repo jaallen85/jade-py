@@ -1076,12 +1076,12 @@ class DrawingAddItemsCommand(DrawingUndoCommand):
 
     def redo(self) -> None:
         self._undone = False
-        self._widget.addItems(self._items)
+        self.widget().addItems(self._items)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.removeItems(self._items)
+        self.widget().removeItems(self._items)
         self._undone = True
 
 
@@ -1097,7 +1097,7 @@ class DrawingRemoveItemsCommand(DrawingUndoCommand):
 
         self._indices: dict[DrawingItem, int] = {}
         for item in self._items:
-            self._indices[item] = self._widget.items().index(item)
+            self._indices[item] = self.widget().items().index(item)
 
     def __del__(self) -> None:
         if (not self._undone):
@@ -1105,12 +1105,12 @@ class DrawingRemoveItemsCommand(DrawingUndoCommand):
 
     def redo(self) -> None:
         self._undone = False
-        self._widget.removeItems(self._items)
+        self.widget().removeItems(self._items)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.insertItems(self._items, self._indices)
+        self.widget().insertItems(self._items, self._indices)
         self._undone = True
 
 
@@ -1122,15 +1122,17 @@ class DrawingReorderItemsCommand(DrawingUndoCommand):
 
         # Assumes each item in items is a member of widget.items() and no items have been added or removed
         self._items: list[DrawingItem] = items
-        self._originalItems: list[DrawingItem] = self._widget.items()
+        self._originalItems: list[DrawingItem] = self.widget().items()
 
     def redo(self) -> None:
-        self._widget._reorderItems(self._items)
+        # pylint: disable-next=W0212
+        self.widget()._reorderItems(self._items)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget._reorderItems(self._originalItems)
+        # pylint: disable-next=W0212
+        self.widget()._reorderItems(self._originalItems)
 
 
 # ======================================================================================================================
@@ -1148,25 +1150,31 @@ class DrawingMoveItemsCommand(DrawingItemsUndoCommand):
         for item in self._items:
             self._originalPositions[item] = item.position()
 
+    def positions(self) -> dict[DrawingItem, QPointF]:
+        return self._positions
+
+    def isFinalMove(self) -> bool:
+        return self._finalMove
+
     def id(self) -> int:
         return DrawingItemsUndoCommand.Id.MoveItemsId.value
 
     def mergeWith(self, command: QUndoCommand) -> bool:
-        if (isinstance(command, DrawingMoveItemsCommand) and self._widget == command._widget and
-                self._items == command._items and not self._finalMove):
-            self._positions = command._positions
-            self._finalMove = command._finalMove
+        if (isinstance(command, DrawingMoveItemsCommand) and self.widget() == command.widget() and
+                self.items() == command.items() and not self._finalMove):
+            self._positions = command.positions()
+            self._finalMove = command.isFinalMove()
             self.mergeChildren(command)
             return True
         return False
 
     def redo(self) -> None:
-        self._widget.moveItems(self._items, self._positions)
+        self.widget().moveItems(self._items, self._positions)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.moveItems(self._items, self._originalPositions)
+        self.widget().moveItems(self._items, self._originalPositions)
 
 
 # ======================================================================================================================
@@ -1181,8 +1189,11 @@ class DrawingResizeItemCommand(DrawingItemsUndoCommand):
         self._position: QPointF = position
         self._snapTo45Degrees: bool = snapTo45Degrees
         self._finalResize: bool = finalResize
+        self._originalPosition: QPointF = QPointF()
 
-        self._originalPosition: QPointF = point.item().mapToScene(point.position())
+        item = point.item()
+        if (isinstance(item, DrawingItem)):
+            self._originalPosition = item.mapToScene(point.position())
 
     def point(self) -> DrawingItemPoint:
         return self._point
@@ -1200,22 +1211,22 @@ class DrawingResizeItemCommand(DrawingItemsUndoCommand):
         return DrawingItemsUndoCommand.Id.ResizeItemId.value
 
     def mergeWith(self, command: QUndoCommand) -> bool:
-        if (isinstance(command, DrawingResizeItemCommand) and self._widget == command._widget and
-                self._point == command._point and not self._finalResize):
-            self._position = command._position
-            self._snapTo45Degrees = command._snapTo45Degrees
-            self._finalResize = command._finalResize
+        if (isinstance(command, DrawingResizeItemCommand) and self.widget() == command.widget() and
+                self._point == command.point() and not self._finalResize):
+            self._position = command.position()
+            self._snapTo45Degrees = command.shouldSnapTo45Degrees()
+            self._finalResize = command.isFinalResize()
             self.mergeChildren(command)
             return True
         return False
 
     def redo(self) -> None:
-        self._widget.resizeItem(self._point, self._position, self._snapTo45Degrees)
+        self.widget().resizeItem(self._point, self._position, self._snapTo45Degrees)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.resizeItem(self._point, self._originalPosition, False)
+        self.widget().resizeItem(self._point, self._originalPosition, False)
 
 
 # ======================================================================================================================
@@ -1229,12 +1240,12 @@ class DrawingRotateItemsCommand(DrawingItemsUndoCommand):
         self._position: QPointF = position
 
     def redo(self) -> None:
-        self._widget.rotateItems(self._items, self._position)
+        self.widget().rotateItems(self._items, self._position)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.rotateBackItems(self._items, self._position)
+        self.widget().rotateBackItems(self._items, self._position)
 
 
 # ======================================================================================================================
@@ -1248,12 +1259,12 @@ class DrawingRotateBackItemsCommand(DrawingItemsUndoCommand):
         self._position: QPointF = position
 
     def redo(self) -> None:
-        self._widget.rotateBackItems(self._items, self._position)
+        self.widget().rotateBackItems(self._items, self._position)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.rotateItems(self._items, self._position)
+        self.widget().rotateItems(self._items, self._position)
 
 
 # ======================================================================================================================
@@ -1267,12 +1278,12 @@ class DrawingFlipItemsHorizontalCommand(DrawingItemsUndoCommand):
         self._position: QPointF = position
 
     def redo(self) -> None:
-        self._widget.flipItemsHorizontal(self._items, self._position)
+        self.widget().flipItemsHorizontal(self._items, self._position)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.flipItemsHorizontal(self._items, self._position)
+        self.widget().flipItemsHorizontal(self._items, self._position)
 
 
 # ======================================================================================================================
@@ -1286,12 +1297,12 @@ class DrawingFlipItemsVerticalCommand(DrawingItemsUndoCommand):
         self._position: QPointF = position
 
     def redo(self) -> None:
-        self._widget.flipItemsVertical(self._items, self._position)
+        self.widget().flipItemsVertical(self._items, self._position)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.flipItemsVertical(self._items, self._position)
+        self.widget().flipItemsVertical(self._items, self._position)
 
 
 # ======================================================================================================================
@@ -1313,12 +1324,12 @@ class DrawingItemInsertPointCommand(DrawingItemsUndoCommand):
 
     def redo(self) -> None:
         self._undone = False
-        self._widget.insertItemPoint(self._item, self._point, self._index)
+        self.widget().insertItemPoint(self._item, self._point, self._index)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.removeItemPoint(self._item, self._point)
+        self.widget().removeItemPoint(self._item, self._point)
         self._undone = True
 
 
@@ -1341,12 +1352,12 @@ class DrawingItemRemovePointCommand(DrawingItemsUndoCommand):
 
     def redo(self) -> None:
         self._undone = False
-        self._widget.removeItemPoint(self._item, self._point)
+        self.widget().removeItemPoint(self._item, self._point)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.insertItemPoint(self._item, self._point, self._index)
+        self.widget().insertItemPoint(self._item, self._point, self._index)
         self._undone = True
 
 
@@ -1420,12 +1431,12 @@ class DrawingSetItemsPropertyCommand(DrawingItemsUndoCommand):
             self._originalValues[item] = item.property(name)
 
     def redo(self) -> None:
-        self._widget.setItemsProperty(self._items, self._name, self._value)
+        self.widget().setItemsProperty(self._items, self._name, self._value)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.setItemsPropertyDict(self._items, self._name, self._originalValues)
+        self.widget().setItemsPropertyDict(self._items, self._name, self._originalValues)
 
 
 # ======================================================================================================================
@@ -1437,15 +1448,15 @@ class DrawingSetWidgetPropertyCommand(DrawingUndoCommand):
         self._name: str = name
         self._value: typing.Any = value
 
-        self._originalValue: typing.Any = self._widget.property(self._name)
+        self._originalValue: typing.Any = self.widget().property(self._name)
 
         if (self._name == 'sceneRect'):
             self._viewRect = QRectF()
 
     def redo(self) -> None:
-        self._widget.setProperty(self._name, self._value)
+        self.widget().setProperty(self._name, self._value)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
-        self._widget.setProperty(self._name, self._originalValue)
+        self.widget().setProperty(self._name, self._originalValue)

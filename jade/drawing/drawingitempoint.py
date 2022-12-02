@@ -29,10 +29,10 @@ class DrawingItemPoint:
 
     # ==================================================================================================================
 
-    def __init__(self, position: QPointF = QPointF(), type: Type = Type.NoType) -> None:
+    def __init__(self, position: QPointF = QPointF(), pointType: Type = Type.NoType) -> None:
         self._item: typing.Any = None
         self._position: QPointF = position
-        self._type: DrawingItemPoint.Type = type
+        self._type: DrawingItemPoint.Type = pointType
         self._connections: list[DrawingItemPoint] = []
 
     def __del__(self) -> None:
@@ -60,8 +60,8 @@ class DrawingItemPoint:
 
     # ==================================================================================================================
 
-    def setType(self, type: Type) -> None:
-        self._type = type
+    def setType(self, pointType: Type) -> None:
+        self._type = pointType
 
     def type(self) -> Type:
         return self._type

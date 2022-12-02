@@ -219,11 +219,13 @@ class DrawingView(QAbstractScrollArea):
     def insertItem(self, index: int, item: DrawingItem) -> None:
         if (item not in self._items):
             self._items.insert(index, item)
+            # pylint: disable-next=W0212
             item._parent = self
 
     def removeItem(self, item: DrawingItem) -> None:
         if (item in self._items):
             self._items.remove(item)
+            # pylint: disable-next=W0212
             item._parent = None
 
     def items(self) -> list[DrawingItem]:
@@ -491,6 +493,7 @@ class DrawingView(QAbstractScrollArea):
 
             # Update the place items, if applicable
             self._placeModeItems = placeItems
+            # pylint: disable-next=R1714
             if (previousMode == DrawingView.Mode.PlaceMode or self._mode == DrawingView.Mode.PlaceMode):
                 self.currentItemsChanged.emit(self._placeModeItems)
 

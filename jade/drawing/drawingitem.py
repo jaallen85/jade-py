@@ -153,11 +153,13 @@ class DrawingItem:
     def insertPoint(self, index: int, point: DrawingItemPoint) -> None:
         if (point not in self._points):
             self._points.insert(index, point)
+            # pylint: disable-next=W0212
             point._item = self
 
     def removePoint(self, point: DrawingItemPoint) -> None:
         if (point in self._points):
             self._points.remove(point)
+            # pylint: disable-next=W0212
             point._item = None
 
     def points(self) -> list[DrawingItemPoint]:
@@ -165,8 +167,8 @@ class DrawingItem:
 
     # ==================================================================================================================
 
-    def setPlaceType(self, type: 'DrawingItem.PlaceType') -> None:
-        self._placeType = type
+    def setPlaceType(self, placeType: 'DrawingItem.PlaceType') -> None:
+        self._placeType = placeType
 
     def placeType(self) -> 'DrawingItem.PlaceType':
         return self._placeType
@@ -446,7 +448,7 @@ class DrawingItem:
     def readStrAttribute(element: ElementTree.Element, name: str, defaultValue: str) -> str:
         try:
             return element.attrib[name]
-        except Exception:
+        except KeyError:
             pass
         return defaultValue
 
@@ -454,7 +456,7 @@ class DrawingItem:
     def readFloatAttribute(element: ElementTree.Element, name: str, defaultValue: float) -> float:
         try:
             return float(element.attrib[name])
-        except Exception:
+        except (KeyError, ValueError):
             pass
         return defaultValue
 
@@ -462,7 +464,7 @@ class DrawingItem:
     def readIntAttribute(element: ElementTree.Element, name: str, defaultValue: int) -> int:
         try:
             return int(element.attrib[name])
-        except Exception:
+        except (KeyError, ValueError):
             pass
         return defaultValue
 
@@ -470,7 +472,7 @@ class DrawingItem:
     def readBoolAttribute(element: ElementTree.Element, name: str, defaultValue: bool) -> bool:
         try:
             return (element.attrib[name].lower() == 'true')
-        except Exception:
+        except KeyError:
             pass
         return defaultValue
 
@@ -482,7 +484,7 @@ class DrawingItem:
                 return QColor(int(colorStr[1:3], 16), int(colorStr[3:5], 16), int(colorStr[5:7], 16),
                               int(colorStr[7:9], 16))
             return QColor(int(colorStr[1:3], 16), int(colorStr[3:5], 16), int(colorStr[5:7], 16))
-        except Exception:
+        except (KeyError, ValueError):
             pass
         return QColor(0, 0, 0)
 
@@ -494,7 +496,7 @@ class DrawingItem:
                 coords = token.split(',')
                 points.append(QPointF(float(coords[0]), float(coords[1])))
             return points
-        except Exception:
+        except (KeyError, ValueError):
             pass
         return QPolygonF()
 
