@@ -195,104 +195,101 @@ class SingleItemPropertiesWidget(QWidget):
         self.blockSignals(False)
 
     def _updateLineGroup(self) -> None:
+        self._lineGroup.setVisible(False)
         if (self._item is not None):
             line = self._item.property('line')
+
+            # Line
+            showLine = False
             if (isinstance(line, QLineF)):
-                self._lineGroup.setVisible(True)
+                showLine = True
                 self._lineStartWidget.setPosition(line.p1())
                 self._lineEndWidget.setPosition(line.p2())
                 self._lineSizeWidget.setSize(QSizeF(line.x2() - line.x1(), line.y2() - line.y1()))
-            else:
-                self._lineGroup.setVisible(False)
-        else:
-            self._lineGroup.setVisible(False)
+
+            # Set line group visibility
+            self._lineGroup.setVisible(showLine)
 
     def _updateRectGroup(self) -> None:
+        self._rectGroup.setVisible(False)
         if (self._item is not None):
             rect = self._item.property('rect')
             cornerRadius = self._item.property('cornerRadius')
 
-            showRectGroup = (isinstance(rect, QRectF) or isinstance(cornerRadius, float))
-            self._rectGroup.setVisible(showRectGroup)
+            # Rect
+            showRect = False
+            if (isinstance(rect, QRectF)):
+                showRect = True
+                self._rectTopLeftWidget.setPosition(rect.topLeft())
+                self._rectBottomRightWidget.setPosition(rect.bottomRight())
+                self._rectSizeWidget.setSize(rect.size())
 
-            if (showRectGroup):
-                if (isinstance(rect, QRectF)):
-                    self._rectLayout.setRowVisible(self._rectTopLeftWidget, True)
-                    self._rectLayout.setRowVisible(self._rectBottomRightWidget, True)
-                    self._rectLayout.setRowVisible(self._rectSizeWidget, True)
-                    self._rectTopLeftWidget.setPosition(rect.topLeft())
-                    self._rectBottomRightWidget.setPosition(rect.bottomRight())
-                    self._rectSizeWidget.setSize(rect.size())
-                else:
-                    self._rectLayout.setRowVisible(self._rectTopLeftWidget, False)
-                    self._rectLayout.setRowVisible(self._rectBottomRightWidget, False)
-                    self._rectLayout.setRowVisible(self._rectSizeWidget, False)
+            # Corner radius
+            showCornerRadius = False
+            if (isinstance(cornerRadius, float)):
+                showCornerRadius = True
+                self._rectCornerRadiusEdit.setSize(cornerRadius)
 
-                if (isinstance(cornerRadius, float)):
-                    self._rectLayout.setRowVisible(self._rectCornerRadiusEdit, True)
-                    self._rectCornerRadiusEdit.setSize(cornerRadius)
-                else:
-                    self._rectLayout.setRowVisible(self._rectCornerRadiusEdit, False)
-        else:
-            self._rectGroup.setVisible(False)
+            # Set rect group visibility
+            self._rectLayout.setRowVisible(self._rectTopLeftWidget, showRect)
+            self._rectLayout.setRowVisible(self._rectBottomRightWidget, showRect)
+            self._rectLayout.setRowVisible(self._rectSizeWidget, showRect)
+            self._rectLayout.setRowVisible(self._rectCornerRadiusEdit, showCornerRadius)
+            self._rectGroup.setVisible(showRect or showCornerRadius)
 
     def _updatePenBrushGroup(self) -> None:
+        self._penBrushGroup.setVisible(False)
         if (self._item is not None):
             pen = self._item.property('pen')
             brush = self._item.property('brush')
 
-            showPenBrushGroup = (isinstance(pen, QPen) or isinstance(brush, QBrush))
-            self._penBrushGroup.setVisible(showPenBrushGroup)
+            # Pen
+            showPen = False
+            if (isinstance(pen, QPen)):
+                showPen = True
+                self._penStyleCombo.setCurrentIndex(pen.style().value)      # type: ignore
+                self._penWidthEdit.setSize(pen.widthF())
+                self._penColorWidget.setColor(pen.brush().color())
 
-            if (showPenBrushGroup):
-                if (isinstance(pen, QPen)):
-                    self._penBrushLayout.setRowVisible(self._penStyleCombo, True)
-                    self._penBrushLayout.setRowVisible(self._penWidthEdit, True)
-                    self._penBrushLayout.setRowVisible(self._penColorWidget, True)
-                    self._penStyleCombo.setCurrentIndex(pen.style().value)      # type: ignore
-                    self._penWidthEdit.setSize(pen.widthF())
-                    self._penColorWidget.setColor(pen.brush().color())
-                else:
-                    self._penBrushLayout.setRowVisible(self._penStyleCombo, False)
-                    self._penBrushLayout.setRowVisible(self._penWidthEdit, False)
-                    self._penBrushLayout.setRowVisible(self._penColorWidget, False)
+            # Brush
+            showBrush = False
+            if (isinstance(brush, QBrush)):
+                showBrush = True
+                self._brushColorWidget.setColor(brush.color())
 
-                if (isinstance(brush, QBrush)):
-                    self._penBrushLayout.setRowVisible(self._brushColorWidget, True)
-                    self._brushColorWidget.setColor(brush.color())
-                else:
-                    self._penBrushLayout.setRowVisible(self._brushColorWidget, False)
-        else:
-            self._penBrushGroup.setVisible(False)
+            # Set pen/brush group visibility
+            self._penBrushLayout.setRowVisible(self._penStyleCombo, showPen)
+            self._penBrushLayout.setRowVisible(self._penWidthEdit, showPen)
+            self._penBrushLayout.setRowVisible(self._penColorWidget, showPen)
+            self._penBrushLayout.setRowVisible(self._brushColorWidget, showBrush)
+            self._penBrushGroup.setVisible(showPen or showBrush)
 
     def _updateArrowGroup(self) -> None:
+        self._arrowGroup.setVisible(False)
         if (self._item is not None):
             startArrow = self._item.property('startArrow')
             endArrow = self._item.property('endArrow')
 
-            showArrowGroup = (isinstance(startArrow, DrawingArrow) or isinstance(endArrow, DrawingArrow))
-            self._arrowGroup.setVisible(showArrowGroup)
+            # Start arrow
+            showStartArrow = False
+            if (isinstance(startArrow, DrawingArrow)):
+                showStartArrow = True
+                self._startArrowStyleCombo.setCurrentIndex(startArrow.style().value)
+                self._startArrowSizeEdit.setSize(startArrow.size())
 
-            if (showArrowGroup):
-                if (isinstance(startArrow, DrawingArrow)):
-                    self._arrowLayout.setRowVisible(self._startArrowStyleCombo, True)
-                    self._arrowLayout.setRowVisible(self._startArrowSizeEdit, True)
-                    self._startArrowStyleCombo.setCurrentIndex(startArrow.style().value)
-                    self._startArrowSizeEdit.setSize(startArrow.size())
-                else:
-                    self._arrowLayout.setRowVisible(self._startArrowStyleCombo, False)
-                    self._arrowLayout.setRowVisible(self._startArrowSizeEdit, False)
+            # End arrow
+            showEndArrow = False
+            if (isinstance(endArrow, DrawingArrow)):
+                showEndArrow = True
+                self._endArrowStyleCombo.setCurrentIndex(endArrow.style().value)
+                self._endArrowSizeEdit.setSize(endArrow.size())
 
-                if (isinstance(endArrow, DrawingArrow)):
-                    self._arrowLayout.setRowVisible(self._endArrowStyleCombo, True)
-                    self._arrowLayout.setRowVisible(self._endArrowSizeEdit, True)
-                    self._endArrowStyleCombo.setCurrentIndex(endArrow.style().value)
-                    self._endArrowSizeEdit.setSize(endArrow.size())
-                else:
-                    self._arrowLayout.setRowVisible(self._endArrowStyleCombo, False)
-                    self._arrowLayout.setRowVisible(self._endArrowSizeEdit, False)
-        else:
-            self._arrowGroup.setVisible(False)
+            # Set arrow group visibility
+            self._arrowLayout.setRowVisible(self._startArrowStyleCombo, showStartArrow)
+            self._arrowLayout.setRowVisible(self._startArrowSizeEdit, showStartArrow)
+            self._arrowLayout.setRowVisible(self._endArrowStyleCombo, showEndArrow)
+            self._arrowLayout.setRowVisible(self._endArrowSizeEdit, showEndArrow)
+            self._arrowGroup.setVisible(showStartArrow or showEndArrow)
 
     # ==================================================================================================================
 

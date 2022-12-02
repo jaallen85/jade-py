@@ -166,13 +166,16 @@ class MultipleItemPropertiesWidget(QWidget):
     def _updateRectGroup(self) -> None:
         (cornerRadius, cornerRadiusMatches) = self._checkForProperty('cornerRadius')
 
-        showRectGroup = isinstance(cornerRadius, float)
-        self._rectGroup.setVisible(showRectGroup)
-
-        if (showRectGroup):
+        # Corner radius
+        showRectGroup = False
+        if (isinstance(cornerRadius, float)):
+            showRectGroup = True
             self._rectCornerRadiusEdit.setSize(cornerRadius)
             self._rectCornerRadiusEdit.setEnabled(cornerRadiusMatches)
             self._rectCornerRadiusCheck.setChecked(cornerRadiusMatches)
+
+        # Set rect group visiblity
+        self._rectGroup.setVisible(showRectGroup)
 
     def _updatePenBrushGroup(self) -> None:
         (penStyle, penStylesMatch) = self._checkForProperty('penStyle')
@@ -180,46 +183,44 @@ class MultipleItemPropertiesWidget(QWidget):
         (penColor, penColorsMatch) = self._checkForProperty('penColor')
         (brushColor, brushColorsMatch) = self._checkForProperty('brushColor')
 
-        showPenBrushGroup = (isinstance(penStyle, int) or isinstance(penWidth, float) or isinstance(penColor, QColor) or
-                             isinstance(brushColor, QColor))
-        self._penBrushGroup.setVisible(showPenBrushGroup)
+        # Pen style
+        showPenStyle = False
+        if (isinstance(penStyle, int)):
+            showPenStyle = True
+            self._penStyleCombo.setCurrentIndex(penStyle)
+            self._penStyleCombo.setEnabled(penStylesMatch)
+            self._penStyleCheck.setChecked(penStylesMatch)
 
-        if (showPenBrushGroup):
-            # Pen style
-            if (isinstance(penStyle, int)):
-                self._penBrushLayout.setRowVisible(self._penStyleCombo, True)
-                self._penStyleCombo.setCurrentIndex(penStyle)
-                self._penStyleCombo.setEnabled(penStylesMatch)
-                self._penStyleCheck.setChecked(penStylesMatch)
-            else:
-                self._penBrushLayout.setRowVisible(self._penStyleCombo, False)
+        # Pen width
+        showPenWidth = False
+        if (isinstance(penWidth, float)):
+            showPenWidth = True
+            self._penWidthEdit.setSize(penWidth)
+            self._penWidthEdit.setEnabled(penWidthsMatch)
+            self._penWidthCheck.setChecked(penWidthsMatch)
 
-            # Pen width
-            if (isinstance(penWidth, float)):
-                self._penBrushLayout.setRowVisible(self._penWidthEdit, True)
-                self._penWidthEdit.setSize(penWidth)
-                self._penWidthEdit.setEnabled(penWidthsMatch)
-                self._penWidthCheck.setChecked(penWidthsMatch)
-            else:
-                self._penBrushLayout.setRowVisible(self._penWidthEdit, False)
+        # Pen color
+        showPenColor = False
+        if (isinstance(penColor, QColor)):
+            showPenColor = True
+            self._penColorWidget.setColor(penColor)
+            self._penColorWidget.setEnabled(penColorsMatch)
+            self._penColorCheck.setChecked(penColorsMatch)
 
-            # Pen color
-            if (isinstance(penColor, QColor)):
-                self._penBrushLayout.setRowVisible(self._penColorWidget, True)
-                self._penColorWidget.setColor(penColor)
-                self._penColorWidget.setEnabled(penColorsMatch)
-                self._penColorCheck.setChecked(penColorsMatch)
-            else:
-                self._penBrushLayout.setRowVisible(self._penColorWidget, False)
+        # Brush color
+        showBrushColor = False
+        if (isinstance(brushColor, QColor)):
+            showBrushColor = True
+            self._brushColorWidget.setColor(brushColor)
+            self._brushColorWidget.setEnabled(brushColorsMatch)
+            self._brushColorCheck.setChecked(brushColorsMatch)
 
-            # Brush color
-            if (isinstance(brushColor, QColor)):
-                self._penBrushLayout.setRowVisible(self._brushColorWidget, True)
-                self._brushColorWidget.setColor(brushColor)
-                self._brushColorWidget.setEnabled(brushColorsMatch)
-                self._brushColorCheck.setChecked(brushColorsMatch)
-            else:
-                self._penBrushLayout.setRowVisible(self._brushColorWidget, False)
+        # Set pen/brush group visibility
+        self._penBrushLayout.setRowVisible(self._penStyleCombo, showPenStyle)
+        self._penBrushLayout.setRowVisible(self._penWidthEdit, showPenWidth)
+        self._penBrushLayout.setRowVisible(self._penColorWidget, showPenColor)
+        self._penBrushLayout.setRowVisible(self._brushColorWidget, showBrushColor)
+        self._penBrushGroup.setVisible(showPenStyle or showPenWidth or showPenColor or showBrushColor)
 
     def _updateArrowGroup(self) -> None:
         (startArrowStyle, startArrowStylesMatch) = self._checkForProperty('startArrowStyle')
@@ -227,46 +228,44 @@ class MultipleItemPropertiesWidget(QWidget):
         (endArrowStyle, endArrowStylesMatch) = self._checkForProperty('endArrowStyle')
         (endArrowSize, endArrowSizesMatch) = self._checkForProperty('endArrowSize')
 
-        showArrowGroup = (isinstance(startArrowStyle, int) or isinstance(startArrowSize, float) or
-                          isinstance(endArrowStyle, int) or isinstance(endArrowSize, float))
-        self._arrowGroup.setVisible(showArrowGroup)
+        # Start arrow style
+        showStartArrowStyle = False
+        if (isinstance(startArrowStyle, int)):
+            showStartArrowStyle = True
+            self._startArrowStyleCombo.setCurrentIndex(startArrowStyle)
+            self._startArrowStyleCombo.setEnabled(startArrowStylesMatch)
+            self._startArrowStyleCheck.setChecked(startArrowStylesMatch)
 
-        if (showArrowGroup):
-            # Start arrow style
-            if (isinstance(startArrowStyle, int)):
-                self._arrowLayout.setRowVisible(self._startArrowStyleCombo, True)
-                self._startArrowStyleCombo.setCurrentIndex(startArrowStyle)
-                self._startArrowStyleCombo.setEnabled(startArrowStylesMatch)
-                self._startArrowStyleCheck.setChecked(startArrowStylesMatch)
-            else:
-                self._arrowLayout.setRowVisible(self._startArrowStyleCombo, False)
+        # Start arrow size
+        showStartArrowSize = False
+        if (isinstance(startArrowSize, float)):
+            showStartArrowSize = True
+            self._startArrowSizeEdit.setSize(startArrowSize)
+            self._startArrowSizeEdit.setEnabled(startArrowSizesMatch)
+            self._startArrowSizeCheck.setChecked(startArrowSizesMatch)
 
-            # Start arrow size
-            if (isinstance(startArrowSize, float)):
-                self._arrowLayout.setRowVisible(self._startArrowSizeEdit, True)
-                self._startArrowSizeEdit.setSize(startArrowSize)
-                self._startArrowSizeEdit.setEnabled(startArrowSizesMatch)
-                self._startArrowSizeCheck.setChecked(startArrowSizesMatch)
-            else:
-                self._arrowLayout.setRowVisible(self._startArrowSizeEdit, False)
+        # End arrow style
+        showEndArrowStyle = False
+        if (isinstance(endArrowStyle, int)):
+            showEndArrowStyle = True
+            self._endArrowStyleCombo.setCurrentIndex(endArrowStyle)
+            self._endArrowStyleCombo.setEnabled(endArrowStylesMatch)
+            self._endArrowStyleCheck.setChecked(endArrowStylesMatch)
 
-            # End arrow style
-            if (isinstance(endArrowStyle, int)):
-                self._arrowLayout.setRowVisible(self._endArrowStyleCombo, True)
-                self._endArrowStyleCombo.setCurrentIndex(endArrowStyle)
-                self._endArrowStyleCombo.setEnabled(endArrowStylesMatch)
-                self._endArrowStyleCheck.setChecked(endArrowStylesMatch)
-            else:
-                self._arrowLayout.setRowVisible(self._endArrowStyleCombo, False)
+        # End arrow size
+        showEndArrowSize = False
+        if (isinstance(endArrowSize, float)):
+            showEndArrowSize = True
+            self._endArrowSizeEdit.setSize(endArrowSize)
+            self._endArrowSizeEdit.setEnabled(endArrowSizesMatch)
+            self._endArrowSizeCheck.setChecked(endArrowSizesMatch)
 
-            # End arrow size
-            if (isinstance(endArrowSize, float)):
-                self._arrowLayout.setRowVisible(self._endArrowSizeEdit, True)
-                self._endArrowSizeEdit.setSize(endArrowSize)
-                self._endArrowSizeEdit.setEnabled(endArrowSizesMatch)
-                self._endArrowSizeCheck.setChecked(endArrowSizesMatch)
-            else:
-                self._arrowLayout.setRowVisible(self._endArrowSizeEdit, False)
+        # Set arrow group visibility
+        self._arrowLayout.setRowVisible(self._startArrowStyleCombo, showStartArrowStyle)
+        self._arrowLayout.setRowVisible(self._startArrowSizeEdit, showStartArrowSize)
+        self._arrowLayout.setRowVisible(self._endArrowStyleCombo, showEndArrowStyle)
+        self._arrowLayout.setRowVisible(self._endArrowSizeEdit, showEndArrowSize)
+        self._arrowGroup.setVisible(showStartArrowStyle or showStartArrowSize or showEndArrowStyle or showEndArrowSize)
 
     def _checkForProperty(self, name: str) -> tuple[typing.Any, bool]:
         propertyValue, propertyValuesMatch = (None, False)
