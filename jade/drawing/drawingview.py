@@ -605,9 +605,9 @@ class DrawingView(QAbstractScrollArea):
 
             item.paint(painter)
 
-            # painter.setBrush(QBrush(QColor(255, 0, 255, 128)))
-            # painter.setPen(QPen(Qt.PenStyle.NoPen))
-            # painter.drawPath(self._itemAdjustedShape(item))
+            painter.setBrush(QBrush(QColor(255, 0, 255, 128)))
+            painter.setPen(QPen(Qt.PenStyle.NoPen))
+            painter.drawPath(self._itemAdjustedShape(item))
 
             painter.setTransform(item.transformInverse(), True)
             painter.translate(-item.position())

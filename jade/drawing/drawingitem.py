@@ -24,61 +24,14 @@ from .drawingarrow import DrawingArrow
 from .drawingitempoint import DrawingItemPoint
 
 
-class DrawingItemFactory:
-    def __init__(self) -> None:
-        self._items: list['DrawingItem'] = []
-        self._defaultItemProperties: dict[str, typing.Any] = {}
-
-        # Set default item properties
-        font = QFont('Arial')
-        font.setPointSizeF(10.0)
-
-        self.setDefaultItemProperty(
-           'pen', QPen(QBrush(Qt.GlobalColor.black), 2.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
-                       Qt.PenJoinStyle.RoundJoin))
-        self.setDefaultItemProperty('brush', QBrush(Qt.GlobalColor.white))
-        self.setDefaultItemProperty('startArrow', DrawingArrow(DrawingArrow.Style.NoStyle, 10.0))
-        self.setDefaultItemProperty('endArrow', DrawingArrow(DrawingArrow.Style.NoStyle, 10.0))
-        self.setDefaultItemProperty('font', font)
-        self.setDefaultItemProperty('textAlignment', Qt.AlignmentFlag.AlignCenter)
-        self.setDefaultItemProperty('textBrush', QBrush(Qt.GlobalColor.black))
-
-    # ==================================================================================================================
-
-    def registerItem(self, item: 'DrawingItem') -> None:
-        # Assumes that the item's key is unique and not already registered
-        self._items.append(item)
-
-    def createItem(self, key: str) -> 'DrawingItem | None':
-        for item in self._items:
-            if (key == item.key()):
-                clonedItem = item.clone()
-                for name, value in self._defaultItemProperties.items():
-                    clonedItem.setProperty(name, value)
-                return clonedItem
-        return None
-
-    # ==================================================================================================================
-
-    def setDefaultItemProperty(self, name: str, value: typing.Any) -> None:
-        self._defaultItemProperties[name] = value
-
-    def defaultItemProperty(self, name: str) -> typing.Any:
-        return self._defaultItemProperties.get(name, None)
-
-
-# ======================================================================================================================
-# ======================================================================================================================
-# ======================================================================================================================
-
 class DrawingItem:
     class PlaceType(Enum):
         PlaceByMouseRelease = 0
         PlaceByMousePressAndRelease = 1
 
-    # ==================================================================================================================
+    _factoryItems: list['DrawingItem'] = []
 
-    _factory: DrawingItemFactory = DrawingItemFactory()
+    # ==================================================================================================================
 
     def __init__(self) -> None:
         self._parent: typing.Any = None
@@ -112,11 +65,14 @@ class DrawingItem:
         clonedItem.copyBaseClassValues(self)
         return clonedItem
 
-    def copyBaseClassValues(self, otherItem: 'DrawingItem'):
+    def copyBaseClassValues(self, otherItem: 'DrawingItem') -> None:
         self.setPosition(QPointF(otherItem.position()))
         self.setRotation(otherItem.rotation())
         self.setFlipped(otherItem.isFlipped())
         self.setPlaceType(otherItem.placeType())
+
+    def setInitialGeometry(self, sceneRect: QRectF, grid: float) -> None:
+        pass
 
     # ==================================================================================================================
 
@@ -588,21 +544,14 @@ class DrawingItem:
     @staticmethod
     def registerItem(item: 'DrawingItem') -> None:
         # Assumes that the item's key is unique and not already registered
-        DrawingItem._factory.registerItem(item)
+        DrawingItem._factoryItems.append(item)
 
     @staticmethod
     def createItem(key: str) -> 'DrawingItem | None':
-        return DrawingItem._factory.createItem(key)
-
-    # ==================================================================================================================
-
-    @staticmethod
-    def setDefaultItemProperty(name: str, value: typing.Any) -> None:
-        DrawingItem._factory.setDefaultItemProperty(name, value)
-
-    @staticmethod
-    def defaultItemProperty(name: str) -> typing.Any:
-        return DrawingItem._factory.defaultItemProperty(name)
+        for item in DrawingItem._factoryItems:
+            if (key == item.key()):
+                return item.clone()
+        return None
 
     # ==================================================================================================================
 
@@ -654,169 +603,3 @@ class DrawingItem:
                                 otherPoint.addConnection(point)
 
         return items
-
-
-# ======================================================================================================================
-# ======================================================================================================================
-# ======================================================================================================================
-
-class DrawingRectResizeItem(DrawingItem):
-    class PointIndex(Enum):
-        TopLeft = 0
-        TopMiddle = 1
-        TopRight = 2
-        MiddleRight = 3
-        BottomRight = 4
-        BottomMiddle = 5
-        BottomLeft = 6
-        MiddleLeft = 7
-
-    # ==================================================================================================================
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        self._rect: QRectF = QRectF()
-        self._pen: QPen = QPen()
-
-        self._cachedBoundingRect: QRectF = QRectF()
-
-        for _ in range(8):
-            self.addPoint(DrawingItemPoint(QPointF(), DrawingItemPoint.Type.ControlAndConnection))
-
-    # ==================================================================================================================
-
-    def setRect(self, rect: QRectF) -> None:
-        points = self.points()
-        if (len(points) >= 8):
-            self._rect = rect
-
-            center = rect.center()
-            points[DrawingRectResizeItem.PointIndex.TopLeft.value].setPosition(QPointF(rect.left(), rect.top()))
-            points[DrawingRectResizeItem.PointIndex.TopMiddle.value].setPosition(QPointF(center.x(), rect.top()))
-            points[DrawingRectResizeItem.PointIndex.TopRight.value].setPosition(QPointF(rect.right(), rect.top()))
-            points[DrawingRectResizeItem.PointIndex.MiddleRight.value].setPosition(QPointF(rect.right(), center.y()))
-            points[DrawingRectResizeItem.PointIndex.BottomRight.value].setPosition(QPointF(rect.right(), rect.bottom()))
-            points[DrawingRectResizeItem.PointIndex.BottomMiddle.value].setPosition(QPointF(center.x(), rect.bottom()))
-            points[DrawingRectResizeItem.PointIndex.BottomLeft.value].setPosition(QPointF(rect.left(), rect.bottom()))
-            points[DrawingRectResizeItem.PointIndex.MiddleLeft.value].setPosition(QPointF(rect.left(), center.y()))
-
-            self._updateGeometry()
-
-    def rect(self) -> QRectF:
-        return self._rect
-
-    # ==================================================================================================================
-
-    def setPen(self, pen: QPen) -> None:
-        self._pen = pen
-        self._updateGeometry()
-
-    def pen(self) -> QPen:
-        return self._pen
-
-    # ==================================================================================================================
-
-    def boundingRect(self) -> QRectF:
-        return self._cachedBoundingRect
-
-    def isValid(self) -> bool:
-        return (self._rect.width() != 0 and self._rect.height() != 0)
-
-    # ==================================================================================================================
-
-    def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
-        points = self.points()
-        if (len(points) >= 8):
-            # Force the rect to be square if resizing a corner, if applicable
-            if (snapTo45Degrees):
-                otherCornerPoint = None
-                if (point == points[DrawingRectResizeItem.PointIndex.TopLeft.value]):
-                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.BottomRight.value]
-                elif (point == points[DrawingRectResizeItem.PointIndex.TopRight.value]):
-                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.BottomLeft.value]
-                elif (point == points[DrawingRectResizeItem.PointIndex.BottomRight.value]):
-                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.TopLeft.value]
-                elif (point == points[DrawingRectResizeItem.PointIndex.BottomLeft.value]):
-                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.TopRight.value]
-
-                if (otherCornerPoint is not None):
-                    otherCornerPosition = self.mapToScene(otherCornerPoint.position())
-                    delta = position - otherCornerPosition      # type: ignore
-
-                    targetAngleDegrees = 0
-                    if (delta.y() >= 0):
-                        targetAngleDegrees = 45 if (delta.x() >= 0) else 135
-                    else:
-                        targetAngleDegrees = -45 if (delta.x() >= 0) else -135
-
-                    if (targetAngleDegrees != 0):
-                        targetAngle = targetAngleDegrees * math.pi / 180
-                        length = max(abs(delta.x()), abs(delta.y())) * math.sqrt(2)
-                        position.setX(otherCornerPosition.x() + length * math.cos(targetAngle))
-                        position.setY(otherCornerPosition.y() + length * math.sin(targetAngle))
-
-            # Move just the one point to its new position
-            super().resize(point, position, False)
-
-            # Adjust the other points as needed
-            rect = QRectF(points[DrawingRectResizeItem.PointIndex.TopLeft.value].position(),
-                          points[DrawingRectResizeItem.PointIndex.BottomRight.value].position())
-
-            pointIndex = points.index(point)
-            match (pointIndex):
-                case DrawingRectResizeItem.PointIndex.TopLeft.value:
-                    rect.setTopLeft(point.position())
-                case DrawingRectResizeItem.PointIndex.TopMiddle.value:
-                    rect.setTop(point.position().y())
-                case DrawingRectResizeItem.PointIndex.TopRight.value:
-                    rect.setTopRight(point.position())
-                case DrawingRectResizeItem.PointIndex.MiddleRight.value:
-                    rect.setRight(point.position().x())
-                case DrawingRectResizeItem.PointIndex.BottomRight.value:
-                    rect.setBottomRight(point.position())
-                case DrawingRectResizeItem.PointIndex.BottomMiddle.value:
-                    rect.setBottom(point.position().y())
-                case DrawingRectResizeItem.PointIndex.BottomLeft.value:
-                    rect.setBottomLeft(point.position())
-                case DrawingRectResizeItem.PointIndex.MiddleLeft.value:
-                    rect.setLeft(point.position().x())
-
-            # Keep the item's position as the center of the rect
-            center = rect.center()
-            self.setPosition(self.mapToScene(center))
-            rect.translate(-center)
-
-            # Move all points to their final positions
-            self.setRect(rect)
-
-    def resizeStartPoint(self) -> DrawingItemPoint | None:
-        points = self.points()
-        if (len(points) >= 8):
-            return self.points()[DrawingRectResizeItem.PointIndex.TopLeft.value]
-        return None
-
-    def resizeEndPoint(self) -> DrawingItemPoint | None:
-        points = self.points()
-        if (len(points) >= 8):
-            return self.points()[DrawingRectResizeItem.PointIndex.BottomRight.value]
-        return None
-
-    # ==================================================================================================================
-
-    def scale(self, scale: float) -> None:
-        super().scale(scale)
-        self._pen.setWidthF(self._pen.widthF() * scale)
-        self.setRect(QRectF(QPointF(self._rect.left() * scale, self._rect.top() * scale),
-                            QPointF(self._rect.right() * scale, self._rect.bottom() * scale)))
-
-    # ==================================================================================================================
-
-    def _updateGeometry(self):
-        # Update bounding rect
-        self._cachedBoundingRect = QRectF()
-        if (self.isValid()):
-            self._cachedBoundingRect = self._rect.normalized()
-            if (self._pen.style() != Qt.PenStyle.NoPen):
-                halfPenWidth = self._pen.widthF() / 2
-                self._cachedBoundingRect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)

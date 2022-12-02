@@ -16,9 +16,11 @@
 
 import typing
 from xml.etree import ElementTree
-from PyQt6.QtCore import pyqtSignal, QPointF, QRectF
-from PyQt6.QtGui import QAction, QActionGroup, QBrush, QColor, QIcon, QKeySequence, QUndoCommand, QUndoStack
+from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRectF
+from PyQt6.QtGui import QAction, QActionGroup, QBrush, QColor, QFont, QIcon, QKeySequence, QPen, QUndoCommand, \
+                        QUndoStack
 from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
+from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
 from .drawingitempoint import DrawingItemPoint
 from .drawingtypes import DrawingUnits
@@ -55,6 +57,16 @@ class DrawingMultiPageWidget(QWidget):
         self._defaultGridBrush: QBrush = QBrush(QColor(0, 128, 128))
         self._defaultGridSpacingMajor: int = 8
         self._defaultGridSpacingMinor: int = 2
+
+        self._defaultPen: QPen = QPen(QBrush(Qt.GlobalColor.black), 2.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                                      Qt.PenJoinStyle.RoundJoin)
+        self._defaultBrush: QBrush = QBrush(Qt.GlobalColor.white)
+        self._defaultStartArrow: DrawingArrow = DrawingArrow(DrawingArrow.Style.NoStyle, 10.0)
+        self._defaultEndArrow: DrawingArrow = DrawingArrow(DrawingArrow.Style.NoStyle, 10.0)
+        self._defaultFont: QFont = QFont('Arial')
+        self._defaultFont.setPointSizeF(10)
+        self._defaultTextAlignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
+        self._defaultTextBrush: QBrush = QBrush(Qt.GlobalColor.black)
 
         self._units: DrawingUnits = self._defaultUnits
         self._grid: float = self._defaultGrid
@@ -201,6 +213,50 @@ class DrawingMultiPageWidget(QWidget):
 
     # ==================================================================================================================
 
+    def setDefaultPen(self, pen: QPen) -> None:
+        self._defaultPen = pen
+
+    def setDefaultBrush(self, brush: QBrush) -> None:
+        self._defaultBrush = brush
+
+    def setDefaultStartArrow(self, arrow: DrawingArrow) -> None:
+        self._defaultStartArrow = arrow
+
+    def setDefaultEndArrow(self, arrow: DrawingArrow) -> None:
+        self._defaultEndArrow = arrow
+
+    def setDefaultFont(self, font: QFont) -> None:
+        self._defaultFont = font
+
+    def setDefaultTextAlignment(self, alignment: Qt.AlignmentFlag) -> None:
+        self._defaultTextAlignment = alignment
+
+    def setDefaultTextBrush(self, brush: QBrush) -> None:
+        self._defaultTextBrush = brush
+
+    def defaultPen(self) -> QPen:
+        return self._defaultPen
+
+    def defaultBrush(self) -> QBrush:
+        return self._defaultBrush
+
+    def defaultStartArrow(self) -> DrawingArrow:
+        return self._defaultStartArrow
+
+    def defaultEndArrow(self) -> DrawingArrow:
+        return self._defaultEndArrow
+
+    def defaultFont(self) -> QFont:
+        return self._defaultFont
+
+    def defaultTextAlignment(self) -> Qt.AlignmentFlag:
+        return self._defaultTextAlignment
+
+    def defaultTextBrush(self) -> QBrush:
+        return self._defaultTextBrush
+
+    # ==================================================================================================================
+
     def setUnits(self, units: DrawingUnits) -> None:
         if (self._units != units):
             scale = DrawingUnits.convert(1, self._units, units)
@@ -208,6 +264,10 @@ class DrawingMultiPageWidget(QWidget):
             self._units = units
 
             self.blockSignals(True)
+            self._defaultPen.setWidthF(self._defaultPen.widthF() * scale)
+            self._defaultStartArrow.setSize(self._defaultStartArrow.size() * scale)
+            self._defaultEndArrow.setSize(self._defaultEndArrow.size() * scale)
+            self._defaultFont.setPointSizeF(self._defaultFont.pointSizeF() * scale)
             self._grid = self._grid * scale
             for page in self._pages:
                 page.setUnits(self._units)
@@ -844,11 +904,29 @@ class DrawingMultiPageWidget(QWidget):
         elif (action == self.zoomModeAction):
             self.setZoomMode()
         else:
-            item = DrawingItem.createItem(action.property('key'))
-            if (item is not None):
-                self.setPlaceMode([item])
-            else:
-                self.setSelectMode()
+            if (self._currentPage is not None):
+                item = DrawingItem.createItem(action.property('key'))
+                if (item is not None):
+                    # Set default item properties
+                    item.setProperty('pen', QPen(self._defaultPen))
+                    item.setProperty('brush', QBrush(self._defaultBrush))
+                    item.setProperty('startArrow', DrawingArrow(self._defaultStartArrow.style(),
+                                                                self._defaultStartArrow.size()))
+                    item.setProperty('endArrow', DrawingArrow(self._defaultEndArrow.style(),
+                                                              self._defaultEndArrow.size()))
+                    item.setProperty('font', QFont(self._defaultFont))
+                    item.setProperty('textAlignment', Qt.AlignmentFlag(self._defaultTextAlignment))
+                    item.setProperty('textBrush', QBrush(self._defaultTextBrush))
+
+                    # Set default item geometry, if necessary
+                    if (item.placeType() == DrawingItem.PlaceType.PlaceByMouseRelease):
+                        item.setInitialGeometry(self._currentPage.sceneRect(), self._grid)
+
+                    # Begin place mode
+                    self.setPlaceMode([item])
+                else:
+                    # Revert back to select mode if no new item was able to be created
+                    self.setSelectMode()
 
     def _updateActionsFromMode(self, mode: int):
         if (mode == DrawingWidget.Mode.SelectMode.value and not self.selectModeAction.isChecked()):

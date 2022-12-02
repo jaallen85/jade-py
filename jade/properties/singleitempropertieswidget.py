@@ -16,7 +16,7 @@
 
 import typing
 from PyQt6.QtCore import pyqtSignal, Qt, QLineF, QPointF, QRectF, QSizeF
-from PyQt6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QPen
+from PyQt6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QPen, QPolygonF
 from PyQt6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QVBoxLayout, QWidget
 from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
@@ -39,6 +39,7 @@ class SingleItemPropertiesWidget(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self._createLineGroup())
+        layout.addWidget(self._createCurveGroup())
         layout.addWidget(self._createRectGroup())
         layout.addWidget(self._createPenBrushGroup())
         layout.addWidget(self._createArrowGroup())
@@ -67,6 +68,33 @@ class SingleItemPropertiesWidget(QWidget):
         self._lineGroup.setLayout(self._lineLayout)
 
         return self._lineGroup
+
+    def _createCurveGroup(self) -> QGroupBox:
+        self._curveStartWidget: PositionWidget = PositionWidget()
+        self._curveStartWidget.positionChanged.connect(self._handleCurveStartChange)
+
+        self._curveStartControlWidget: PositionWidget = PositionWidget()
+        self._curveStartControlWidget.positionChanged.connect(self._handleCurveStartControlChange)
+
+        self._curveEndControlWidget: PositionWidget = PositionWidget()
+        self._curveEndControlWidget.positionChanged.connect(self._handleCurveEndControlChange)
+
+        self._curveEndWidget: PositionWidget = PositionWidget()
+        self._curveEndWidget.positionChanged.connect(self._handleCurveEndChange)
+
+        self._curveGroup: QGroupBox = QGroupBox('Curve')
+        self._curveLayout: QFormLayout = QFormLayout()
+        self._curveLayout.addRow('Start Point:', self._curveStartWidget)
+        self._curveLayout.addRow('Start Control Point:', self._curveStartControlWidget)
+        self._curveLayout.addRow('End Control Point:', self._curveEndControlWidget)
+        self._curveLayout.addRow('End Point:', self._curveEndWidget)
+        self._curveLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        self._curveLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._curveLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self._curveLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
+        self._curveGroup.setLayout(self._curveLayout)
+
+        return self._curveGroup
 
     def _createRectGroup(self) -> QGroupBox:
         self._rectTopLeftWidget: PositionWidget = PositionWidget()
@@ -171,6 +199,11 @@ class SingleItemPropertiesWidget(QWidget):
             self._lineEndWidget.setUnits(value)
             self._lineSizeWidget.setUnits(value)
 
+            self._curveStartWidget.setUnits(value)
+            self._curveStartControlWidget.setUnits(value)
+            self._curveEndControlWidget.setUnits(value)
+            self._curveEndWidget.setUnits(value)
+
             self._rectTopLeftWidget.setUnits(value)
             self._rectBottomRightWidget.setUnits(value)
             self._rectSizeWidget.setUnits(value)
@@ -189,6 +222,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._item = item
         self.blockSignals(True)
         self._updateLineGroup()
+        self._updateCurveGroup()
         self._updateRectGroup()
         self._updatePenBrushGroup()
         self._updateArrowGroup()
@@ -209,6 +243,23 @@ class SingleItemPropertiesWidget(QWidget):
 
             # Set line group visibility
             self._lineGroup.setVisible(showLine)
+
+    def _updateCurveGroup(self) -> None:
+        self._curveGroup.setVisible(False)
+        if (self._item is not None):
+            curve = self._item.property('curve')
+
+            # Curve
+            showCurve = False
+            if (isinstance(curve, QPolygonF) and curve.size() >= 4):
+                showCurve = True
+                self._curveStartWidget.setPosition(curve[0])
+                self._curveStartControlWidget.setPosition(curve[1])
+                self._curveEndControlWidget.setPosition(curve[2])
+                self._curveEndWidget.setPosition(curve[3])
+
+            # Set curve group visibility
+            self._curveGroup.setVisible(showCurve)
 
     def _updateRectGroup(self) -> None:
         self._rectGroup.setVisible(False)
@@ -306,6 +357,32 @@ class SingleItemPropertiesWidget(QWidget):
                            self._lineStartWidget.position().y() + size.height())
         if (self._item is not None):
             self.itemResized.emit(self._item.resizeEndPoint(), position)
+
+    # ==================================================================================================================
+
+    def _handleCurveStartChange(self, position: QPointF) -> None:
+        if (self._item is not None):
+            points = self._item.points()
+            if (len(points) >= 4):
+                self.itemResized.emit(points[0], position)
+
+    def _handleCurveStartControlChange(self, position: QPointF) -> None:
+        if (self._item is not None):
+            points = self._item.points()
+            if (len(points) >= 4):
+                self.itemResized.emit(points[1], position)
+
+    def _handleCurveEndControlChange(self, position: QPointF) -> None:
+        if (self._item is not None):
+            points = self._item.points()
+            if (len(points) >= 4):
+                self.itemResized.emit(points[2], position)
+
+    def _handleCurveEndChange(self, position: QPointF) -> None:
+        if (self._item is not None):
+            points = self._item.points()
+            if (len(points) >= 4):
+                self.itemResized.emit(points[3], position)
 
     # ==================================================================================================================
 

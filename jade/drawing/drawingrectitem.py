@@ -18,7 +18,7 @@ import typing
 from xml.etree import ElementTree
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
-from .drawingitem import DrawingRectResizeItem
+from .drawingrectresizeitem import DrawingRectResizeItem
 
 
 class DrawingRectItem(DrawingRectResizeItem):

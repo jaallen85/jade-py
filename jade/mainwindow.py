@@ -38,9 +38,8 @@ from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
+#   - DrawingWidget undo/redo actions don't actually do anything
 #   - Add items:
-#     - DrawingCurveItem
-#     - DrawingEllipseItem
 #     - DrawingPathItem
 #     - DrawingPolygonItem
 #     - DrawingPolylineItem
@@ -50,9 +49,9 @@ from .propertiesbrowser import PropertiesBrowser
 #     - Electric items
 #     - Logic items
 #   - Single/multiple item properties:
-#     - Curve
 #     - Polygon/polyline
 #     - Text
+#     - Position/size?
 #   - Main window
 #     - Save/load settings
 #   - Exporters:
