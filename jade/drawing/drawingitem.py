@@ -24,6 +24,53 @@ from .drawingarrow import DrawingArrow
 from .drawingitempoint import DrawingItemPoint
 
 
+class DrawingItemFactory:
+    def __init__(self) -> None:
+        self._items: list['DrawingItem'] = []
+        self._defaultItemProperties: dict[str, typing.Any] = {}
+
+        # Set default item properties
+        font = QFont('Arial')
+        font.setPointSizeF(10.0)
+
+        self.setDefaultItemProperty(
+           'pen', QPen(QBrush(Qt.GlobalColor.black), 2.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                       Qt.PenJoinStyle.RoundJoin))
+        self.setDefaultItemProperty('brush', QBrush(Qt.GlobalColor.white))
+        self.setDefaultItemProperty('startArrow', DrawingArrow(DrawingArrow.Style.NoStyle, 10.0))
+        self.setDefaultItemProperty('endArrow', DrawingArrow(DrawingArrow.Style.NoStyle, 10.0))
+        self.setDefaultItemProperty('font', font)
+        self.setDefaultItemProperty('textAlignment', Qt.AlignmentFlag.AlignCenter)
+        self.setDefaultItemProperty('textBrush', QBrush(Qt.GlobalColor.black))
+
+    # ==================================================================================================================
+
+    def registerItem(self, item: 'DrawingItem') -> None:
+        # Assumes that the item's key is unique and not already registered
+        self._items.append(item)
+
+    def createItem(self, key: str) -> 'DrawingItem | None':
+        for item in self._items:
+            if (key == item.key()):
+                clonedItem = item.clone()
+                for name, value in self._defaultItemProperties.items():
+                    clonedItem.setProperty(name, value)
+                return clonedItem
+        return None
+
+    # ==================================================================================================================
+
+    def setDefaultItemProperty(self, name: str, value: typing.Any) -> None:
+        self._defaultItemProperties[name] = value
+
+    def defaultItemProperty(self, name: str) -> typing.Any:
+        return self._defaultItemProperties.get(name, None)
+
+
+# ======================================================================================================================
+# ======================================================================================================================
+# ======================================================================================================================
+
 class DrawingItem:
     class PlaceType(Enum):
         PlaceByMouseRelease = 0
@@ -31,8 +78,7 @@ class DrawingItem:
 
     # ==================================================================================================================
 
-    _factoryItems: list['DrawingItem'] = []
-    _defaultProperties: dict[str, typing.Any] = {}
+    _factory: DrawingItemFactory = DrawingItemFactory()
 
     def __init__(self) -> None:
         self._parent: typing.Any = None
@@ -279,7 +325,7 @@ class DrawingItem:
         # Write position, rotation, and flipped
         self.writeFloatAttribute(element, 'translationX', self._position.x())
         self.writeFloatAttribute(element, 'translationY', self._position.y())
-        self.writeIntAttribute(element, 'rotation', self._rotation, 0)
+        self.writeIntAttribute(element, 'rotation', self._rotation * 90, 0)
         self.writeBoolAttribute(element, 'flipped', self._flipped, False)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
@@ -430,11 +476,10 @@ class DrawingItem:
 
     @staticmethod
     def writeColorAttribute(element: ElementTree.Element, name: str, color: QColor) -> None:
-        if (color != QColor(0, 0, 0)):
-            if (color.alpha() == 255):
-                element.set(name, f'#{color.red():02X}{color.green():02X}{color.blue():02X}')
-            else:
-                element.set(name, f'#{color.red():02X}{color.green():02X}{color.blue():02X}{color.alpha():02X}')
+        if (color.alpha() == 255):
+            element.set(name, f'#{color.red():02X}{color.green():02X}{color.blue():02X}')
+        else:
+            element.set(name, f'#{color.red():02X}{color.green():02X}{color.blue():02X}{color.alpha():02X}')
 
     @staticmethod
     def writePointsAttribute(element: ElementTree.Element, name: str, points: QPolygonF) -> None:
@@ -541,19 +586,23 @@ class DrawingItem:
     # ==================================================================================================================
 
     @staticmethod
-    def register(item: 'DrawingItem') -> None:
-        # Assumes that the item's key is unique and not already registered to DrawingItem
-        DrawingItem._factoryItems.append(item)
+    def registerItem(item: 'DrawingItem') -> None:
+        # Assumes that the item's key is unique and not already registered
+        DrawingItem._factory.registerItem(item)
 
     @staticmethod
-    def create(key: str) -> 'DrawingItem | None':
-        for item in DrawingItem._factoryItems:
-            if (key == item.key()):
-                clonedItem = item.clone()
-                for name, value in DrawingItem._defaultProperties.items():
-                    clonedItem.setProperty(name, value)
-                return clonedItem
-        return None
+    def createItem(key: str) -> 'DrawingItem | None':
+        return DrawingItem._factory.createItem(key)
+
+    # ==================================================================================================================
+
+    @staticmethod
+    def setDefaultItemProperty(name: str, value: typing.Any) -> None:
+        DrawingItem._factory.setDefaultItemProperty(name, value)
+
+    @staticmethod
+    def defaultItemProperty(name: str) -> typing.Any:
+        return DrawingItem._factory.defaultItemProperty(name)
 
     # ==================================================================================================================
 
@@ -584,7 +633,7 @@ class DrawingItem:
 
         # Read items from XML
         for itemElement in element:
-            item = DrawingItem.create(itemElement.tag)
+            item = DrawingItem.createItem(itemElement.tag)
             if (item is not None):
                 item.readFromXml(itemElement)
                 items.append(item)
@@ -605,16 +654,6 @@ class DrawingItem:
                                 otherPoint.addConnection(point)
 
         return items
-
-    # ==================================================================================================================
-
-    @staticmethod
-    def setDefaultProperty(name: str, value: typing.Any) -> None:
-        DrawingItem._defaultProperties[name] = value
-
-    @staticmethod
-    def defaultProperty(name: str) -> typing.Any:
-        return DrawingItem._defaultProperties.get(name, None)
 
 
 # ======================================================================================================================

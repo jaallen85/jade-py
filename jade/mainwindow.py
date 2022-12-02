@@ -16,14 +16,23 @@
 
 import os
 import typing
-from PyQt6.QtCore import pyqtBoundSignal, Qt, QLineF, QPointF, QRectF, QSize
-from PyQt6.QtGui import QAction, QBrush, QColor, QCloseEvent, QFont, QFontMetrics, QIcon, QKeySequence, QPen, QShowEvent
-from PyQt6.QtWidgets import QApplication, QComboBox, QDockWidget, QHBoxLayout, QLabel, QMainWindow, QToolBar, QWidget
-from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
-from .drawing.drawingarrow import DrawingArrow
+from PyQt6.QtCore import pyqtBoundSignal, Qt, QSize
+from PyQt6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
+from PyQt6.QtWidgets import QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow, \
+                            QMessageBox, QToolBar, QWidget
+from .drawing.drawingcurveitem import DrawingCurveItem
+from .drawing.drawingellipseitem import DrawingEllipseItem
 from .drawing.drawingitem import DrawingItem
+from .drawing.drawingitemgroup import DrawingItemGroup
 from .drawing.drawinglineitem import DrawingLineItem
+from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
+from .drawing.drawingpathitem import DrawingPathItem
+from .drawing.drawingpolygonitem import DrawingPolygonItem
+from .drawing.drawingpolylineitem import DrawingPolylineItem
 from .drawing.drawingrectitem import DrawingRectItem
+from .drawing.drawingtextellipseitem import DrawingTextEllipseItem
+from .drawing.drawingtextitem import DrawingTextItem
+from .drawing.drawingtextrectitem import DrawingTextRectItem
 from .drawing.drawingtypes import DrawingUnits
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
@@ -45,12 +54,12 @@ from .propertiesbrowser import PropertiesBrowser
 #     - Polygon/polyline
 #     - Text
 #   - Main window
+#     - Save/load settings
 #   - Exporters:
 #     - Export to PNG
 #     - Export to SVG
-#     - Export to ODG
 #     - Export to VSDX
-#   - Preferences dialog (including figure out default drawing/page settings)
+#   - Preferences dialog
 #   - About dialog
 
 
@@ -66,9 +75,20 @@ class MainWindow(QMainWindow):
         self._pagesDockVisibleOnClose: bool = True
         self._propertiesDockVisibleOnClose: bool = True
 
-        # Main widget
-        self._registerItemsWithFactory()
+        # Register items to DrawingItem factory
+        DrawingItem.registerItem(DrawingLineItem())
+        DrawingItem.registerItem(DrawingCurveItem())
+        DrawingItem.registerItem(DrawingPolylineItem())
+        DrawingItem.registerItem(DrawingRectItem())
+        DrawingItem.registerItem(DrawingEllipseItem())
+        DrawingItem.registerItem(DrawingPolygonItem())
+        DrawingItem.registerItem(DrawingTextItem())
+        DrawingItem.registerItem(DrawingTextRectItem())
+        DrawingItem.registerItem(DrawingTextEllipseItem())
+        DrawingItem.registerItem(DrawingPathItem())
+        DrawingItem.registerItem(DrawingItemGroup())
 
+        # Main widget
         self._drawing: DrawingMultiPageWidget = DrawingMultiPageWidget()
         self.setCentralWidget(self._drawing)
 
@@ -97,47 +117,7 @@ class MainWindow(QMainWindow):
 
         self._loadSettings()
 
-        self._drawing.setUnits(DrawingUnits.Centimeters)
-        self._drawing.setUnits(DrawingUnits.Millimeters)
-        self._drawing.setDefaultSceneRect(QRectF(-20, -20, 800, 600))
-        self._drawing.setDefaultBackgroundBrush(QBrush(QColor(255, 255, 255)))
-        self._drawing.setGrid(5.0)
-        self._drawing.setGridVisible(True)
-        self._drawing.setGridBrush(QBrush(QColor(0, 128, 128)))
-        self._drawing.setGridSpacingMajor(8)
-        self._drawing.setGridSpacingMinor(2)
-
-        self._drawing.insertNewPage()
-        self._drawing._undoStack.clear()
-
-        rectItem = DrawingRectItem()
-        rectItem.setPosition(QPointF(160, 80))
-        rectItem.setRect(QRectF(-40, -20, 80, 40))
-        rectItem.setCornerRadius(5.0)
-        rectItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
-                             Qt.PenJoinStyle.RoundJoin))
-        rectItem.setBrush(QBrush(QColor(224, 255, 255)))
-        self._drawing.currentPage().addItem(rectItem)
-
-        rectItem = DrawingRectItem()
-        rectItem.setPosition(QPointF(160, 160))
-        rectItem.setRect(QRectF(-40, -20, 80, 40))
-        rectItem.setCornerRadius(10.0)
-        rectItem.setPen(QPen(QBrush(QColor(128, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
-                             Qt.PenJoinStyle.RoundJoin))
-        rectItem.setBrush(QBrush(QColor(224, 255, 255)))
-        self._drawing.currentPage().addItem(rectItem)
-
-        lineItem = DrawingLineItem()
-        lineItem.setPosition(QPointF(320, 80))
-        lineItem.setLine(QLineF(-20, -40, 40, 80))
-        lineItem.setPen(QPen(QBrush(QColor(0, 128, 0)), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
-                             Qt.PenJoinStyle.RoundJoin))
-        lineItem.setStartArrow(DrawingArrow(DrawingArrow.Style.TriangleFilled, 10.0))
-        lineItem.setEndArrow(DrawingArrow(DrawingArrow.Style.Triangle, 10.0))
-        self._drawing.currentPage().addItem(lineItem)
-
-        self._drawing.currentPage().setSelectedItems([rectItem, lineItem])
+    # ==================================================================================================================
 
     def _createActions(self) -> None:
         self._newAction: QAction = self._addNormalAction('New...', self.newDrawing, 'icons:document-new.png', 'Ctrl+N')
@@ -322,25 +302,94 @@ class MainWindow(QMainWindow):
 
         # Create a new drawing only if there is no open drawing (i.e. close was successful or unneeded)
         if (not self.isDrawingVisible()):
-            # self._drawing.createNew()
+            self._drawing.createNew()
             self._newDrawingCount = self._newDrawingCount + 1
             self._setFilePath(f'Untitled {self._newDrawingCount}')
             self._setDrawingVisible(True)
 
     def openDrawing(self, path: str = '') -> None:
-        pass
+        # Prompt the user for the file path if none is passed as an argument
+        if (path == ''):
+            fileFilter = 'Jade Diagram (*.jdm);;All Files (*)'
+            options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
+            (path, _) = QFileDialog.getOpenFileName(self, 'Open File', self._workingDir, fileFilter, '', options)
+
+        # If a valid path was selected or provided, proceed with the open operation
+        if (path != ''):
+            # Close any open drawing before proceeding
+            self.closeDrawing()
+
+            # Open an existing drawing only if there is no open drawing (i.e. close was successful or unneeded)
+            if (not self.isDrawingVisible()):
+                # Use the selected path to load the drawing from file
+                if (self._drawing.loadFromFile(path)):
+                    self._setFilePath(path)
+                    self._setDrawingVisible(True)
+
+                # Update the cached working directory
+                self._workingDir = os.path.dirname(path)
 
     def saveDrawing(self, path: str = '') -> None:
-        pass
+        if (self.isDrawingVisible()):
+            if (path == '' and self._filePath.startswith('Untitled')):
+                # If no path is provided and self._filePath is invalid, then do a 'save-as' instead
+                self.saveDrawingAs()
+            else:
+                # Use either the provided path or the cached self._filePath to save the drawing to file
+                if (path == ''):
+                    path = self._filePath
+                if (self._drawing.saveToFile(path)):
+                    self._setFilePath(path)
 
     def saveDrawingAs(self) -> None:
-        pass
+        if (self.isDrawingVisible()):
+            # Prompt the user for a new file path
+            path = self._workingDir if (self._filePath.startswith('Untitled')) else self._filePath
+            fileFilter = 'Jade Diagram (*.jdm);;All Files (*)'
+            options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
+            (path, _) = QFileDialog.getSaveFileName(self, 'Save File', path, fileFilter, '', options)
+
+            # If a valid path was selected, proceed with the save operation
+            if (path != ''):
+                # Ensure that the selected path ends with the proper file suffix
+                if (not path.endswith('.jdm')):
+                    path = f'{path}.jdm'
+
+                # Use the selected path to save the drawing to file
+                if (self._drawing.saveToFile(path)):
+                    self._setFilePath(path)
+
+                # Update the cached working directory
+                self._workingDir = os.path.dirname(path)
 
     def closeDrawing(self) -> None:
-        proceedToClose = self.isDrawingVisible()
-        if (proceedToClose):
-            self._setDrawingVisible(False)
-            self._setFilePath('')
+        if (self.isDrawingVisible()):
+            proceedToClose = True
+
+            if (self._promptCloseUnsaved and not self._drawing.isClean()):
+                # If drawing has unsaved changes, prompt the user whether to save before closing
+                text = f'Save changes to {os.path.basename(self._filePath)} before closing?'
+                buttons = (QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No |
+                           QMessageBox.StandardButton.Cancel)
+                defaultButton = QMessageBox.StandardButton.Yes
+                selectedButton = QMessageBox.question(self, 'Save Changes', text, buttons, defaultButton)
+
+                # If the Yes button was selected, so a 'save' or 'save-as' operation as needed
+                if (selectedButton == QMessageBox.StandardButton.Yes):
+                    if (self._filePath.startswith('Untitled')):
+                        self.saveDrawingAs()
+                    else:
+                        self.saveDrawing()
+
+                # Allow the close to proceed if the user clicked Yes and the save was successful or
+                # if the user clicked No
+                proceedToClose = ((selectedButton == QMessageBox.StandardButton.Yes and self._drawing.isClean()) or
+                                  selectedButton == QMessageBox.StandardButton.No)
+
+            if (proceedToClose):
+                # Hide the drawing and clear it to its default state
+                self._setDrawingVisible(False)
+                self._setFilePath('')
 
     def isDrawingVisible(self) -> bool:
         return self._drawing.isVisible()
@@ -429,10 +478,22 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def _setZoomComboText(self, scale: float) -> None:
-        pass
+        zoomLevel = DrawingUnits.convert(scale, self._drawing.units(), DrawingUnits.Inches) * 1000
+        self._zoomCombo.setCurrentText(f'{zoomLevel:.4g}%')
 
     def _setZoomLevel(self, text: str) -> None:
-        pass
+        if (text == 'Fit to Page'):
+            self._drawing.zoomFit()
+        else:
+            try:
+                if (text.endswith('%')):
+                    zoomLevel = float(text[:-1])
+                else:
+                    zoomLevel = float(text)
+                scale = DrawingUnits.convert(zoomLevel / 1000, DrawingUnits.Inches, self._drawing.units())
+                self._drawing.setScale(scale)
+            except ValueError:
+                pass
 
     # ==================================================================================================================
 
@@ -440,33 +501,9 @@ class MainWindow(QMainWindow):
         pass
 
     def _loadSettings(self) -> None:
-        font = QFont('Arial')
-        font.setPointSizeF(100)
-
-        DrawingItem.setDefaultProperty(
-           'pen', QPen(QBrush(Qt.GlobalColor.black), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
-                       Qt.PenJoinStyle.RoundJoin))
-        DrawingItem.setDefaultProperty('brush', QBrush(Qt.GlobalColor.white))
-        DrawingItem.setDefaultProperty('startArrow', DrawingArrow(DrawingArrow.Style.NoStyle, 100))
-        DrawingItem.setDefaultProperty('endArrow', DrawingArrow(DrawingArrow.Style.NoStyle, 100))
-        DrawingItem.setDefaultProperty('font', font)
-        DrawingItem.setDefaultProperty('textAlignment', Qt.AlignmentFlag.AlignCenter)
-        DrawingItem.setDefaultProperty('textBrush', QBrush(Qt.GlobalColor.black))
+        pass
 
     # ==================================================================================================================
-
-    def _registerItemsWithFactory(self):
-        DrawingItem.register(DrawingLineItem())
-        # DrawingItem.register(DrawingCurveItem())
-        # DrawingItem.register(DrawingPolylineItem())
-        DrawingItem.register(DrawingRectItem())
-        # DrawingItem.register(DrawingEllipseItem())
-        # DrawingItem.register(DrawingPolygonItem())
-        # DrawingItem.register(DrawingTextItem())
-        # DrawingItem.register(DrawingTextRectItem())
-        # DrawingItem.register(DrawingTextEllipseItem())
-        # DrawingItem.register(DrawingPathItem())
-        # DrawingItem.register(DrawingItemGroup())
 
     def _addDockWidget(self, text: str, widget: QWidget, area: Qt.DockWidgetArea) -> QDockWidget:
         dockWidget = QDockWidget(text)

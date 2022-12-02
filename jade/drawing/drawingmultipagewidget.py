@@ -17,7 +17,7 @@
 import typing
 from xml.etree import ElementTree
 from PyQt6.QtCore import pyqtSignal, QPointF, QRectF
-from PyQt6.QtGui import QAction, QActionGroup, QBrush, QIcon, QKeySequence, QUndoCommand, QUndoStack
+from PyQt6.QtGui import QAction, QActionGroup, QBrush, QColor, QIcon, QKeySequence, QUndoCommand, QUndoStack
 from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
 from .drawingitem import DrawingItem
 from .drawingitempoint import DrawingItemPoint
@@ -47,16 +47,21 @@ class DrawingMultiPageWidget(QWidget):
     def __init__(self) -> None:
         super().__init__()
 
-        self._units: DrawingUnits = DrawingUnits.Millimeters
+        self._defaultUnits: DrawingUnits = DrawingUnits.Millimeters
+        self._defaultSceneRect: QRectF = QRectF(-20, -20, 800, 600)
+        self._defaultBackgroundBrush: QBrush = QBrush(QColor(255, 255, 255))
+        self._defaultGrid: float = 5.0
+        self._defaultGridVisible: bool = True
+        self._defaultGridBrush: QBrush = QBrush(QColor(0, 128, 128))
+        self._defaultGridSpacingMajor: int = 8
+        self._defaultGridSpacingMinor: int = 2
 
-        self._grid: float = 0.0
-        self._gridVisible: bool = False
-        self._gridBrush: QBrush = QBrush()
-        self._gridSpacingMajor: int = 0
-        self._gridSpacingMinor: int = 0
-
-        self._defaultSceneRect: QRectF = QRectF()
-        self._defaultBackgroundBrush: QBrush = QBrush()
+        self._units: DrawingUnits = self._defaultUnits
+        self._grid: float = self._defaultGrid
+        self._gridVisible: bool = self._defaultGridVisible
+        self._gridBrush: QBrush = self._defaultGridBrush
+        self._gridSpacingMajor: int = self._defaultGridSpacingMajor
+        self._gridSpacingMinor: int = self._defaultGridSpacingMinor
 
         self._pages: list[DrawingWidget] = []
         self._currentPage: DrawingWidget | None = None
@@ -146,6 +151,56 @@ class DrawingMultiPageWidget(QWidget):
 
     # ==================================================================================================================
 
+    def setDefaultUnits(self, units: DrawingUnits) -> None:
+        self._defaultUnits = units
+
+    def setDefaultSceneRect(self, rect: QRectF) -> None:
+        self._defaultSceneRect = rect
+
+    def setDefaultBackgroundBrush(self, brush: QBrush) -> None:
+        self._defaultBackgroundBrush = brush
+
+    def setDefaultGrid(self, grid: float) -> None:
+        self._defaultGrid = grid
+
+    def setDefaultGridVisible(self, visible: bool) -> None:
+        self._defaultGridVisible = visible
+
+    def seDefaultGridBrush(self, brush: QBrush) -> None:
+        self._defaultGridBrush = brush
+
+    def setDefaultGridSpacingMajor(self, spacing: int) -> None:
+        self._defaultGridSpacingMajor = spacing
+
+    def setDefaultGridSpacingMinor(self, spacing: int) -> None:
+        self._defaultGridSpacingMinor = spacing
+
+    def defaultUnits(self) -> DrawingUnits:
+        return self._defaultUnits
+
+    def defaultSceneRect(self) -> QRectF:
+        return self._defaultSceneRect
+
+    def defaultBackgroundBrush(self) -> QBrush:
+        return self._defaultBackgroundBrush
+
+    def defaultGrid(self) -> float:
+        return self._defaultGrid
+
+    def defaultGridVisible(self) -> bool:
+        return self._defaultGridVisible
+
+    def defaultGridBrush(self) -> QBrush:
+        return self._defaultGridBrush
+
+    def defaultGridSpacingMajor(self) -> int:
+        return self._defaultGridSpacingMajor
+
+    def defaultGridSpacingMinor(self) -> int:
+        return self._defaultGridSpacingMinor
+
+    # ==================================================================================================================
+
     def setUnits(self, units: DrawingUnits) -> None:
         if (self._units != units):
             scale = DrawingUnits.convert(1, self._units, units)
@@ -159,11 +214,6 @@ class DrawingMultiPageWidget(QWidget):
             self.blockSignals(False)
 
             self.propertyChanged.emit('units', self._units)
-
-    def units(self) -> DrawingUnits:
-        return self._units
-
-    # ==================================================================================================================
 
     def setGrid(self, grid: float) -> None:
         if (self._grid != grid and grid >= 0):
@@ -220,6 +270,9 @@ class DrawingMultiPageWidget(QWidget):
 
             self.propertyChanged.emit('gridSpacingMinor', self._gridSpacingMinor)
 
+    def units(self) -> DrawingUnits:
+        return self._units
+
     def grid(self) -> float:
         return self._grid
 
@@ -234,24 +287,6 @@ class DrawingMultiPageWidget(QWidget):
 
     def gridSpacingMinor(self) -> int:
         return self._gridSpacingMinor
-
-    # ==================================================================================================================
-
-    def setDefaultSceneRect(self, rect: QRectF) -> None:
-        if (self._defaultSceneRect != rect and rect.isValid()):
-            self._defaultSceneRect = rect
-            self.propertyChanged.emit('defaultSceneRect', self._defaultSceneRect)
-
-    def setDefaultBackgroundBrush(self, brush: QBrush) -> None:
-        if (self._defaultBackgroundBrush != brush):
-            self._defaultBackgroundBrush = brush
-            self.propertyChanged.emit('defaultBackgroundBrush', self._defaultBackgroundBrush)
-
-    def defaultSceneRect(self) -> QRectF:
-        return self._defaultSceneRect
-
-    def defaultBackgroundBrush(self) -> QBrush:
-        return self._defaultBackgroundBrush
 
     # ==================================================================================================================
 
@@ -275,12 +310,6 @@ class DrawingMultiPageWidget(QWidget):
             case 'gridSpacingMinor':
                 if (isinstance(value, int)):
                     self.setGridSpacingMinor(value)
-            case 'defaultSceneRect':
-                if (isinstance(value, QRectF)):
-                    self.setDefaultSceneRect(value)
-            case 'defaultBackgroundBrush':
-                if (isinstance(value, QBrush)):
-                    self.setDefaultBackgroundBrush(value)
         return True
 
     def property(self, name: str) -> typing.Any:
@@ -297,10 +326,6 @@ class DrawingMultiPageWidget(QWidget):
                 return self.gridSpacingMajor()
             case 'gridSpacingMinor':
                 return self.gridSpacingMinor()
-            case 'defaultSceneRect':
-                return self.defaultSceneRect()
-            case 'defaultBackgroundBrush':
-                return self.defaultBackgroundBrush()
         return None
 
     # ==================================================================================================================
@@ -414,7 +439,7 @@ class DrawingMultiPageWidget(QWidget):
         self.insertNewPage()
         self._undoStack.clear()
 
-    def loadFromFile(self, path: str) -> None:
+    def loadFromFile(self, path: str) -> bool:
         self.clear()
 
         xml = ElementTree.parse(path)
@@ -451,9 +476,12 @@ class DrawingMultiPageWidget(QWidget):
                 self.addPage(newPage)
                 self.zoomFit()
 
-        self._undoStack.setClean()
+            self._undoStack.setClean()
+            return True
 
-    def saveToFile(self, path: str) -> None:
+        return False
+
+    def saveToFile(self, path: str) -> bool:
         drawingElement = ElementTree.Element('jade-drawing')
 
         DrawingItem.writeIntAttribute(drawingElement, 'units', self.units().value)
@@ -478,6 +506,7 @@ class DrawingMultiPageWidget(QWidget):
             file.write(ElementTree.tostring(drawingElement, encoding='unicode', xml_declaration=True))
 
         self._undoStack.setClean()
+        return True
 
     def clear(self) -> None:
         self._undoStack.clear()
@@ -487,6 +516,13 @@ class DrawingMultiPageWidget(QWidget):
             self.removePage(page)
             del page
         self._newPageCount = 0
+
+        self._units = self._defaultUnits
+        self._grid = self._defaultGrid
+        self._gridVisible = self._defaultGridVisible
+        self._gridBrush = self._defaultGridBrush
+        self._gridSpacingMajor = self._defaultGridSpacingMajor
+        self._gridSpacingMinor = self._defaultGridSpacingMinor
 
     # ==================================================================================================================
 
@@ -808,7 +844,7 @@ class DrawingMultiPageWidget(QWidget):
         elif (action == self.zoomModeAction):
             self.setZoomMode()
         else:
-            item = DrawingItem.create(action.property('key'))
+            item = DrawingItem.createItem(action.property('key'))
             if (item is not None):
                 self.setPlaceMode([item])
             else:
