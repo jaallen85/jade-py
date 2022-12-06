@@ -30,11 +30,10 @@ class DrawingEllipseItem(DrawingRectResizeItem):
 
         self._cachedShape: QPainterPath = QPainterPath()
 
-        points = self.points()
-        points[DrawingEllipseItem.PointIndex.TopLeft.value].setType(DrawingItemPoint.Type.Control)
-        points[DrawingEllipseItem.PointIndex.TopRight.value].setType(DrawingItemPoint.Type.Control)
-        points[DrawingEllipseItem.PointIndex.BottomRight.value].setType(DrawingItemPoint.Type.Control)
-        points[DrawingEllipseItem.PointIndex.BottomLeft.value].setType(DrawingItemPoint.Type.Control)
+        self._points[DrawingEllipseItem.PointIndex.TopLeft.value].setType(DrawingItemPoint.Type.Control)
+        self._points[DrawingEllipseItem.PointIndex.TopRight.value].setType(DrawingItemPoint.Type.Control)
+        self._points[DrawingEllipseItem.PointIndex.BottomRight.value].setType(DrawingItemPoint.Type.Control)
+        self._points[DrawingEllipseItem.PointIndex.BottomLeft.value].setType(DrawingItemPoint.Type.Control)
 
         self.setPlaceType(DrawingRectResizeItem.PlaceType.PlaceByMousePressAndRelease)
 
@@ -48,7 +47,7 @@ class DrawingEllipseItem(DrawingRectResizeItem):
         clonedItem.copyBaseClassValues(self)
         clonedItem.setPen(QPen(self.pen()))
         clonedItem.setBrush(QBrush(self.brush()))
-        clonedItem.setRect(QRectF(self.rect()))
+        clonedItem.setRect(self.rect())
         return clonedItem
 
     # ==================================================================================================================
@@ -110,7 +109,7 @@ class DrawingEllipseItem(DrawingRectResizeItem):
         if (self.isValid()):
             painter.setBrush(self._brush)
             painter.setPen(self._pen)
-            painter.drawEllipse(self._rect.normalized())
+            painter.drawEllipse(self.rect().normalized())
 
     # ==================================================================================================================
 
@@ -118,11 +117,12 @@ class DrawingEllipseItem(DrawingRectResizeItem):
         # Write position, rotation, and flipped
         super().writeToXml(element)
 
-        # Rect and corner radius
-        self.writeFloatAttribute(element, 'left', self._rect.left(), 0)
-        self.writeFloatAttribute(element, 'top', self._rect.top(), 0)
-        self.writeFloatAttribute(element, 'width', self._rect.width())
-        self.writeFloatAttribute(element, 'height', self._rect.height())
+        # Rect
+        rect = self.rect()
+        self.writeFloatAttribute(element, 'left', rect.left(), 0)
+        self.writeFloatAttribute(element, 'top', rect.top(), 0)
+        self.writeFloatAttribute(element, 'width', rect.width())
+        self.writeFloatAttribute(element, 'height', rect.height())
 
         # Pen and brush
         self.writePenToXml(element, 'pen', self._pen)
@@ -132,7 +132,7 @@ class DrawingEllipseItem(DrawingRectResizeItem):
         # Read position, rotation, and flipped
         super().readFromXml(element)
 
-        # Rect and corner radius
+        # Rect
         self.setRect(QRectF(self.readFloatAttribute(element, 'left', 0.0),
                             self.readFloatAttribute(element, 'top', 0.0),
                             self.readFloatAttribute(element, 'width', 0.0),
@@ -144,14 +144,14 @@ class DrawingEllipseItem(DrawingRectResizeItem):
 
     # ==================================================================================================================
 
-    def _updateGeometry(self):
+    def _updateGeometry(self) -> None:
         # Update bounding rect
         super()._updateGeometry()
 
-        # Update shape
         self._cachedShape.clear()
         if (self.isValid()):
-            normalizedRect = self._rect.normalized()
+            # Update shape
+            normalizedRect = self.rect().normalized()
             if (self._pen.style() != Qt.PenStyle.NoPen):
                 drawPath = QPainterPath()
                 drawPath.addEllipse(normalizedRect)

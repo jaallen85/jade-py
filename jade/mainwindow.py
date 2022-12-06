@@ -40,8 +40,6 @@ from .propertiesbrowser import PropertiesBrowser
 # Todo:
 #   - Add items:
 #     - DrawingPathItem
-#     - DrawingPolygonItem
-#     - DrawingPolylineItem
 #     - DrawingTextItem
 #     - DrawingTextRectItem
 #     - DrawingTextEllipseItem

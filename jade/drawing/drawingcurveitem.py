@@ -37,11 +37,6 @@ class DrawingCurveItem(DrawingItem):
     def __init__(self) -> None:
         super().__init__()
 
-        self._curveStartPosition: QPointF = QPointF()
-        self._curveStartControlPosition: QPointF = QPointF()
-        self._curveEndControlPosition: QPointF = QPointF()
-        self._curveEndPosition: QPointF = QPointF()
-
         self._pen: QPen = QPen()
         self._startArrow: DrawingArrow = DrawingArrow()
         self._endArrow: DrawingArrow = DrawingArrow()
@@ -67,8 +62,8 @@ class DrawingCurveItem(DrawingItem):
         clonedItem.setPen(QPen(self.pen()))
         clonedItem.setStartArrow(DrawingArrow(self.startArrow().style(), self.startArrow().size()))
         clonedItem.setEndArrow(DrawingArrow(self.endArrow().style(), self.endArrow().size()))
-        clonedItem.setCurve(QPointF(self.curveStartPosition()), QPointF(self.curveStartControlPosition()),
-                            QPointF(self.curveEndControlPosition()), QPointF(self.curveEndPosition()))
+        clonedItem.setCurve(self.curveStartPosition(), self.curveStartControlPosition(),
+                            self.curveEndControlPosition(), self.curveEndPosition())
         return clonedItem
 
     def setInitialGeometry(self, sceneRect: QRectF, grid: float) -> None:
@@ -83,29 +78,31 @@ class DrawingCurveItem(DrawingItem):
                  endPosition: QPointF) -> None:
         points = self.points()
         if (len(points) >= 4):
-            self._curveStartPosition = startPosition
-            self._curveStartControlPosition = startControlPosition
-            self._curveEndControlPosition = endControlPosition
-            self._curveEndPosition = endPosition
-
-            points[DrawingCurveItem.PointIndex.StartPoint.value].setPosition(self._curveStartPosition)
-            points[DrawingCurveItem.PointIndex.StartControlPoint.value].setPosition(self._curveStartControlPosition)
-            points[DrawingCurveItem.PointIndex.EndControlPoint.value].setPosition(self._curveEndControlPosition)
-            points[DrawingCurveItem.PointIndex.EndPoint.value].setPosition(self._curveEndPosition)
-
+            points[DrawingCurveItem.PointIndex.StartPoint.value].setPosition(startPosition)
+            points[DrawingCurveItem.PointIndex.StartControlPoint.value].setPosition(startControlPosition)
+            points[DrawingCurveItem.PointIndex.EndControlPoint.value].setPosition(endControlPosition)
+            points[DrawingCurveItem.PointIndex.EndPoint.value].setPosition(endPosition)
             self._updateGeometry()
 
     def curveStartPosition(self) -> QPointF:
-        return self._curveStartPosition
+        if (len(self._points) >= 4):
+            return QPointF(self._points[DrawingCurveItem.PointIndex.StartPoint.value].position())
+        return QPointF()
 
     def curveStartControlPosition(self) -> QPointF:
-        return self._curveStartControlPosition
+        if (len(self._points) >= 4):
+            return QPointF(self._points[DrawingCurveItem.PointIndex.StartControlPoint.value].position())
+        return QPointF()
 
     def curveEndControlPosition(self) -> QPointF:
-        return self._curveEndControlPosition
+        if (len(self._points) >= 4):
+            return QPointF(self._points[DrawingCurveItem.PointIndex.EndControlPoint.value].position())
+        return QPointF()
 
     def curveEndPosition(self) -> QPointF:
-        return self._curveEndPosition
+        if (len(self._points) >= 4):
+            return QPointF(self._points[DrawingCurveItem.PointIndex.EndPoint.value].position())
+        return QPointF()
 
     # ==================================================================================================================
 
@@ -175,10 +172,10 @@ class DrawingCurveItem(DrawingItem):
     def property(self, name: str) -> typing.Any:
         if (name == 'curve'):
             polygon = QPolygonF()
-            polygon.append(self.mapToScene(self._curveStartPosition))
-            polygon.append(self.mapToScene(self._curveStartControlPosition))
-            polygon.append(self.mapToScene(self._curveEndControlPosition))
-            polygon.append(self.mapToScene(self._curveEndPosition))
+            polygon.append(self.mapToScene(self.curveStartPosition()))
+            polygon.append(self.mapToScene(self.curveStartControlPosition()))
+            polygon.append(self.mapToScene(self.curveEndControlPosition()))
+            polygon.append(self.mapToScene(self.curveEndPosition()))
             return polygon
         if (name == 'pen'):
             return self.pen()
@@ -223,53 +220,58 @@ class DrawingCurveItem(DrawingItem):
             painter.drawPath(self._curvePath)
 
             # Draw arrows
-            curveLength = self._curveLength()
-            curveStartArrowAngle = self._curveStartArrowAngle()
-            curveEndArrowAngle = self._curveEndArrowAngle()
+            curveStartPosition = self.curveStartPosition()
+            curveStartControlPosition = self.curveStartControlPosition()
+            curveEndControlPosition = self.curveEndControlPosition()
+            curveEndPosition = self.curveEndPosition()
 
+            curveLength = self._curveLength()
             if (curveLength >= self._startArrow.size()):
-                self._startArrow.paint(painter, self._pen, self._curveStartPosition, curveStartArrowAngle)
+                self._startArrow.paint(painter, self._pen, curveStartPosition, self._curveStartArrowAngle())
             if (curveLength >= self._endArrow.size()):
-                self._endArrow.paint(painter, self._pen, self._curveEndPosition, curveEndArrowAngle)
+                self._endArrow.paint(painter, self._pen, curveEndPosition, self._curveEndArrowAngle())
 
             # Draw control lines
-            if (self.isSelected() and len(self.points()) >= 4):
+            if (self.isSelected() and len(self._points) >= 4):
                 pen = QPen(self._pen)
                 pen.setStyle(Qt.PenStyle.DotLine)
                 pen.setWidthF(pen.widthF() * 0.75)
 
                 painter.setBrush(QBrush(Qt.GlobalColor.transparent))
                 painter.setPen(pen)
-                painter.drawLine(self._curveStartPosition, self._curveStartControlPosition)
-                painter.drawLine(self._curveEndPosition, self._curveEndControlPosition)
+                painter.drawLine(curveStartPosition, curveStartControlPosition)
+                painter.drawLine(curveEndPosition, curveEndControlPosition)
 
     # ==================================================================================================================
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
-        # Move the point to its new position
-        super().resize(point, position, False)
+        if (len(self._points) >= 4):
+            previousStartControlDelta = self.curveStartControlPosition() - self.curveStartPosition()    # type: ignore
+            previousEndControlDelta = self.curveEndControlPosition() - self.curveEndPosition()    # type: ignore
 
-        points = self.points()
-        if (len(points) >= 4):
+            # Move the point to its new position
+            super().resize(point, position, False)
+
             # Keep the item's position equal to the position of its first point
-            pointDelta = -points[0].position()
-            for itemPoint in points:
-                itemPoint.setPosition(itemPoint.position() + pointDelta)    # type: ignore
-            self.setPosition(self.mapToScene(-pointDelta))
+            curveStartPosition = self.curveStartPosition()
+            curveStartControlPosition = self.curveStartControlPosition()
+            curveEndControlPosition = self.curveEndControlPosition()
+            curveEndPosition = self.curveEndPosition()
+
+            self.setPosition(self.mapToScene(curveStartPosition))
+            curveStartControlPosition = curveStartControlPosition - curveStartPosition  # type: ignore
+            curveEndControlPosition = curveEndControlPosition - curveStartPosition      # type: ignore
+            curveEndPosition = curveEndPosition - curveStartPosition                    # type: ignore
+            curveStartPosition = QPointF()
 
             # If the start or end point is moved, also move the corresponding control point
-            p1 = points[DrawingCurveItem.PointIndex.StartPoint.value].position()
-            p1Control = points[DrawingCurveItem.PointIndex.StartControlPoint.value].position()
-            p2Control = points[DrawingCurveItem.PointIndex.EndControlPoint.value].position()
-            p2 = points[DrawingCurveItem.PointIndex.EndPoint.value].position()
+            if (point == self._points[DrawingCurveItem.PointIndex.StartPoint.value]):
+                curveStartControlPosition = curveStartPosition + previousStartControlDelta  # type: ignore
+            elif (point == self._points[DrawingCurveItem.PointIndex.EndPoint.value]):
+                curveEndControlPosition = curveEndPosition + previousEndControlDelta        # type: ignore
 
-            if (point == points[DrawingCurveItem.PointIndex.StartPoint.value]):
-                p1Control = p1 + (self._curveStartControlPosition - self._curveStartPosition)   # type: ignore
-            elif (point == points[DrawingCurveItem.PointIndex.EndPoint.value]):
-                p2Control = p2 + (self._curveEndControlPosition - self._curveEndPosition)       # type: ignore
-
-            # Move all points to their final positions
-            self.setCurve(p1, p1Control, p2Control, p2)
+            # Set final point positions
+            self.setCurve(curveStartPosition, curveStartControlPosition, curveEndControlPosition, curveEndPosition)
 
     # ==================================================================================================================
 
@@ -280,11 +282,15 @@ class DrawingCurveItem(DrawingItem):
         self._startArrow.setSize(self._startArrow.size() * scale)
         self._endArrow.setSize(self._endArrow.size() * scale)
 
+        curveStartPosition = self.curveStartPosition()
+        curveStartControlPosition = self.curveStartControlPosition()
+        curveEndControlPosition = self.curveEndControlPosition()
+        curveEndPosition = self.curveEndPosition()
         self.setCurve(
-            QPointF(self._curveStartPosition.x() * scale, self._curveStartPosition.y() * scale),
-            QPointF(self._curveStartControlPosition.x() * scale, self._curveStartControlPosition.y() * scale),
-            QPointF(self._curveEndControlPosition.x() * scale, self._curveEndControlPosition.y() * scale),
-            QPointF(self._curveEndPosition.x() * scale, self._curveEndPosition.y() * scale))
+            QPointF(curveStartPosition.x() * scale, curveStartPosition.y() * scale),
+            QPointF(curveStartControlPosition.x() * scale, curveStartControlPosition.y() * scale),
+            QPointF(curveEndControlPosition.x() * scale, curveEndControlPosition.y() * scale),
+            QPointF(curveEndPosition.x() * scale, curveEndPosition.y() * scale))
 
     # ==================================================================================================================
 
@@ -293,14 +299,18 @@ class DrawingCurveItem(DrawingItem):
         super().writeToXml(element)
 
         # Curve
-        self.writeFloatAttribute(element, 'x1', self._curveStartPosition.x())
-        self.writeFloatAttribute(element, 'y1', self._curveStartPosition.y())
-        self.writeFloatAttribute(element, 'cx1', self._curveStartControlPosition.x())
-        self.writeFloatAttribute(element, 'cy1', self._curveStartControlPosition.y())
-        self.writeFloatAttribute(element, 'cx2', self._curveEndControlPosition.x())
-        self.writeFloatAttribute(element, 'cy2', self._curveEndControlPosition.y())
-        self.writeFloatAttribute(element, 'x2', self._curveEndPosition.x())
-        self.writeFloatAttribute(element, 'y2', self._curveEndPosition.y())
+        curveStartPosition = self.curveStartPosition()
+        curveStartControlPosition = self.curveStartControlPosition()
+        curveEndControlPosition = self.curveEndControlPosition()
+        curveEndPosition = self.curveEndPosition()
+        self.writeFloatAttribute(element, 'x1', curveStartPosition.x())
+        self.writeFloatAttribute(element, 'y1', curveStartPosition.y())
+        self.writeFloatAttribute(element, 'cx1', curveStartControlPosition.x())
+        self.writeFloatAttribute(element, 'cy1', curveStartControlPosition.y())
+        self.writeFloatAttribute(element, 'cx2', curveEndControlPosition.x())
+        self.writeFloatAttribute(element, 'cy2', curveEndControlPosition.y())
+        self.writeFloatAttribute(element, 'x2', curveEndPosition.x())
+        self.writeFloatAttribute(element, 'y2', curveEndPosition.y())
 
         # Pen and arrows
         self.writePenToXml(element, 'pen', self._pen)
@@ -325,15 +335,20 @@ class DrawingCurveItem(DrawingItem):
 
     # ==================================================================================================================
 
-    def _updateGeometry(self):
+    def _updateGeometry(self) -> None:
         self._curvePath.clear()
         self._curvePathBoundingRect = QRectF()
         self._cachedBoundingRect = QRectF()
         self._cachedShape.clear()
 
         # Update curve path and its bounding rect
-        self._curvePath.moveTo(self._curveStartPosition)
-        self._curvePath.cubicTo(self._curveStartControlPosition, self._curveEndControlPosition, self._curveEndPosition)
+        curveStartPosition = self.curveStartPosition()
+        curveStartControlPosition = self.curveStartControlPosition()
+        curveEndControlPosition = self.curveEndControlPosition()
+        curveEndPosition = self.curveEndPosition()
+
+        self._curvePath.moveTo(curveStartPosition)
+        self._curvePath.cubicTo(curveStartControlPosition, curveEndControlPosition, curveEndPosition)
         self._curvePathBoundingRect = self._curvePath.boundingRect().normalized()
 
         if (self.isValid()):
@@ -347,35 +362,37 @@ class DrawingCurveItem(DrawingItem):
             self._cachedShape = self.strokePath(self._curvePath, self._pen)
 
             curveLength = self._curveLength()
-            curveStartArrowAngle = self._curveStartArrowAngle()
-            curveEndArrowAngle = self._curveEndArrowAngle()
-
             if (curveLength >= self._startArrow.size()):
-                self._cachedShape.addPath(self._startArrow.shape(self._pen, self._curveStartPosition,
-                                                                 curveStartArrowAngle))
+                self._cachedShape.addPath(self._startArrow.shape(self._pen, curveStartPosition,
+                                                                 self._curveStartArrowAngle()))
             if (curveLength >= self._endArrow.size()):
-                self._cachedShape.addPath(self._endArrow.shape(self._pen, self._curveEndPosition, curveEndArrowAngle))
+                self._cachedShape.addPath(self._endArrow.shape(self._pen, curveEndPosition,
+                                                               self._curveEndArrowAngle()))
 
     # ==================================================================================================================
 
     def _curveLength(self) -> float:
-        p1 = self._curveStartPosition
-        p2 = self._curveEndPosition
+        p1 = self.curveStartPosition()
+        p2 = self.curveEndPosition()
         return math.sqrt((p2.x() - p1.x()) * (p2.x() - p1.x()) + (p2.y() - p1.y()) * (p2.y() - p1.y()))
 
     def _curveStartArrowAngle(self) -> float:
-        return 180 - QLineF(self._curveStartPosition, self._pointFromRatio(0.05)).angle()
+        return 180 - QLineF(self.curveStartPosition(), self._pointFromRatio(0.05)).angle()
 
     def _curveEndArrowAngle(self) -> float:
-        return 180 - QLineF(self._curveEndPosition, self._pointFromRatio(0.95)).angle()
+        return 180 - QLineF(self.curveEndPosition(), self._pointFromRatio(0.95)).angle()
 
     def _pointFromRatio(self, ratio: float) -> QPointF:
-        x = ((1 - ratio) * (1 - ratio) * (1 - ratio) * self._curveStartPosition.x() +
-             3 * ratio * (1 - ratio) * (1 - ratio) * self._curveStartControlPosition.x() +
-             3 * ratio * ratio * (1 - ratio) * self._curveEndControlPosition.x() +
-             ratio * ratio * ratio * self._curveEndPosition.x())
-        y = ((1 - ratio) * (1 - ratio) * (1 - ratio) * self._curveStartPosition.y() +
-             3 * ratio * (1 - ratio) * (1 - ratio) * self._curveStartControlPosition.y() +
-             3 * ratio * ratio * (1 - ratio) * self._curveEndControlPosition.y() +
-             ratio * ratio * ratio * self._curveEndPosition.y())
+        curveStartPosition = self.curveStartPosition()
+        curveStartControlPosition = self.curveStartControlPosition()
+        curveEndControlPosition = self.curveEndControlPosition()
+        curveEndPosition = self.curveEndPosition()
+        x = ((1 - ratio) * (1 - ratio) * (1 - ratio) * curveStartPosition.x() +
+             3 * ratio * (1 - ratio) * (1 - ratio) * curveStartControlPosition.x() +
+             3 * ratio * ratio * (1 - ratio) * curveEndControlPosition.x() +
+             ratio * ratio * ratio * curveEndPosition.x())
+        y = ((1 - ratio) * (1 - ratio) * (1 - ratio) * curveStartPosition.y() +
+             3 * ratio * (1 - ratio) * (1 - ratio) * curveStartControlPosition.y() +
+             3 * ratio * ratio * (1 - ratio) * curveEndControlPosition.y() +
+             ratio * ratio * ratio * curveEndPosition.y())
         return QPointF(x, y)

@@ -16,7 +16,7 @@
 
 import typing
 from enum import Enum
-from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRectF
+from PyQt6.QtCore import pyqtSignal, Qt, QPoint, QPointF, QRectF
 from PyQt6.QtGui import QCursor, QMouseEvent, QUndoCommand
 from PyQt6.QtWidgets import QApplication
 from .drawingitem import DrawingItem
@@ -30,6 +30,7 @@ class DrawingWidget(DrawingView):
     cleanChanged = pyqtSignal(bool)
     modifiedStringChanged = pyqtSignal(str)
     currentItemsPropertyChanged = pyqtSignal(list)
+    contextMenuTriggered = pyqtSignal(QPoint)
 
     def __init__(self) -> None:
         super().__init__()
@@ -526,6 +527,12 @@ class DrawingWidget(DrawingView):
                     self.mouseInfoChanged.emit('')
 
                 self._selectResizeItemPreviousPosition = newPosition
+
+    # ==================================================================================================================
+
+    def _selectModeRightMouseReleaseEvent(self, event: QMouseEvent) -> None:
+        self.contextMenuTriggered.emit(event.pos())
+        super()._selectModeRightMouseReleaseEvent(event)
 
     # ==================================================================================================================
 

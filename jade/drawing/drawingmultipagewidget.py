@@ -16,9 +16,9 @@
 
 import typing
 from xml.etree import ElementTree
-from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRectF
-from PyQt6.QtGui import QAction, QActionGroup, QBrush, QColor, QContextMenuEvent, QFont, QIcon, QKeySequence, QPen, \
-                        QUndoCommand, QUndoStack
+from PyQt6.QtCore import pyqtSignal, Qt, QPoint, QPointF, QRectF
+from PyQt6.QtGui import QAction, QActionGroup, QBrush, QColor, QFont, QIcon, QKeySequence, QPen, QUndoCommand, \
+                        QUndoStack
 from PyQt6.QtWidgets import QMenu, QStackedWidget, QVBoxLayout, QWidget
 from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
@@ -495,6 +495,7 @@ class DrawingMultiPageWidget(QWidget):
             page.currentItemsChanged.connect(self._emitCurrentItemsChanged)
             page.currentItemsPropertyChanged.connect(self._emitCurrentItemsPropertyChanged)
             page.propertyChanged.connect(self._emitCurrentPagePropertyChanged)
+            page.contextMenuTriggered.connect(self._contextMenuEvent)
 
             self.setCurrentPage(page)
 
@@ -520,6 +521,7 @@ class DrawingMultiPageWidget(QWidget):
             page.currentItemsChanged.disconnect(self._emitCurrentItemsChanged)
             page.currentItemsPropertyChanged.disconnect(self._emitCurrentItemsPropertyChanged)
             page.propertyChanged.disconnect(self._emitCurrentPagePropertyChanged)
+            page.contextMenuTriggered.disconnect(self._contextMenuEvent)
 
             self.pageRemoved.emit(page, index)
 
@@ -929,28 +931,26 @@ class DrawingMultiPageWidget(QWidget):
 
     # ==================================================================================================================
 
-    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+    def _contextMenuEvent(self, position: QPoint) -> None:
         if (self._currentPage is not None and self.mode() == DrawingWidget.Mode.SelectMode):
             # Show context menu depending on whether or not the right-click occurred on a selected item
             # and if so, what kind of item it was.
-            mouseDownItem = self._currentPage.itemAt(self._currentPage.mapToScene(event.pos()))
+            mouseDownItem = self._currentPage.itemAt(self._currentPage.mapToScene(position))
             selectedItems = self._currentPage.selectedItems()
 
             if (mouseDownItem is not None and mouseDownItem.isSelected()):
                 if (len(selectedItems) == 1):
                     if (self.insertPointAction.isEnabled()):
-                        self._singlePolyItemContextMenu.popup(event.globalPos())
+                        self._singlePolyItemContextMenu.popup(self.mapToGlobal(position))
                     elif (self.groupAction.isEnabled() or self.ungroupAction.isEnabled()):
-                        self._singleGroupItemContextMenu.popup(event.globalPos())
+                        self._singleGroupItemContextMenu.popup(self.mapToGlobal(position))
                     else:
-                        self._singleItemContextMenu.popup(event.globalPos())
+                        self._singleItemContextMenu.popup(self.mapToGlobal(position))
                 else:
-                    self._multipleItemContextMenu.popup(event.globalPos())
+                    self._multipleItemContextMenu.popup(self.mapToGlobal(position))
             else:
                 self.setSelectedItems([])
-                self._noItemContextMenu.popup(event.globalPos())
-
-            event.accept()
+                self._noItemContextMenu.popup(self.mapToGlobal(position))
 
     # ==================================================================================================================
 

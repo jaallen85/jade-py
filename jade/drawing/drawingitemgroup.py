@@ -104,7 +104,7 @@ class DrawingItemGroup(DrawingItem):
 
             # Update points
             points = self.points()
-            if (len(points) >= 8):
+            if (len(self._points) >= 8):
                 center = self._cachedBoundingRect.center()
                 points[0].setPosition(QPointF(self._cachedBoundingRect.left(), self._cachedBoundingRect.top()))
                 points[1].setPosition(QPointF(center.x(), self._cachedBoundingRect.top()))

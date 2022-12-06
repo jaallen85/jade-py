@@ -38,7 +38,6 @@ class DrawingRectResizeItem(DrawingItem):
     def __init__(self) -> None:
         super().__init__()
 
-        self._rect: QRectF = QRectF()
         self._pen: QPen = QPen()
 
         self._cachedBoundingRect: QRectF = QRectF()
@@ -51,8 +50,6 @@ class DrawingRectResizeItem(DrawingItem):
     def setRect(self, rect: QRectF) -> None:
         points = self.points()
         if (len(points) >= 8):
-            self._rect = rect
-
             center = rect.center()
             points[DrawingRectResizeItem.PointIndex.TopLeft.value].setPosition(QPointF(rect.left(), rect.top()))
             points[DrawingRectResizeItem.PointIndex.TopMiddle.value].setPosition(QPointF(center.x(), rect.top()))
@@ -62,11 +59,13 @@ class DrawingRectResizeItem(DrawingItem):
             points[DrawingRectResizeItem.PointIndex.BottomMiddle.value].setPosition(QPointF(center.x(), rect.bottom()))
             points[DrawingRectResizeItem.PointIndex.BottomLeft.value].setPosition(QPointF(rect.left(), rect.bottom()))
             points[DrawingRectResizeItem.PointIndex.MiddleLeft.value].setPosition(QPointF(rect.left(), center.y()))
-
             self._updateGeometry()
 
     def rect(self) -> QRectF:
-        return self._rect
+        if (len(self._points) >= 3):
+            return QRectF(self._points[DrawingRectResizeItem.PointIndex.TopLeft.value].position(),
+                          self._points[DrawingRectResizeItem.PointIndex.BottomRight.value].position())
+        return QRectF()
 
     # ==================================================================================================================
 
@@ -83,24 +82,24 @@ class DrawingRectResizeItem(DrawingItem):
         return self._cachedBoundingRect
 
     def isValid(self) -> bool:
-        return (self._rect.width() != 0 and self._rect.height() != 0)
+        rect = self.rect()
+        return (rect.width() != 0 and rect.height() != 0)
 
     # ==================================================================================================================
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
-        points = self.points()
-        if (len(points) >= 8):
+        if (len(self._points) >= 8):
             # Force the rect to be square if resizing a corner, if applicable
             if (snapTo45Degrees):
                 otherCornerPoint = None
-                if (point == points[DrawingRectResizeItem.PointIndex.TopLeft.value]):
-                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.BottomRight.value]
-                elif (point == points[DrawingRectResizeItem.PointIndex.TopRight.value]):
-                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.BottomLeft.value]
-                elif (point == points[DrawingRectResizeItem.PointIndex.BottomRight.value]):
-                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.TopLeft.value]
-                elif (point == points[DrawingRectResizeItem.PointIndex.BottomLeft.value]):
-                    otherCornerPoint = points[DrawingRectResizeItem.PointIndex.TopRight.value]
+                if (point == self._points[DrawingRectResizeItem.PointIndex.TopLeft.value]):
+                    otherCornerPoint = self._points[DrawingRectResizeItem.PointIndex.BottomRight.value]
+                elif (point == self._points[DrawingRectResizeItem.PointIndex.TopRight.value]):
+                    otherCornerPoint = self._points[DrawingRectResizeItem.PointIndex.BottomLeft.value]
+                elif (point == self._points[DrawingRectResizeItem.PointIndex.BottomRight.value]):
+                    otherCornerPoint = self._points[DrawingRectResizeItem.PointIndex.TopLeft.value]
+                elif (point == self._points[DrawingRectResizeItem.PointIndex.BottomLeft.value]):
+                    otherCornerPoint = self._points[DrawingRectResizeItem.PointIndex.TopRight.value]
 
                 if (otherCornerPoint is not None):
                     otherCornerPosition = self.mapToScene(otherCornerPoint.position())
@@ -122,10 +121,9 @@ class DrawingRectResizeItem(DrawingItem):
             super().resize(point, position, False)
 
             # Adjust the other points as needed
-            rect = QRectF(points[DrawingRectResizeItem.PointIndex.TopLeft.value].position(),
-                          points[DrawingRectResizeItem.PointIndex.BottomRight.value].position())
+            rect = self.rect()
 
-            pointIndex = points.index(point)
+            pointIndex = self._points.index(point)
             match (pointIndex):
                 case DrawingRectResizeItem.PointIndex.TopLeft.value:
                     rect.setTopLeft(point.position())
@@ -149,37 +147,38 @@ class DrawingRectResizeItem(DrawingItem):
             self.setPosition(self.mapToScene(center))
             rect.translate(-center)
 
-            # Move all points to their final positions
+            # Set final point positions
             self.setRect(rect)
 
     def resizeStartPoint(self) -> DrawingItemPoint | None:
-        points = self.points()
-        if (len(points) >= 8):
-            return self.points()[DrawingRectResizeItem.PointIndex.TopLeft.value]
+        if (len(self._points) >= 8):
+            return self._points[DrawingRectResizeItem.PointIndex.TopLeft.value]
         return None
 
     def resizeEndPoint(self) -> DrawingItemPoint | None:
-        points = self.points()
-        if (len(points) >= 8):
-            return self.points()[DrawingRectResizeItem.PointIndex.BottomRight.value]
+        if (len(self._points) >= 8):
+            return self._points[DrawingRectResizeItem.PointIndex.BottomRight.value]
         return None
 
     # ==================================================================================================================
 
     def scale(self, scale: float) -> None:
         super().scale(scale)
-        print(f'{self._pen.widthF() * scale} {self._pen.widthF()} {scale}')
+
         self._pen.setWidthF(self._pen.widthF() * scale)
-        self.setRect(QRectF(QPointF(self._rect.left() * scale, self._rect.top() * scale),
-                            QPointF(self._rect.right() * scale, self._rect.bottom() * scale)))
+
+        rect = self.rect()
+        self.setRect(QRectF(QPointF(rect.left() * scale, rect.top() * scale),
+                     QPointF(rect.right() * scale, rect.bottom() * scale)))
 
     # ==================================================================================================================
 
-    def _updateGeometry(self):
-        # Update bounding rect
+    def _updateGeometry(self) -> None:
         self._cachedBoundingRect = QRectF()
+
         if (self.isValid()):
-            self._cachedBoundingRect = self._rect.normalized()
+            # Update bounding rect
+            self._cachedBoundingRect = self.rect().normalized()
             if (self._pen.style() != Qt.PenStyle.NoPen):
                 halfPenWidth = self._pen.widthF() / 2
                 self._cachedBoundingRect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)
