@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import copy
 import typing
 from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QPoint, QPointF, QRectF, Signal
@@ -68,9 +67,6 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         self._defaultTextAlignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
         self._defaultTextBrush: QBrush = QBrush(Qt.GlobalColor.black)
 
-        self._factoryItems: list[DrawingItem] = []
-        self._factoryItemKeys: dict[str, DrawingItem] = {}
-
         self._grid: float = self._defaultGrid
         self._gridVisible: bool = self._defaultGridVisible
         self._gridBrush: QBrush = self._defaultGridBrush
@@ -92,19 +88,9 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         self._undoStack.cleanChanged.connect(self.cleanChanged)                 # type: ignore
         self._undoStack.cleanChanged.connect(self._emitModifiedStringChanged)   # type: ignore
 
-        self._clipboardItems: list[DrawingItem] = []
-
         self._createActions()
         self._createContextMenus()
         self.currentItemsChanged.connect(self._updateActionsFromSelection)
-
-    def __del__(self) -> None:
-        self.clear()
-
-        del self._factoryItems[:]
-        self._factoryItemKeys.clear()
-
-        del self._clipboardItems[:]
 
     def _createActions(self) -> None:
         # Normal actions
@@ -351,17 +337,6 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
 
     # ==================================================================================================================
 
-    def registerFactoryItem(self, item: DrawingItem, key: str) -> None:
-        self._factoryItems.append(item)
-        self._factoryItemKeys[key] = item
-
-    def createItemFromFactory(self, key: str) -> DrawingItem | None:
-        if (key in self._factoryItemKeys):
-            return copy.copy(self._factoryItemKeys[key])
-        return None
-
-    # ==================================================================================================================
-
     def setGrid(self, grid: float) -> None:
         if (self._grid != grid and grid >= 0):
             self._grid = grid
@@ -591,7 +566,7 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
             self.setGridSpacingMajor(self.readInt(drawingElement, 'gridSpacingMajor'))
             self.setGridSpacingMinor(self.readInt(drawingElement, 'gridSpacingMinor'))
 
-            for index, pageElement in enumerate(drawingElement.findall('page')):
+            for pageElement in drawingElement.findall('page'):
                 newPage = DrawingPageWidget()
 
                 newPage.setGrid(self._grid)
@@ -987,7 +962,7 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
             self.setZoomMode()
         else:
             if (self._currentPage is not None):
-                item = self.createItemFromFactory(action.property('key'))
+                item = DrawingItem.createItemFromFactory(action.property('key'))
                 if (item is not None):
                     # Set default item properties
                     item.setProperty('pen', QPen(self._defaultPen))

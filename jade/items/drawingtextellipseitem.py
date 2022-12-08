@@ -155,7 +155,11 @@ class DrawingTextEllipseItem(DrawingEllipseItem):
 
     def shape(self) -> QPainterPath:
         shape = super().shape()
-        shape.addRect(self._textRect)
+
+        textPath = QPainterPath()
+        textPath.addRect(self._textRect)
+        shape = shape.united(textPath)
+
         return shape
 
     def isValid(self) -> bool:

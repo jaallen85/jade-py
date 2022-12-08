@@ -47,9 +47,6 @@ class DrawingPageWidget(DrawingPageView):
         self._selectResizeItemInitialPosition: QPointF = QPointF()
         self._selectResizeItemPreviousPosition: QPointF = QPointF()
 
-    def __del__(self) -> None:
-        super().__del__()
-
     # ==================================================================================================================
 
     def addItems(self, items: list[DrawingItem]) -> None:
@@ -1055,14 +1052,12 @@ class DrawingItemInsertPointCommand(DrawingItemsUndoCommand):
         self._position: QPointF = position
 
     def redo(self) -> None:
-        self._undone = False
         self.page().insertItemPoint(self._item, self._position)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
         self.page().removeItemPoint(self._item, self._position)
-        self._undone = True
 
 
 # ======================================================================================================================
@@ -1078,14 +1073,12 @@ class DrawingItemRemovePointCommand(DrawingItemsUndoCommand):
         self._undone: bool = True
 
     def redo(self) -> None:
-        self._undone = False
         self.page().removeItemPoint(self._item, self._position)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
         self.page().insertItemPoint(self._item, self._position)
-        self._undone = True
 
 
 # ======================================================================================================================

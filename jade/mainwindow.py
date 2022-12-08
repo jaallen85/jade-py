@@ -38,6 +38,9 @@ from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
+#   - Test DrawingArrow implementation on lines, curves, and polylines
+#   - DrawingCurveItem: resizing start/end point should also move the corresponding control point; dotted lines should be drawn when selected
+#
 #   - Add items:
 #     - Electric items
 #     - Logic items
@@ -53,7 +56,8 @@ from .propertiesbrowser import PropertiesBrowser
 #     - Export to VSDX
 #   - Preferences dialog
 #   - About dialog
-#   - Add templates with default page scene rect/background color, default units and grid size
+#   - Add templates with default page scene rect/background color, default units and grid size,
+#      - Template can even define specific items that can be added to the scene using the DrawingItem factory
 
 
 class MainWindow(QMainWindow):
