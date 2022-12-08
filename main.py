@@ -16,8 +16,8 @@
 
 import os
 import sys
-from PyQt6.QtCore import QDir
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QDir
+from PySide6.QtWidgets import QApplication
 from jade.mainwindow import MainWindow
 
 app = QApplication(sys.argv)

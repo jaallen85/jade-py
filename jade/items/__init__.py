@@ -1,4 +1,4 @@
-# drawingtextitem.py
+# __init__.py
 # Copyright (C) 2022  Jason Allen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -13,23 +13,3 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-from .drawingitem import DrawingItem
-
-
-class DrawingTextItem(DrawingItem):
-    def __init__(self) -> None:
-        super().__init__()
-
-    # ==================================================================================================================
-
-    def key(self) -> str:
-        return 'text'
-
-    def clone(self) -> 'DrawingTextItem':
-        clonedItem = DrawingTextItem()
-        clonedItem.copyBaseClassValues(self)
-        # clonedItem.setPen(QPen(self.pen()))
-        # clonedItem.setBrush(QBrush(self.brush()))
-        # clonedItem.setRect(QRectF(self.rect()))
-        return clonedItem

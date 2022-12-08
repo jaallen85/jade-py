@@ -15,17 +15,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRectF, QSizeF
-from PyQt6.QtGui import QBrush, QColor, QFontMetrics, QIntValidator
-from PyQt6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
-from ..drawing.drawingtypes import DrawingUnits
-from ..drawing.drawingwidget import DrawingWidget
+from PySide6.QtCore import Qt, QPointF, QRectF, QSizeF, Signal
+from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIntValidator
+from PySide6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
+from ..drawing.drawingpagewidget import DrawingPageWidget
+from ..drawing.drawingunits import DrawingUnits
 from .helperwidgets import ColorWidget, PositionWidget, SizeEdit, SizeWidget
 
 
 class PagePropertiesWidget(QWidget):
-    drawingPropertyChanged = pyqtSignal(str, object)
-    pagePropertyChanged = pyqtSignal(str, object)
+    drawingPropertyChanged = Signal(str, object)
+    pagePropertyChanged = Signal(str, object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -36,28 +36,10 @@ class PagePropertiesWidget(QWidget):
         labelWidth = QFontMetrics(self.font()).boundingRect("Minor Grid Spacing:").width() + 8
 
         layout = QVBoxLayout()
-        layout.addWidget(self._createDrawingGroup(labelWidth))
         layout.addWidget(self._createPageGroup(labelWidth))
         layout.addWidget(self._createGridGroup(labelWidth))
         layout.addWidget(QWidget(), 100)
         self.setLayout(layout)
-
-    def _createDrawingGroup(self, labelWidth: int) -> QGroupBox:
-        self._unitsCombo: QComboBox = QComboBox()
-        self._unitsCombo.addItems(['Millimeters', 'Centimeters', 'Meters', 'Kilometers', 'Mils', 'Inches', 'Feet',
-                                   'Miles'])
-        self._unitsCombo.activated.connect(self._handleUnitsChange)     # type: ignore
-
-        drawingGroup = QGroupBox('Drawing')
-        drawingLayout = QFormLayout()
-        drawingLayout.addRow('Units:', self._unitsCombo)
-        drawingLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
-        drawingLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        drawingLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        drawingLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(labelWidth)
-        drawingGroup.setLayout(drawingLayout)
-
-        return drawingGroup
 
     def _createPageGroup(self, labelWidth: int) -> QGroupBox:
         self._sceneRectTopLeftWidget: PositionWidget = PositionWidget()
@@ -118,14 +100,20 @@ class PagePropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
+    def setUnits(self, units: DrawingUnits) -> None:
+        self.blockSignals(True)
+
+        self._sceneRectTopLeftWidget.setUnits(units)
+        self._sceneRectSizeWidget.setUnits(units)
+        self._gridEdit.setUnits(units)
+
+        self.blockSignals(False)
+
+    # ==================================================================================================================
+
     def setDrawingProperty(self, name: str, value: typing.Any) -> None:
         self.blockSignals(True)
-        if (name == 'units' and isinstance(value, DrawingUnits)):
-            self._unitsCombo.setCurrentIndex(value.value)
-            self._sceneRectTopLeftWidget.setUnits(value)
-            self._sceneRectSizeWidget.setUnits(value)
-            self._gridEdit.setUnits(value)
-        elif (name == 'grid' and isinstance(value, float)):
+        if (name == 'grid' and isinstance(value, float)):
             self._gridEdit.setSize(value)
         elif (name == 'gridVisible' and isinstance(value, bool)):
             self._gridVisibleCombo.setCurrentIndex(1 if value else 0)
@@ -139,7 +127,7 @@ class PagePropertiesWidget(QWidget):
             self._cachedGridSpacingMinor = value
         self.blockSignals(False)
 
-    def setPage(self, page: DrawingWidget | None) -> None:
+    def setPage(self, page: DrawingPageWidget | None) -> None:
         if (page is not None):
             self.blockSignals(True)
             self._sceneRectTopLeftWidget.setPosition(page.sceneRect().topLeft())
@@ -155,11 +143,6 @@ class PagePropertiesWidget(QWidget):
         elif (name == 'backgroundBrush' and isinstance(value, QBrush)):
             self._backgroundColorWidget.setColor(value.color())
         self.blockSignals(False)
-
-    # ==================================================================================================================
-
-    def _handleUnitsChange(self, index: int) -> None:
-        self.drawingPropertyChanged.emit('units', index)
 
     # ==================================================================================================================
 

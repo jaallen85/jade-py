@@ -16,7 +16,7 @@
 
 import typing
 from enum import Enum
-from PyQt6.QtCore import QPointF
+from PySide6.QtCore import QPointF
 
 
 class DrawingItemPoint:
@@ -31,19 +31,12 @@ class DrawingItemPoint:
 
     def __init__(self, position: QPointF = QPointF(), pointType: Type = Type.NoType) -> None:
         self._item: typing.Any = None
-        self._position: QPointF = position
+        self._position: QPointF = QPointF(position)
         self._type: DrawingItemPoint.Type = pointType
         self._connections: list[DrawingItemPoint] = []
 
     def __del__(self) -> None:
-        # Clear connections
-        while (len(self._connections) > 0):
-            point = self._connections[-1]
-            self.removeConnection(point)
-            point.removeConnection(self)
-
-    def clone(self) -> 'DrawingItemPoint':
-        return DrawingItemPoint(QPointF(self.position()), self.type())
+        self.clearConnections()
 
     # ==================================================================================================================
 
@@ -53,7 +46,7 @@ class DrawingItemPoint:
     # ==================================================================================================================
 
     def setPosition(self, position: QPointF) -> None:
-        self._position = position
+        self._position = QPointF(position)
 
     def position(self) -> QPointF:
         return self._position
@@ -79,13 +72,19 @@ class DrawingItemPoint:
 
     # ==================================================================================================================
 
-    def addConnection(self, point: 'DrawingItemPoint'):
+    def addConnection(self, point: 'DrawingItemPoint') -> None:
         if (point not in self._connections):
             self._connections.append(point)
 
-    def removeConnection(self, point: 'DrawingItemPoint'):
+    def removeConnection(self, point: 'DrawingItemPoint') -> None:
         if (point in self._connections):
             self._connections.remove(point)
+
+    def clearConnections(self) -> None:
+        while (len(self._connections) > 0):
+            point = self._connections[-1]
+            self.removeConnection(point)
+            point.removeConnection(self)
 
     def connections(self) -> list['DrawingItemPoint']:
         return self._connections

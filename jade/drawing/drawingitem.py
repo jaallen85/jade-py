@@ -14,21 +14,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import copy
 import math
 import typing
-from enum import Enum
+from abc import ABC, abstractmethod
 from xml.etree import ElementTree
-from PyQt6.QtCore import Qt, QPointF, QRectF
-from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF, QTransform
-from .drawingarrow import DrawingArrow
+from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
+from PySide6.QtGui import QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF, QTransform
 from .drawingitempoint import DrawingItemPoint
+from .drawingxmlinterface import DrawingXmlInterface
 
 
-class DrawingItem:
-    class PlaceType(Enum):
-        PlaceByMouseRelease = 0
-        PlaceByMousePressAndRelease = 1
-
+class DrawingItem(ABC, DrawingXmlInterface):
     _factoryItems: list['DrawingItem'] = []
 
     # ==================================================================================================================
@@ -44,35 +41,23 @@ class DrawingItem:
 
         self._points: list[DrawingItemPoint] = []
 
-        self._placeType: DrawingItem.PlaceType = DrawingItem.PlaceType.PlaceByMouseRelease
-
         self._selected: bool = False
 
     def __del__(self) -> None:
-        # Clear points
-        while (len(self._points) > 0):
-            point = self._points[-1]
-            self.removePoint(point)
-            del point
+        self.clearPoints()
 
     # ==================================================================================================================
 
-    def key(self) -> str:
-        return ''
-
-    def clone(self) -> 'DrawingItem':
-        clonedItem = DrawingItem()
-        clonedItem.copyBaseClassValues(self)
-        return clonedItem
-
-    def copyBaseClassValues(self, otherItem: 'DrawingItem') -> None:
-        self.setPosition(QPointF(otherItem.position()))
+    def _copyBaseClassValues(self, otherItem: 'DrawingItem') -> None:
+        self.setPosition(otherItem.position())
         self.setRotation(otherItem.rotation())
         self.setFlipped(otherItem.isFlipped())
-        self.setPlaceType(otherItem.placeType())
 
-    def setInitialGeometry(self, sceneRect: QRectF, grid: float) -> None:
-        pass
+    # ==================================================================================================================
+
+    @abstractmethod
+    def key(self) -> str:
+        return ''
 
     # ==================================================================================================================
 
@@ -82,7 +67,7 @@ class DrawingItem:
     # ==================================================================================================================
 
     def setPosition(self, position: QPointF) -> None:
-        self._position = position
+        self._position = QPointF(position)
 
     def setRotation(self, rotation: int) -> None:
         self._rotation = (rotation % 4)
@@ -101,14 +86,6 @@ class DrawingItem:
     def isFlipped(self) -> bool:
         return self._flipped
 
-    def _updateTransform(self) -> None:
-        self._transform.reset()
-        if (self._flipped):
-            self._transform.scale(-1, 1)
-        self._transform.rotate(90 * self._rotation)
-
-        self._transformInverse = self._transform.inverted()[0]
-
     def transform(self) -> QTransform:
         return self._transform
 
@@ -116,7 +93,7 @@ class DrawingItem:
         return self._transformInverse
 
     def mapToScene(self, position: QPointF) -> QPointF:
-        return self._transform.map(position) + self._position           # type: ignore
+        return self._transform.map(position) + self._position
 
     def mapRectToScene(self, rect: QRectF) -> QRectF:
         return QRectF(self.mapToScene(rect.topLeft()), self.mapToScene(rect.bottomRight()))
@@ -132,7 +109,7 @@ class DrawingItem:
         return scenePath
 
     def mapFromScene(self, position: QPointF) -> QPointF:
-        return self._transformInverse.map(position - self._position)    # type: ignore
+        return self._transformInverse.map(position - self._position)
 
     def mapRectFromScene(self, rect: QRectF) -> QRectF:
         return QRectF(self.mapFromScene(rect.topLeft()), self.mapFromScene(rect.bottomRight()))
@@ -164,16 +141,14 @@ class DrawingItem:
             # pylint: disable-next=W0212
             point._item = None
 
+    def clearPoints(self) -> None:
+        while (len(self._points) > 0):
+            point = self._points[-1]
+            self.removePoint(point)
+            del point
+
     def points(self) -> list[DrawingItemPoint]:
         return self._points
-
-    # ==================================================================================================================
-
-    def setPlaceType(self, placeType: 'DrawingItem.PlaceType') -> None:
-        self._placeType = placeType
-
-    def placeType(self) -> 'DrawingItem.PlaceType':
-        return self._placeType
 
     # ==================================================================================================================
 
@@ -189,10 +164,11 @@ class DrawingItem:
         pass
 
     def property(self, name: str) -> typing.Any:
-        return None
+        pass
 
     # ==================================================================================================================
 
+    @abstractmethod
     def boundingRect(self) -> QRectF:
         return QRectF()
 
@@ -209,6 +185,7 @@ class DrawingItem:
 
     # ==================================================================================================================
 
+    @abstractmethod
     def paint(self, painter: QPainter) -> None:
         pass
 
@@ -230,7 +207,7 @@ class DrawingItem:
 
     def rotate(self, position: QPointF) -> None:
         # Calculate new position of item
-        difference = QPointF(self._position - position)     # type: ignore
+        difference = self._position - position
         self.setPosition(QPointF(position.x() - difference.y(), position.y() + difference.x()))
 
         # Update orientation
@@ -238,7 +215,7 @@ class DrawingItem:
 
     def rotateBack(self, position: QPointF) -> None:
         # Calculate new position of item
-        difference = QPointF(self._position - position)     # type: ignore
+        difference = self._position - position
         self.setPosition(QPointF(position.x() + difference.y(), position.y() - difference.x()))
 
         # Update orientation
@@ -258,253 +235,82 @@ class DrawingItem:
 
     # ==================================================================================================================
 
-    def scale(self, scale: float) -> None:
-        self._position = QPointF(self._position.x() * scale, self._position.y() * scale)
-
-    # ==================================================================================================================
-
     def canInsertPoints(self) -> bool:
         return False
 
     def canRemovePoints(self) -> bool:
         return False
 
-    def insertNewPoint(self, position: QPointF) -> DrawingItemPoint | None:
-        return None
+    def insertNewPoint(self, position: QPointF) -> bool:
+        return False
 
-    def removeExistingPoint(self, position: QPointF) -> tuple[DrawingItemPoint | None, int]:
-        return (None, -1)
+    def removeExistingPoint(self, position: QPointF) -> bool:
+        return False
+
+    # ==================================================================================================================
+
+    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+        pass
+
+    def placeEndEvent(self) -> None:
+        pass
 
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
         # Write position, rotation, and flipped
-        self.writeFloatAttribute(element, 'translationX', self._position.x())
-        self.writeFloatAttribute(element, 'translationY', self._position.y())
-        self.writeIntAttribute(element, 'rotation', self._rotation * 90, 0)
-        self.writeBoolAttribute(element, 'flipped', self._flipped, False)
+        transformStr = f'translate({self._position.x()},{self._position.y()})'
+        if (self._flipped):
+            transformStr = f'{transformStr} scale(-1,1)'
+        if (self._rotation != 0):
+            transformStr = f'{transformStr} rotate({self._rotation * 90})'
+        element.set('transform', transformStr)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         # Read position, rotation, and flipped
-        self.setPosition(QPointF(self.readFloatAttribute(element, 'translationX', 0.0),
-                                 self.readFloatAttribute(element, 'translationY', 0.0)))
-        self.setRotation(int(self.readIntAttribute(element, 'rotation', 0) / 90))
-        self.setFlipped(self.readBoolAttribute(element, 'flipped', False))
+        position = QPointF()
+        rotation = 0
+        flipped = False
+
+        transformStr = element.get('transform', '')
+        try:
+            for token in transformStr.split(')'):
+                strippedToken = token.strip()
+                if (strippedToken.startswith('translate(')):
+                    translateCoords = strippedToken[10:].split(',')
+                    x = float(translateCoords[0].strip())
+                    y = float(translateCoords[1].strip())
+                    position = QPointF(x, y)
+                elif (strippedToken.startswith('scale(')):
+                    scaleFactors = strippedToken[6:].split(',')
+                    scaleX = float(scaleFactors[0].strip())
+                    # scaleY = float(scaleFactors[1].strip())
+                    if (scaleX < 0):
+                        flipped = (not flipped)
+                elif (strippedToken.startswith('rotate(')):
+                    rotation = (rotation + int(float(strippedToken[7:].strip()) / 90)) % 4
+        except (KeyError, ValueError):
+            position = QPointF()
+            rotation = 0
+            flipped = False
+
+        self.setPosition(position)
+        self.setRotation(rotation)
+        self.setFlipped(flipped)
 
     # ==================================================================================================================
 
-    @staticmethod
-    def writeBrushToXml(element: ElementTree.Element, name: str, brush: QBrush) -> None:
-        DrawingItem.writeColorAttribute(element, f'{name}Color', brush.color())
+    def _updateTransform(self) -> None:
+        self._transform.reset()
+        if (self._flipped):
+            self._transform.scale(-1, 1)
+        self._transform.rotate(90 * self._rotation)
 
-    @staticmethod
-    def writePenToXml(element: ElementTree.Element, name: str, pen: QPen) -> None:
-        DrawingItem.writeBrushToXml(element, name, pen.brush())
-        DrawingItem.writeFloatAttribute(element, f'{name}Width', pen.widthF())
-
-        penStyle = 'solid'
-        match (pen.style()):
-            case Qt.PenStyle.NoPen:
-                penStyle = 'none'
-            case Qt.PenStyle.DashLine:
-                penStyle = 'dash'
-            case Qt.PenStyle.DotLine:
-                penStyle = 'dot'
-            case Qt.PenStyle.DashDotLine:
-                penStyle = '"dash-dot'
-            case Qt.PenStyle.DashDotDotLine:
-                penStyle = 'dash-dot-dot'
-        DrawingItem.writeStrAttribute(element, f'{name}Style', penStyle)
-
-    @staticmethod
-    def writeArrowToXml(element: ElementTree.Element, name: str, arrow: DrawingArrow) -> None:
-        DrawingItem.writeStrAttribute(element, f'{name}Style', DrawingArrow.styleToString(arrow.style()), 'none')
-        DrawingItem.writeFloatAttribute(element, f'{name}Size', arrow.size(), 0)
-
-    @staticmethod
-    def writeFontToXml(element: ElementTree.Element, name: str, font: QFont) -> None:
-        DrawingItem.writeStrAttribute(element, f'{name}Name', font.family())
-        DrawingItem.writeFloatAttribute(element, f'{name}Size', font.pointSizeF())
-        DrawingItem.writeBoolAttribute(element, f'{name}Bold', font.bold(), False)
-        DrawingItem.writeBoolAttribute(element, f'{name}Italic', font.italic(), False)
-        DrawingItem.writeBoolAttribute(element, f'{name}Underline', font.underline(), False)
-        DrawingItem.writeBoolAttribute(element, f'{name}StrikeThrough', font.strikeOut(), False)
-
-    @staticmethod
-    def writeAlignmentToXml(element: ElementTree.Element, name: str, alignment: Qt.AlignmentFlag) -> None:
-        hAlignment = (alignment & Qt.AlignmentFlag.AlignHorizontal_Mask)
-        hAlignmentStr = 'left'
-        if (hAlignment & Qt.AlignmentFlag.AlignHCenter):
-            hAlignmentStr = 'center'
-        elif (hAlignment & Qt.AlignmentFlag.AlignRight):
-            hAlignmentStr = 'right'
-        DrawingItem.writeStrAttribute(element, f'{name}Horizontal', hAlignmentStr, 'left')
-
-        vAlignment = (alignment & Qt.AlignmentFlag.AlignVertical_Mask)
-        vAlignmentStr = 'top'
-        if (vAlignment & Qt.AlignmentFlag.AlignVCenter):
-            vAlignmentStr = 'center'
-        elif (vAlignment & Qt.AlignmentFlag.AlignBottom):
-            vAlignmentStr = 'bottom'
-        DrawingItem.writeStrAttribute(element, f'{name}Vertical', vAlignmentStr, 'top')
-
-    @staticmethod
-    def readBrushFromXml(element: ElementTree.Element, name: str) -> QBrush:
-        return QBrush(DrawingItem.readColorAttribute(element, f'{name}Color'))
-
-    @staticmethod
-    def readPenFromXml(element: ElementTree.Element, name: str) -> QPen:
-        penStyle = Qt.PenStyle.SolidLine
-        match (DrawingItem.readStrAttribute(element, f'{name}Style', 'solid').lower()):
-            case 'none':
-                penStyle = Qt.PenStyle.NoPen
-            case 'dash':
-                penStyle = Qt.PenStyle.DashLine
-            case 'dot':
-                penStyle = Qt.PenStyle.DotLine
-            case 'dash-dot':
-                penStyle = Qt.PenStyle.DashDotLine
-            case 'dash-dot-dot':
-                penStyle = Qt.PenStyle.DashDotDotLine
-
-        return QPen(DrawingItem.readBrushFromXml(element, name),
-                    DrawingItem.readFloatAttribute(element, f'{name}Width', 0.0),
-                    penStyle, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
-
-    @staticmethod
-    def readArrowFromXml(element: ElementTree.Element, name: str) -> DrawingArrow:
-        return DrawingArrow(
-            DrawingArrow.styleFromString(DrawingItem.readStrAttribute(element, f'{name}Style', 'none')),
-            DrawingItem.readFloatAttribute(element, f'{name}Size', 0.0))
-
-    @staticmethod
-    def readFontFromXml(element: ElementTree.Element, name: str) -> QFont:
-        font = QFont()
-        font.setFamily(DrawingItem.readStrAttribute(element, f'{name}Name', font.family()))
-        font.setPointSizeF(DrawingItem.readFloatAttribute(element, f'{name}Size', 0.0))
-        font.setBold(DrawingItem.readBoolAttribute(element, f'{name}Bold', False))
-        font.setItalic(DrawingItem.readBoolAttribute(element, f'{name}Italic', False))
-        font.setUnderline(DrawingItem.readBoolAttribute(element, f'{name}Underline', False))
-        font.setStrikeOut(DrawingItem.readBoolAttribute(element, f'{name}StrikeThrough', False))
-        return font
-
-    @staticmethod
-    def readAlignmentFromXml(element: ElementTree.Element, name: str) -> Qt.AlignmentFlag:
-        hAlignmentStr = DrawingItem.readStrAttribute(element, f'{name}Horizontal', '').lower()
-        hAlignment = Qt.AlignmentFlag.AlignLeft
-        if (hAlignmentStr == 'center'):
-            hAlignment = Qt.AlignmentFlag.AlignHCenter
-        elif (hAlignmentStr == 'right'):
-            hAlignment = Qt.AlignmentFlag.AlignRight
-
-        vAlignmentStr = DrawingItem.readStrAttribute(element, f'{name}Vertical', '').lower()
-        vAlignment = Qt.AlignmentFlag.AlignTop
-        if (vAlignmentStr == 'center'):
-            vAlignment = Qt.AlignmentFlag.AlignVCenter
-        elif (vAlignmentStr == 'bottom'):
-            vAlignment = Qt.AlignmentFlag.AlignBottom
-
-        return (hAlignment | vAlignment)
+        self._transformInverse = self._transform.inverted()[0]
 
     # ==================================================================================================================
 
-    @staticmethod
-    def writeStrAttribute(element: ElementTree.Element, name: str, value: str, defaultValue: str | None = None) -> None:
-        if (value != defaultValue):
-            element.set(name, value)
-
-    @staticmethod
-    def writeFloatAttribute(element: ElementTree.Element, name: str, value: float,
-                            defaultValue: float | None = None) -> None:
-        if (value != defaultValue):
-            element.set(name, f'{value}')
-
-    @staticmethod
-    def writeIntAttribute(element: ElementTree.Element, name: str, value: int, defaultValue: int | None = None) -> None:
-        if (value != defaultValue):
-            element.set(name, f'{value}')
-
-    @staticmethod
-    def writeBoolAttribute(element: ElementTree.Element, name: str, value: bool,
-                           defaultValue: bool | None = None) -> None:
-        if (value != defaultValue):
-            element.set(name, 'true' if value else 'false')
-
-    @staticmethod
-    def writeColorAttribute(element: ElementTree.Element, name: str, color: QColor) -> None:
-        if (color.alpha() == 255):
-            element.set(name, f'#{color.red():02X}{color.green():02X}{color.blue():02X}')
-        else:
-            element.set(name, f'#{color.red():02X}{color.green():02X}{color.blue():02X}{color.alpha():02X}')
-
-    @staticmethod
-    def writePointsAttribute(element: ElementTree.Element, name: str, points: QPolygonF) -> None:
-        pointsStr = ''
-        for index in range(points.size()):
-            point = points[index]
-            pointsStr = pointsStr + f'{point.x()},{point.y()} '
-        element.set(name, pointsStr.strip())
-
-    @staticmethod
-    def readStrAttribute(element: ElementTree.Element, name: str, defaultValue: str) -> str:
-        try:
-            return element.attrib[name]
-        except KeyError:
-            pass
-        return defaultValue
-
-    @staticmethod
-    def readFloatAttribute(element: ElementTree.Element, name: str, defaultValue: float) -> float:
-        try:
-            return float(element.attrib[name])
-        except (KeyError, ValueError):
-            pass
-        return defaultValue
-
-    @staticmethod
-    def readIntAttribute(element: ElementTree.Element, name: str, defaultValue: int) -> int:
-        try:
-            return int(element.attrib[name])
-        except (KeyError, ValueError):
-            pass
-        return defaultValue
-
-    @staticmethod
-    def readBoolAttribute(element: ElementTree.Element, name: str, defaultValue: bool) -> bool:
-        try:
-            return (element.attrib[name].lower() == 'true')
-        except KeyError:
-            pass
-        return defaultValue
-
-    @staticmethod
-    def readColorAttribute(element: ElementTree.Element, name: str) -> QColor:
-        try:
-            colorStr = element.attrib[name]
-            if (len(colorStr) == 9):
-                return QColor(int(colorStr[1:3], 16), int(colorStr[3:5], 16), int(colorStr[5:7], 16),
-                              int(colorStr[7:9], 16))
-            return QColor(int(colorStr[1:3], 16), int(colorStr[3:5], 16), int(colorStr[5:7], 16))
-        except (KeyError, ValueError):
-            pass
-        return QColor(0, 0, 0)
-
-    @staticmethod
-    def readPointsAttribute(element: ElementTree.Element, name: str) -> QPolygonF:
-        try:
-            points = QPolygonF()
-            for token in element.attrib[name].split(' '):
-                coords = token.split(',')
-                points.append(QPointF(float(coords[0]), float(coords[1])))
-            return points
-        except (KeyError, ValueError):
-            pass
-        return QPolygonF()
-
-    # ==================================================================================================================
-
-    @staticmethod
-    def strokePath(path: QPainterPath, pen: QPen) -> QPainterPath:
+    def _strokePath(self, path: QPainterPath, pen: QPen) -> QPainterPath:
         if (path.isEmpty()):
             return path
         ps = QPainterPathStroker()
@@ -515,13 +321,76 @@ class DrawingItem:
 
     # ==================================================================================================================
 
-    @staticmethod
-    def cloneItems(items: list['DrawingItem']) -> list['DrawingItem']:
-        clonedItems = []
+    def _snapResizeTo45Degrees(self, point: DrawingItemPoint, position: QPointF, startPoint: DrawingItemPoint,
+                               endPoint: DrawingItemPoint) -> QPointF:
+        otherPoint = None
+        if (point == startPoint):
+            otherPoint = endPoint
+        elif (point == endPoint):
+            otherPoint = startPoint
 
-        # Clone items
+        if (otherPoint is not None):
+            otherPosition = self.mapToScene(otherPoint.position())
+            delta = position - otherPosition
+
+            angle = math.atan2(position.y() - otherPosition.y(), position.x() - otherPosition.x())
+            targetAngleDegrees = round(angle * 180 / math.pi / 45) * 45
+            targetAngle = targetAngleDegrees * math.pi / 180
+
+            length = max(abs(delta.x()), abs(delta.y()))
+            if (abs(targetAngleDegrees % 90) == 45):
+                length = length * math.sqrt(2)
+
+            return QPointF(otherPosition.x() + length * math.cos(targetAngle),
+                           otherPosition.y() + length * math.sin(targetAngle))
+
+        return QPointF(position)
+
+    # ==================================================================================================================
+
+    def _distanceFromPointToLineSegment(self, point: QPointF, line: QLineF) -> float:
+        # Let A = line point 0, B = line point 1, and C = point
+        dotAbBc = (line.x2() - line.x1()) * (point.x() - line.x2()) + (line.y2() - line.y1()) * (point.y() - line.y2())
+        dotBaAc = (line.x1() - line.x2()) * (point.x() - line.x1()) + (line.y1() - line.y2()) * (point.y() - line.y1())
+        crossABC = (line.x2() - line.x1()) * (point.y() - line.y1()) - (line.y2() - line.y1()) * (point.x() - line.x1())
+        distanceAB = math.sqrt((line.x2() - line.x1()) * (line.x2() - line.x1()) + (line.y2() - line.y1()) * (line.y2() - line.y1()))   # noqa
+        distanceAC = math.sqrt((point.x() - line.x1()) * (point.x() - line.x1()) + (point.y() - line.y1()) * (point.y() - line.y1()))   # noqa
+        distanceBC = math.sqrt((point.x() - line.x2()) * (point.x() - line.x2()) + (point.y() - line.y2()) * (point.y() - line.y2()))   # noqa
+
+        if (distanceAB != 0):
+            if (dotAbBc > 0):
+                return distanceBC
+            if (dotBaAc > 0):
+                return distanceAC
+            return abs(crossABC) / distanceAB
+        return 1.0E12
+
+    def _pointNearest(self, position: QPointF) -> DrawingItemPoint | None:
+        if (len(self._points) > 0):
+            point = self._points[0]
+
+            vec = point.position() - position
+            minimumDistanceSquared = vec.x() * vec.x() + vec.y() * vec.y()
+
+            for itemPoint in self._points[1:]:
+                vec = itemPoint.position() - position
+                distanceSquared = vec.x() * vec.x() + vec.y() * vec.y()
+                if (distanceSquared < minimumDistanceSquared):
+                    point = itemPoint
+                    minimumDistanceSquared = distanceSquared
+
+            return point
+        return None
+
+    # ==================================================================================================================
+
+    @staticmethod
+    def copyItems(items: list['DrawingItem']) -> list['DrawingItem']:
+        copiedItems = []
+
+        # Copy items
         for item in items:
-            clonedItems.append(item.clone())
+            copiedItems.append(copy.copy(item))
 
         # Maintain connections to other items in this list
         for itemIndex, item in enumerate(items):
@@ -529,44 +398,29 @@ class DrawingItem:
                 for targetPoint in point.connections():
                     targetItem = point.item()
                     if (targetItem in items):
-                        # There is a connection here that must be maintained in the cloned items
-                        clonedPoint = clonedItems[itemIndex].points()[pointIndex]
-                        clonedTargetItem = clonedItems[items.index(targetItem)]
-                        clonedTargetPoint = clonedTargetItem.points()[targetItem.points().index(targetPoint)]
+                        # There is a connection here that must be maintained in the copied items
+                        copiedPoint = copiedItems[itemIndex].points()[pointIndex]
+                        copiedTargetItem = copiedItems[items.index(targetItem)]
+                        copiedTargetPoint = copiedTargetItem.points()[targetItem.points().index(targetPoint)]
 
-                        clonedPoint.addConnection(clonedTargetPoint)
-                        clonedTargetPoint.addConnection(clonedPoint)
+                        copiedPoint.addConnection(copiedTargetPoint)
+                        copiedTargetPoint.addConnection(copiedPoint)
 
-        return clonedItems
+        return copiedItems
 
     # ==================================================================================================================
 
     @staticmethod
-    def registerItem(item: 'DrawingItem') -> None:
+    def registerFactoryItem(item: 'DrawingItem') -> None:
         # Assumes that the item's key is unique and not already registered
         DrawingItem._factoryItems.append(item)
 
     @staticmethod
-    def createItem(key: str) -> 'DrawingItem | None':
+    def createItemFromFactory(key: str) -> 'DrawingItem | None':
         for item in DrawingItem._factoryItems:
             if (key == item.key()):
-                return item.clone()
+                return copy.copy(item)
         return None
-
-    # ==================================================================================================================
-
-    @staticmethod
-    def writeItemsToString(items: list['DrawingItem']) -> str:
-        itemsElement = ElementTree.Element('items')
-        DrawingItem.writeItemsToXml(itemsElement, items)
-        return ElementTree.tostring(itemsElement, encoding='unicode')
-
-    @staticmethod
-    def readItemsFromString(text: str) -> list['DrawingItem']:
-        rootElement = ElementTree.fromstring(text)
-        if (rootElement.tag == 'items'):
-            return DrawingItem.readItemsFromXml(rootElement)
-        return []
 
     # ==================================================================================================================
 
@@ -582,7 +436,7 @@ class DrawingItem:
 
         # Read items from XML
         for itemElement in element:
-            item = DrawingItem.createItem(itemElement.tag)
+            item = DrawingItem.createItemFromFactory(itemElement.tag)
             if (item is not None):
                 item.readFromXml(itemElement)
                 items.append(item)

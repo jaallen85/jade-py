@@ -15,22 +15,22 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QContextMenuEvent, QDropEvent
-from PyQt6.QtWidgets import QListWidget, QListWidgetItem, QMenu
-from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QContextMenuEvent, QDropEvent
+from PySide6.QtWidgets import QListWidget, QListWidgetItem, QMenu
+from .drawing.drawingpagewidget import DrawingPageWidget
 from .drawing.drawingwidget import DrawingWidget
 
 
 class PagesBrowser(QListWidget):
-    def __init__(self, drawing: DrawingMultiPageWidget) -> None:
+    def __init__(self, drawing: DrawingWidget) -> None:
         super().__init__()
 
         self.setAlternatingRowColors(True)
         self.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.setDragDropMode(QListWidget.DragDropMode.InternalMove)
 
-        self._drawing: DrawingMultiPageWidget = drawing
+        self._drawing: DrawingWidget = drawing
 
         # Signals and slots
         self._drawing.pageInserted.connect(self._insertItem)
@@ -78,7 +78,7 @@ class PagesBrowser(QListWidget):
 
     # ==================================================================================================================
 
-    def _insertItem(self, page: DrawingWidget, index: int) -> None:
+    def _insertItem(self, page: DrawingPageWidget, index: int) -> None:
         self.blockSignals(True)
         newItem = QListWidgetItem(page.name())
         newItem.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable |
@@ -86,7 +86,7 @@ class PagesBrowser(QListWidget):
         self.insertItem(index, newItem)
         self.blockSignals(False)
 
-    def _removeItem(self, _: DrawingWidget, index: int) -> None:
+    def _removeItem(self, _: DrawingPageWidget, index: int) -> None:
         self.blockSignals(True)
         item = self.takeItem(index)
         del item

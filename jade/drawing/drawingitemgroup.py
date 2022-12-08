@@ -14,56 +14,95 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import typing
 from xml.etree import ElementTree
-from PyQt6.QtCore import QPointF, QRectF
-from PyQt6.QtGui import QPainter, QPainterPath
+from enum import IntEnum
+from PySide6.QtCore import QPointF, QRectF
+from PySide6.QtGui import QPainter, QPainterPath
 from .drawingitem import DrawingItem
 from .drawingitempoint import DrawingItemPoint
 
 
 class DrawingItemGroup(DrawingItem):
+    class PointIndex(IntEnum):
+        TopLeft = 0
+        TopMiddle = 1
+        TopRight = 2
+        MiddleRight = 3
+        BottomRight = 4
+        BottomMiddle = 5
+        BottomLeft = 6
+        MiddleLeft = 7
+
+    # ==================================================================================================================
+
     def __init__(self) -> None:
         super().__init__()
 
         self._items: list[DrawingItem] = []
 
-        self._cachedBoundingRect: QRectF = QRectF()
-        self._cachedShape: QPainterPath = QPainterPath()
-
         for _ in range(8):
             self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.NoType))
 
+    def __copy__(self) -> 'DrawingItemGroup':
+        copiedItem = DrawingItemGroup()
+        copiedItem._copyBaseClassValues(self)
+        copiedItem.setItems(DrawingItem.copyItems(self.items()))
+        return copiedItem
+
     def __del__(self) -> None:
         self.setItems([])
+        super().__del__()
 
     # ==================================================================================================================
 
     def key(self) -> str:
         return 'group'
 
-    def clone(self) -> 'DrawingItemGroup':
-        clonedItem = DrawingItemGroup()
-        clonedItem.copyBaseClassValues(self)
-        clonedItem.setItems(DrawingItem.cloneItems(self.items()))
-        return clonedItem
-
     # ==================================================================================================================
 
     def setItems(self, items: list[DrawingItem]) -> None:
         del self._items[:]
         self._items = items
-        self._updateGeometry()
+
+        # Set point positions to match self._rect
+        if (len(self._points) >= 8):
+            rect = self.boundingRect()
+            center = rect.center()
+            self._points[DrawingItemGroup.PointIndex.TopLeft].setPosition(QPointF(rect.left(), rect.top()))
+            self._points[DrawingItemGroup.PointIndex.TopMiddle].setPosition(QPointF(center.x(), rect.top()))
+            self._points[DrawingItemGroup.PointIndex.TopRight].setPosition(QPointF(rect.right(), rect.top()))
+            self._points[DrawingItemGroup.PointIndex.MiddleRight].setPosition(QPointF(rect.right(), center.y()))
+            self._points[DrawingItemGroup.PointIndex.BottomRight].setPosition(QPointF(rect.right(), rect.bottom()))
+            self._points[DrawingItemGroup.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), rect.bottom()))
+            self._points[DrawingItemGroup.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
+            self._points[DrawingItemGroup.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
 
     def items(self) -> list[DrawingItem]:
         return self._items
 
     # ==================================================================================================================
 
+    def setProperty(self, name: str, value: typing.Any) -> None:
+        pass
+
+    def property(self, name: str) -> typing.Any:
+        if (name == 'position'):
+            return self.position()
+        return None
+
+    # ==================================================================================================================
+
     def boundingRect(self) -> QRectF:
-        return self._cachedBoundingRect
+        rect = QRectF()
+        for item in self._items:
+            rect = rect.united(item.mapRectToScene(item.boundingRect()))
+        return rect
 
     def shape(self) -> QPainterPath:
-        return self._cachedShape
+        shape = QPainterPath()
+        shape.addRect(self.boundingRect())
+        return shape
 
     def isValid(self) -> bool:
         return (len(self._items) > 0)
@@ -87,30 +126,3 @@ class DrawingItemGroup(DrawingItem):
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
         self.setItems(DrawingItem.readItemsFromXml(element))
-
-    # ==================================================================================================================
-
-    def _updateGeometry(self):
-        self._cachedBoundingRect = QRectF()
-        self._cachedShape = QPainterPath()
-
-        if (self.isValid()):
-            # Update bounding rect
-            for item in self._items:
-                self._cachedBoundingRect = self._cachedBoundingRect.united(item.mapRectToScene(item.boundingRect()))
-
-            # Update shape
-            self._cachedShape.addRect(self._cachedBoundingRect)
-
-            # Update points
-            points = self.points()
-            if (len(self._points) >= 8):
-                center = self._cachedBoundingRect.center()
-                points[0].setPosition(QPointF(self._cachedBoundingRect.left(), self._cachedBoundingRect.top()))
-                points[1].setPosition(QPointF(center.x(), self._cachedBoundingRect.top()))
-                points[2].setPosition(QPointF(self._cachedBoundingRect.right(), self._cachedBoundingRect.top()))
-                points[3].setPosition(QPointF(self._cachedBoundingRect.right(), center.y()))
-                points[4].setPosition(QPointF(self._cachedBoundingRect.right(), self._cachedBoundingRect.bottom()))
-                points[5].setPosition(QPointF(center.x(), self._cachedBoundingRect.bottom()))
-                points[6].setPosition(QPointF(self._cachedBoundingRect.left(), self._cachedBoundingRect.bottom()))
-                points[7].setPosition(QPointF(self._cachedBoundingRect.left(), center.y()))

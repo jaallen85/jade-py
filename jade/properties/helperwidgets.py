@@ -15,15 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import re
-from PyQt6.QtCore import pyqtSignal, Qt, QPointF, QRect, QSize, QSizeF
-from PyQt6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QMouseEvent, QPaintEvent, QPainter, QPen, QPixmap
-from PyQt6.QtWidgets import QColorDialog, QHBoxLayout, QMenu, QLineEdit, QPushButton, QSizePolicy, QWidget, \
+from PySide6.QtCore import Qt, QPointF, QRect, QSize, QSizeF, Signal
+from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QMouseEvent, QPaintEvent, QPainter, QPen, QPixmap
+from PySide6.QtWidgets import QColorDialog, QHBoxLayout, QMenu, QLineEdit, QPushButton, QSizePolicy, QWidget, \
                             QWidgetAction
-from ..drawing.drawingtypes import DrawingUnits
+from ..drawing.drawingunits import DrawingUnits
 
 
 class PositionEdit(QLineEdit):
-    positionChanged = pyqtSignal(float)
+    positionChanged = Signal(float)
 
     def __init__(self, position: float = 0.0, units: DrawingUnits = DrawingUnits.Millimeters) -> None:
         super().__init__()
@@ -86,7 +86,7 @@ class PositionEdit(QLineEdit):
 # ======================================================================================================================
 
 class SizeEdit(QLineEdit):
-    sizeChanged = pyqtSignal(float)
+    sizeChanged = Signal(float)
 
     def __init__(self, size: float = 0.0, units: DrawingUnits = DrawingUnits.Millimeters) -> None:
         super().__init__()
@@ -150,7 +150,7 @@ class SizeEdit(QLineEdit):
 # ======================================================================================================================
 
 class PositionWidget(QWidget):
-    positionChanged = pyqtSignal(QPointF)
+    positionChanged = Signal(QPointF)
 
     def __init__(self, position: QPointF = QPointF(0, 0), units: DrawingUnits = DrawingUnits.Millimeters) -> None:
         super().__init__()
@@ -188,7 +188,7 @@ class PositionWidget(QWidget):
 # ======================================================================================================================
 
 class SizeWidget(QWidget):
-    sizeChanged = pyqtSignal(QSizeF)
+    sizeChanged = Signal(QSizeF)
 
     def __init__(self, size: QSizeF = QSizeF(0, 0), units: DrawingUnits = DrawingUnits.Millimeters) -> None:
         super().__init__()
@@ -226,7 +226,7 @@ class SizeWidget(QWidget):
 # ======================================================================================================================
 
 class ColorWidget(QPushButton):
-    colorChanged = pyqtSignal(QColor)
+    colorChanged = Signal(QColor)
 
     def __init__(self, color: QColor = QColor(0, 0, 0)) -> None:
         super().__init__()
@@ -254,7 +254,7 @@ class ColorWidget(QPushButton):
 
     def setColor(self, color: QColor) -> None:
         if (color != self._color):
-            self._color = color
+            self._color = QColor(color)
             if (color.alpha() == 255):
                 self.setText(' ' + color.name(QColor.NameFormat.HexRgb).upper())
             else:
@@ -313,7 +313,7 @@ class ColorSelectWidget(QWidget):
         QColor(255, 128, 255), QColor(255, 0, 255), QColor(255, 0, 128), QColor(128, 0, 255), QColor(64, 0, 128), QColor(255, 255, 255, 0)]     # noqa
     customColors: list[QColor] = [QColor(255, 255, 255)] * 16
 
-    colorSelected = pyqtSignal(QColor)
+    colorSelected = Signal(QColor)
 
     def __init__(self) -> None:
         super().__init__()

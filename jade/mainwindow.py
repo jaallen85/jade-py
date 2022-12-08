@@ -16,33 +16,29 @@
 
 import os
 import typing
-from PyQt6.QtCore import pyqtBoundSignal, Qt, QSize
-from PyQt6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
-from PyQt6.QtWidgets import QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow, \
-                            QMessageBox, QToolBar, QWidget
-from .drawing.drawingcurveitem import DrawingCurveItem
-from .drawing.drawingellipseitem import DrawingEllipseItem
+from PySide6.QtCore import Qt, QSize, SignalInstance
+from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
+from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
+                               QMessageBox, QToolBar, QWidget)
 from .drawing.drawingitem import DrawingItem
 from .drawing.drawingitemgroup import DrawingItemGroup
-from .drawing.drawinglineitem import DrawingLineItem
-from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
-from .drawing.drawingpathitem import DrawingPathItem
-from .drawing.drawingpolygonitem import DrawingPolygonItem
-from .drawing.drawingpolylineitem import DrawingPolylineItem
-from .drawing.drawingrectitem import DrawingRectItem
-from .drawing.drawingtextellipseitem import DrawingTextEllipseItem
-from .drawing.drawingtextitem import DrawingTextItem
-from .drawing.drawingtextrectitem import DrawingTextRectItem
-from .drawing.drawingtypes import DrawingUnits
+from .drawing.drawingunits import DrawingUnits
+from .drawing.drawingwidget import DrawingWidget
+from .items.drawingcurveitem import DrawingCurveItem
+from .items.drawingellipseitem import DrawingEllipseItem
+from .items.drawinglineitem import DrawingLineItem
+from .items.drawingpathitem import DrawingPathItem
+from .items.drawingpolygonitem import DrawingPolygonItem
+from .items.drawingpolylineitem import DrawingPolylineItem
+from .items.drawingrectitem import DrawingRectItem
+from .items.drawingtextellipseitem import DrawingTextEllipseItem
+from .items.drawingtextitem import DrawingTextItem
+from .items.drawingtextrectitem import DrawingTextRectItem
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
 #   - Add items:
-#     - DrawingPathItem
-#     - DrawingTextItem
-#     - DrawingTextRectItem
-#     - DrawingTextEllipseItem
 #     - Electric items
 #     - Logic items
 #   - Single/multiple item properties:
@@ -57,6 +53,7 @@ from .propertiesbrowser import PropertiesBrowser
 #     - Export to VSDX
 #   - Preferences dialog
 #   - About dialog
+#   - Add templates with default page scene rect/background color, default units and grid size
 
 
 class MainWindow(QMainWindow):
@@ -72,20 +69,21 @@ class MainWindow(QMainWindow):
         self._propertiesDockVisibleOnClose: bool = True
 
         # Register items to DrawingItem factory
-        DrawingItem.registerItem(DrawingLineItem())
-        DrawingItem.registerItem(DrawingCurveItem())
-        DrawingItem.registerItem(DrawingPolylineItem())
-        DrawingItem.registerItem(DrawingRectItem())
-        DrawingItem.registerItem(DrawingEllipseItem())
-        DrawingItem.registerItem(DrawingPolygonItem())
-        DrawingItem.registerItem(DrawingTextItem())
-        DrawingItem.registerItem(DrawingTextRectItem())
-        DrawingItem.registerItem(DrawingTextEllipseItem())
-        DrawingItem.registerItem(DrawingPathItem())
-        DrawingItem.registerItem(DrawingItemGroup())
+        DrawingItem.registerFactoryItem(DrawingLineItem())
+        DrawingItem.registerFactoryItem(DrawingCurveItem())
+        DrawingItem.registerFactoryItem(DrawingPolylineItem())
+        DrawingItem.registerFactoryItem(DrawingRectItem())
+        DrawingItem.registerFactoryItem(DrawingEllipseItem())
+        DrawingItem.registerFactoryItem(DrawingPolygonItem())
+        DrawingItem.registerFactoryItem(DrawingTextItem())
+        DrawingItem.registerFactoryItem(DrawingTextRectItem())
+        DrawingItem.registerFactoryItem(DrawingTextEllipseItem())
+        DrawingItem.registerFactoryItem(DrawingPathItem())
+        DrawingItem.registerFactoryItem(DrawingItemGroup())
 
         # Main widget
-        self._drawing: DrawingMultiPageWidget = DrawingMultiPageWidget()
+        self._drawingUnits: DrawingUnits = DrawingUnits.Millimeters
+        self._drawing: DrawingWidget = DrawingWidget()
         self.setCentralWidget(self._drawing)
 
         # Dock widgets
@@ -474,7 +472,7 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def _setZoomComboText(self, scale: float) -> None:
-        zoomLevel = DrawingUnits.convert(scale, self._drawing.units(), DrawingUnits.Inches) * 1000
+        zoomLevel = DrawingUnits.convert(scale, self._drawingUnits, DrawingUnits.Inches) * 1000
         self._zoomCombo.setCurrentText(f'{zoomLevel:.4g}%')
 
     def _setZoomLevel(self, text: str) -> None:
@@ -486,7 +484,7 @@ class MainWindow(QMainWindow):
                     zoomLevel = float(text[:-1])
                 else:
                     zoomLevel = float(text)
-                scale = DrawingUnits.convert(zoomLevel / 1000, DrawingUnits.Inches, self._drawing.units())
+                scale = DrawingUnits.convert(zoomLevel / 1000, DrawingUnits.Inches, self._drawingUnits)
                 self._drawing.setScale(scale)
             except ValueError:
                 pass
@@ -512,7 +510,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(area, dockWidget)
         return dockWidget
 
-    def _addStatusBarLabel(self, text: str, minimumWidthText: str, signal: pyqtBoundSignal):
+    def _addStatusBarLabel(self, text: str, minimumWidthText: str, signal: SignalInstance):
         label = QLabel(text)
         label.setMinimumWidth(QFontMetrics(label.font()).boundingRect(minimumWidthText).width() + 64)
         signal.connect(label.setText)

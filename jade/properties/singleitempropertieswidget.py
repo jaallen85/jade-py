@@ -14,21 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import typing
-from PyQt6.QtCore import pyqtSignal, Qt, QLineF, QPointF, QRectF, QSizeF
-from PyQt6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QPen, QPolygonF
-from PyQt6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QLineF, QPointF, QRectF, QSizeF, Signal
+from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QPen, QPolygonF
+from PySide6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QVBoxLayout, QWidget
 from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitempoint import DrawingItemPoint
-from ..drawing.drawingtypes import DrawingUnits
+from ..drawing.drawingunits import DrawingUnits
 from .helperwidgets import ColorWidget, PositionWidget, SizeWidget, SizeEdit
 
 
 class SingleItemPropertiesWidget(QWidget):
-    itemMoved = pyqtSignal(QPointF)
-    itemResized = pyqtSignal(DrawingItemPoint, QPointF)
-    itemPropertyChanged = pyqtSignal(str, object)
+    itemMoved = Signal(QPointF)
+    itemResized = Signal(DrawingItemPoint, QPointF)
+    itemPropertyChanged = Signal(str, object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -191,28 +190,27 @@ class SingleItemPropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
-    def setDrawingProperty(self, name: str, value: typing.Any) -> None:
+    def setUnits(self, units: DrawingUnits) -> None:
         self.blockSignals(True)
 
-        if (name == 'units' and isinstance(value, DrawingUnits)):
-            self._lineStartWidget.setUnits(value)
-            self._lineEndWidget.setUnits(value)
-            self._lineSizeWidget.setUnits(value)
+        self._lineStartWidget.setUnits(units)
+        self._lineEndWidget.setUnits(units)
+        self._lineSizeWidget.setUnits(units)
 
-            self._curveStartWidget.setUnits(value)
-            self._curveStartControlWidget.setUnits(value)
-            self._curveEndControlWidget.setUnits(value)
-            self._curveEndWidget.setUnits(value)
+        self._curveStartWidget.setUnits(units)
+        self._curveStartControlWidget.setUnits(units)
+        self._curveEndControlWidget.setUnits(units)
+        self._curveEndWidget.setUnits(units)
 
-            self._rectTopLeftWidget.setUnits(value)
-            self._rectBottomRightWidget.setUnits(value)
-            self._rectSizeWidget.setUnits(value)
-            self._rectCornerRadiusEdit.setUnits(value)
+        self._rectTopLeftWidget.setUnits(units)
+        self._rectBottomRightWidget.setUnits(units)
+        self._rectSizeWidget.setUnits(units)
+        self._rectCornerRadiusEdit.setUnits(units)
 
-            self._penWidthEdit.setUnits(value)
+        self._penWidthEdit.setUnits(units)
 
-            self._startArrowSizeEdit.setUnits(value)
-            self._endArrowSizeEdit.setUnits(value)
+        self._startArrowSizeEdit.setUnits(units)
+        self._endArrowSizeEdit.setUnits(units)
 
         self.blockSignals(False)
 
@@ -253,10 +251,10 @@ class SingleItemPropertiesWidget(QWidget):
             showCurve = False
             if (isinstance(curve, QPolygonF) and curve.size() >= 4):
                 showCurve = True
-                self._curveStartWidget.setPosition(curve[0])
-                self._curveStartControlWidget.setPosition(curve[1])
-                self._curveEndControlWidget.setPosition(curve[2])
-                self._curveEndWidget.setPosition(curve[3])
+                self._curveStartWidget.setPosition(curve.at(0))
+                self._curveStartControlWidget.setPosition(curve.at(1))
+                self._curveEndControlWidget.setPosition(curve.at(2))
+                self._curveEndWidget.setPosition(curve.at(3))
 
             # Set curve group visibility
             self._curveGroup.setVisible(showCurve)

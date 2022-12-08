@@ -16,8 +16,8 @@
 
 import math
 from enum import Enum
-from PyQt6.QtCore import Qt, QPointF
-from PyQt6.QtGui import QBrush, QPainter, QPainterPath, QPainterPathStroker, QPen, QTransform
+from PySide6.QtCore import Qt, QPointF
+from PySide6.QtGui import QBrush, QPainter, QPainterPath, QPainterPathStroker, QPen, QTransform
 
 
 class DrawingArrow:
@@ -36,11 +36,8 @@ class DrawingArrow:
     def __init__(self, style: 'DrawingArrow.Style' = Style.NoStyle, size: float = 0.0) -> None:
         self._style: DrawingArrow.Style = style
         self._size: float = size
-        self._path: QPainterPath = QPainterPath()
-        self._updateGeometry()
 
-    def clone(self) -> 'DrawingArrow':
-        return DrawingArrow(self.style(), self.size())
+        self._path: QPainterPath = QPainterPath()
 
     # ==================================================================================================================
 
@@ -63,18 +60,28 @@ class DrawingArrow:
     def shape(self, pen: QPen, position: QPointF, angle: float) -> QPainterPath:
         shape = QPainterPath()
         if (self._style != DrawingArrow.Style.NoStyle and pen.style() != Qt.PenStyle.NoPen):
+            # Transform the path to the specified position and angle
             transform = QTransform()
             transform.translate(position.x(), position.y())
             transform.rotate(angle)
-            mappedPath = transform.map(self._path)
-            shape = DrawingArrow.strokePath(mappedPath, pen)
-            shape = shape.united(mappedPath)
+            transformedPath = transform.map(self._path)
+
+            # Create a shape representing the outline of the path
+            pathStroker = QPainterPathStroker()
+            pathStroker.setWidth(1E-6 if (pen.widthF() <= 0.0) else pen.widthF())
+            pathStroker.setCapStyle(Qt.PenCapStyle.SquareCap)
+            pathStroker.setJoinStyle(Qt.PenJoinStyle.BevelJoin)
+            shape = pathStroker.createStroke(transformedPath)
+
+            # The final shape includes both the outline and the interior of the arrow
+            shape = shape.united(transformedPath)
         return shape
 
     def paint(self, painter: QPainter, pen: QPen, position: QPointF, angle: float) -> None:
         if (self._style != DrawingArrow.Style.NoStyle and pen.style() != Qt.PenStyle.NoPen):
             # Set pen
             originalPenStyle = pen.style()
+
             pen.setStyle(Qt.PenStyle.SolidLine)
             painter.setPen(pen)
 
@@ -139,57 +146,3 @@ class DrawingArrow:
 
         elif (self._style in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
             self._path.addEllipse(QPointF(0, 0), self._size / 2, self._size / 2)
-
-    # ==================================================================================================================
-
-    @staticmethod
-    def strokePath(path: QPainterPath, pen: QPen) -> QPainterPath:
-        if (path.isEmpty()):
-            return path
-        ps = QPainterPathStroker()
-        ps.setWidth(1E-6 if (pen.widthF() <= 0.0) else pen.widthF())
-        ps.setCapStyle(Qt.PenCapStyle.SquareCap)
-        ps.setJoinStyle(Qt.PenJoinStyle.BevelJoin)
-        return ps.createStroke(path)
-
-    # ==================================================================================================================
-
-    @staticmethod
-    def styleToString(style: 'DrawingArrow.Style') -> str:
-        styleStr = 'none'
-        match (style):
-            case DrawingArrow.Style.Normal:
-                styleStr = 'normal'
-            case DrawingArrow.Style.Triangle:
-                styleStr = 'triangle'
-            case DrawingArrow.Style.TriangleFilled:
-                styleStr = 'triangleFilled'
-            case DrawingArrow.Style.Concave:
-                styleStr = 'concave'
-            case DrawingArrow.Style.ConcaveFilled:
-                styleStr = 'concaveFilled'
-            case DrawingArrow.Style.Circle:
-                styleStr = 'circle'
-            case DrawingArrow.Style.CircleFilled:
-                styleStr = 'circleFilled'
-        return styleStr
-
-    @staticmethod
-    def styleFromString(text: str) -> 'DrawingArrow.Style':
-        style = DrawingArrow.Style.NoStyle
-        match (text.lower()):
-            case 'normal':
-                style = DrawingArrow.Style.Normal
-            case 'triangle':
-                style = DrawingArrow.Style.Triangle
-            case 'trianglefilled':
-                style = DrawingArrow.Style.TriangleFilled
-            case 'concave':
-                style = DrawingArrow.Style.Concave
-            case 'concavefilled':
-                style = DrawingArrow.Style.ConcaveFilled
-            case 'circle':
-                style = DrawingArrow.Style.Circle
-            case 'circlefilled':
-                style = DrawingArrow.Style.CircleFilled
-        return style

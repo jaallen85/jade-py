@@ -1,4 +1,4 @@
-# drawingview.py
+# drawingpageview.py
 # Copyright (C) 2022  Jason Allen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,17 +17,18 @@
 import math
 import typing
 from enum import Enum
-from PyQt6.QtCore import pyqtSignal, Qt, QLineF, QPoint, QPointF, QRect, QRectF, QTimer
-from PyQt6.QtGui import QBrush, QColor, QCursor, QMouseEvent, QPaintEvent, QPainter, QPainterPath, QPalette, QPen, \
-                        QResizeEvent, QTransform, QWheelEvent
-from PyQt6.QtWidgets import QAbstractScrollArea, QApplication, QRubberBand, QStyle, QStyleHintReturnMask, \
-                            QStyleOptionRubberBand
+from xml.etree import ElementTree
+from PySide6.QtCore import Qt, QLineF, QPoint, QPointF, QRect, QRectF, QTimer, Signal
+from PySide6.QtGui import (QBrush, QColor, QCursor, QMouseEvent, QPainter, QPainterPath, QPaintEvent, QPalette, QPen,
+                           QResizeEvent, QTransform, QWheelEvent)
+from PySide6.QtWidgets import (QAbstractScrollArea, QApplication, QRubberBand, QStyle, QStyleHintReturnMask,
+                               QStyleOptionRubberBand)
 from .drawingitem import DrawingItem
 from .drawingitempoint import DrawingItemPoint
-from .drawingtypes import DrawingUnits
+from .drawingxmlinterface import DrawingXmlInterface
 
 
-class DrawingView(QAbstractScrollArea):
+class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
     class Mode(Enum):
         SelectMode = 0
         ScrollMode = 1
@@ -49,12 +50,12 @@ class DrawingView(QAbstractScrollArea):
 
     # ==================================================================================================================
 
-    propertyChanged = pyqtSignal(str, object)
-    scaleChanged = pyqtSignal(float)
-    modeChanged = pyqtSignal(int)
-    modeStringChanged = pyqtSignal(str)
-    mouseInfoChanged = pyqtSignal(str)
-    currentItemsChanged = pyqtSignal(list)
+    propertyChanged = Signal(str, object)
+    scaleChanged = Signal(float)
+    modeChanged = Signal(int)
+    modeStringChanged = Signal(str)
+    mouseInfoChanged = Signal(str)
+    currentItemsChanged = Signal(list)
 
     # ==================================================================================================================
 
@@ -65,7 +66,6 @@ class DrawingView(QAbstractScrollArea):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.setMouseTracking(True)
 
-        self._units: DrawingUnits = DrawingUnits.Millimeters
         self._sceneRect: QRectF = QRectF()
         self._backgroundBrush: QBrush = QBrush()
 
@@ -85,15 +85,14 @@ class DrawingView(QAbstractScrollArea):
         self._transform = QTransform()
         self._transformInverse = QTransform()
 
-        self._mode: DrawingView.Mode = DrawingView.Mode.SelectMode
-        self._placeModeItems: list[DrawingItem] = []
+        self._mode: DrawingPageView.Mode = DrawingPageView.Mode.SelectMode
 
-        self._mouseState: DrawingView.MouseState = DrawingView.MouseState.Idle
+        self._mouseState: DrawingPageView.MouseState = DrawingPageView.MouseState.Idle
         self._mouseButtonDownPosition: QPoint = QPoint()
         self._mouseButtonDownScenePosition: QPointF = QPointF()
         self._mouseDragged: bool = False
 
-        self._selectMouseState: DrawingView.SelectModeMouseState = DrawingView.SelectModeMouseState.Idle
+        self._selectMouseState: DrawingPageView.SelectModeMouseState = DrawingPageView.SelectModeMouseState.Idle
         self._selectRubberBandRect: QRect = QRect()
 
         self._scrollInitialHorizontalValue: int = 0
@@ -101,12 +100,18 @@ class DrawingView(QAbstractScrollArea):
 
         self._zoomRubberBandRect: QRect = QRect()
 
+        self._placeModeItems: list[DrawingItem] = []
+        self._placeByMousePressAndRelease: bool = False
+
         self._panOriginalCursor: Qt.CursorShape = Qt.CursorShape.ArrowCursor
         self._panStartPosition: QPoint = QPoint()
         self._panCurrentPosition: QPoint = QPoint()
         self._panTimer: QTimer = QTimer()
         self._panTimer.setInterval(5)
         self._panTimer.timeout.connect(self._mousePanEvent)     # type: ignore
+
+    def __del__(self):
+        self.clearItems()
 
     # ==================================================================================================================
 
@@ -120,37 +125,17 @@ class DrawingView(QAbstractScrollArea):
 
     # ==================================================================================================================
 
-    def setUnits(self, units: DrawingUnits) -> None:
-        if (self._units != units):
-            scale = DrawingUnits.convert(1, self._units, units)
-
-            self._units = units
-
-            self._sceneRect = QRectF(QPointF(self._sceneRect.left() * scale, self._sceneRect.top() * scale),
-                                     QPointF(self._sceneRect.right() * scale, self._sceneRect.bottom() * scale))
-            self._grid = self._grid * scale
-
-            for item in self._items:
-                item.scale(scale)
-
-            self.propertyChanged.emit('units', self._units)
-
-            self.setScale(self.scale() / scale)
-
     def setSceneRect(self, rect: QRectF) -> None:
         if (self._sceneRect != rect and rect.isValid()):
-            self._sceneRect = rect
+            self._sceneRect = QRectF(rect)
             self.propertyChanged.emit('sceneRect', self._sceneRect)
             self.zoomFit()
 
     def setBackgroundBrush(self, brush: QBrush) -> None:
         if (self._backgroundBrush != brush):
-            self._backgroundBrush = brush
+            self._backgroundBrush = QBrush(brush)
             self.propertyChanged.emit('backgroundBrush', self._backgroundBrush)
             self.viewport().update()
-
-    def units(self) -> DrawingUnits:
-        return self._units
 
     def sceneRect(self) -> QRectF:
         return self._sceneRect
@@ -174,7 +159,7 @@ class DrawingView(QAbstractScrollArea):
 
     def setGridBrush(self, brush: QBrush) -> None:
         if (self._gridBrush != brush):
-            self._gridBrush = brush
+            self._gridBrush = QBrush(brush)
             self.propertyChanged.emit('gridBrush', self._gridBrush)
             self.viewport().update()
 
@@ -228,6 +213,14 @@ class DrawingView(QAbstractScrollArea):
             # pylint: disable-next=W0212
             item._parent = None
 
+    def clearItems(self) -> None:
+        self.setSelectMode()
+        self.setSelectedItems([])
+        while (len(self._items) > 0):
+            item = self._items[-1]
+            self.removeItem(item)
+            del item
+
     def items(self) -> list[DrawingItem]:
         return self._items
 
@@ -261,7 +254,7 @@ class DrawingView(QAbstractScrollArea):
             for item in self._selectedItems:
                 item.setSelected(True)
 
-            if (self._mode == DrawingView.Mode.SelectMode):
+            if (self._mode == DrawingPageView.Mode.SelectMode):
                 self.currentItemsChanged.emit(self._selectedItems)
 
             self.viewport().update()
@@ -346,21 +339,21 @@ class DrawingView(QAbstractScrollArea):
 
     def mapToScene(self, position: QPoint) -> QPointF:
         scrollPosition = QPoint(self.horizontalScrollBar().value(), self.verticalScrollBar().value())
-        return self._transformInverse.map(QPointF(position + scrollPosition))   # type: ignore
+        return self._transformInverse.map(QPointF(position + scrollPosition))
 
     def mapRectToScene(self, rect: QRect) -> QRectF:
         return QRectF(self.mapToScene(rect.topLeft()), self.mapToScene(rect.bottomRight()))
 
     def mapFromScene(self, position: QPointF) -> QPoint:
         scrollPosition = QPoint(self.horizontalScrollBar().value(), self.verticalScrollBar().value())
-        return self._transform.map(position).toPoint() - scrollPosition         # type: ignore
+        return self._transform.map(position).toPoint() - scrollPosition
 
     def mapRectFromScene(self, rect: QRectF) -> QRect:
         return QRect(self.mapFromScene(rect.topLeft()), self.mapFromScene(rect.bottomRight()))
 
     # ==================================================================================================================
 
-    def mode(self) -> 'DrawingView.Mode':
+    def mode(self) -> 'DrawingPageView.Mode':
         return self._mode
 
     def placeItems(self) -> list[DrawingItem]:
@@ -373,9 +366,6 @@ class DrawingView(QAbstractScrollArea):
             case 'name':
                 if (isinstance(value, str)):
                     self.setName(value)
-            case 'units':
-                if (isinstance(value, int)):
-                    self.setUnits(DrawingUnits(value))
             case 'sceneRect':
                 if (isinstance(value, QRectF)):
                     self.setSceneRect(value)
@@ -403,8 +393,6 @@ class DrawingView(QAbstractScrollArea):
         match (name):
             case 'name':
                 return self.name()
-            case 'units':
-                return self.units().value
             case 'sceneRect':
                 return self.sceneRect()
             case 'backgroundBrush':
@@ -424,11 +412,11 @@ class DrawingView(QAbstractScrollArea):
     # ==================================================================================================================
 
     def selectAll(self) -> None:
-        if (self._mode == DrawingView.Mode.SelectMode):
+        if (self._mode == DrawingPageView.Mode.SelectMode):
             self.setSelectedItems(self._items)
 
     def selectNone(self) -> None:
-        if (self._mode == DrawingView.Mode.SelectMode):
+        if (self._mode == DrawingPageView.Mode.SelectMode):
             self.setSelectedItems([])
 
     # ==================================================================================================================
@@ -445,23 +433,23 @@ class DrawingView(QAbstractScrollArea):
     # ==================================================================================================================
 
     def setSelectMode(self) -> None:
-        self._setMode(DrawingView.Mode.SelectMode, [])
+        self._setMode(DrawingPageView.Mode.SelectMode, [])
 
     def setScrollMode(self) -> None:
-        self._setMode(DrawingView.Mode.ScrollMode, [])
+        self._setMode(DrawingPageView.Mode.ScrollMode, [])
 
     def setZoomMode(self) -> None:
-        self._setMode(DrawingView.Mode.ZoomMode, [])
+        self._setMode(DrawingPageView.Mode.ZoomMode, [])
 
     def setPlaceMode(self, items: list[DrawingItem]) -> None:
         if (len(items) > 0):
-            self._setMode(DrawingView.Mode.PlaceMode, items)
+            self._setMode(DrawingPageView.Mode.PlaceMode, items)
         else:
-            self._setMode(DrawingView.Mode.SelectMode, [])
+            self._setMode(DrawingPageView.Mode.SelectMode, [])
 
-    def _setMode(self, mode: 'DrawingView.Mode', placeItems: list[DrawingItem]) -> None:
+    def _setMode(self, mode: 'DrawingPageView.Mode', placeItems: list[DrawingItem]) -> None:
         previousMode = self._mode
-        if (previousMode != mode or mode == DrawingView.Mode.PlaceMode):
+        if (previousMode != mode or mode == DrawingPageView.Mode.PlaceMode):
 
             # Clear any selected items and place items
             self.setSelectedItems([])
@@ -471,30 +459,46 @@ class DrawingView(QAbstractScrollArea):
             self._mode = mode
             self.modeChanged.emit(self._mode.value)
             match (self._mode):
-                case DrawingView.Mode.SelectMode:
+                case DrawingPageView.Mode.SelectMode:
                     self.modeStringChanged.emit('Select Mode')
-                case DrawingView.Mode.ScrollMode:
+                case DrawingPageView.Mode.ScrollMode:
                     self.modeStringChanged.emit('Scroll Mode')
-                case DrawingView.Mode.ZoomMode:
+                case DrawingPageView.Mode.ZoomMode:
                     self.modeStringChanged.emit('Zoom Mode')
-                case DrawingView.Mode.PlaceMode:
+                case DrawingPageView.Mode.PlaceMode:
                     self.modeStringChanged.emit('Place Mode')
 
             # Update cursor
             match (self._mode):
-                case DrawingView.Mode.SelectMode:
+                case DrawingPageView.Mode.SelectMode:
                     self.setCursor(Qt.CursorShape.ArrowCursor)
-                case DrawingView.Mode.ScrollMode:
+                case DrawingPageView.Mode.ScrollMode:
                     self.setCursor(Qt.CursorShape.OpenHandCursor)
-                case DrawingView.Mode.ZoomMode:
+                case DrawingPageView.Mode.ZoomMode:
                     self.setCursor(Qt.CursorShape.CrossCursor)
-                case DrawingView.Mode.PlaceMode:
+                case DrawingPageView.Mode.PlaceMode:
                     self.setCursor(Qt.CursorShape.CrossCursor)
 
             # Update the place items, if applicable
             self._placeModeItems = placeItems
+
+            # Send each item a placeStartEvent so it can set its initial geometry as needed
+            for item in self._placeModeItems:
+                item.placeStartEvent(self._sceneRect, self._grid)
+
+            self._placeByMousePressAndRelease = (len(placeItems) == 1 and not placeItems[0].isValid() and
+                                                 placeItems[0].resizeStartPoint() is not None and
+                                                 placeItems[0].resizeEndPoint() is not None)
+
+            # Center the items under the mouse cursor
+            centerPosition = self.roundPointToGrid(self._itemsCenter(self._placeModeItems))
+            deltaPosition = self.roundPointToGrid(self.mapToScene(
+                self.mapFromGlobal(QCursor.pos())) - centerPosition)
+            for item in self._placeModeItems:
+                item.setPosition(item.position() + deltaPosition)
+
             # pylint: disable-next=R1714
-            if (previousMode == DrawingView.Mode.PlaceMode or self._mode == DrawingView.Mode.PlaceMode):
+            if (previousMode == DrawingPageView.Mode.PlaceMode or self._mode == DrawingPageView.Mode.PlaceMode):
                 self.currentItemsChanged.emit(self._placeModeItems)
 
             # Update the viewport
@@ -502,25 +506,27 @@ class DrawingView(QAbstractScrollArea):
 
     # ==================================================================================================================
 
-    def clear(self) -> None:
-        # Reset properties to default values
-        self._units = DrawingUnits.Millimeters
-        self._sceneRect = QRectF()
-        self._backgroundBrush = QBrush()
+    def writeToXml(self, element: ElementTree.Element) -> None:
+        self.writeStr(element, 'name', self.name(), writeIfDefault=True)
+        self.writeFloat(element, 'sceneLeft', self._sceneRect.left(), writeIfDefault=True)
+        self.writeFloat(element, 'sceneTop', self._sceneRect.top(), writeIfDefault=True)
+        self.writeFloat(element, 'sceneWidth', self._sceneRect.width(), writeIfDefault=True)
+        self.writeFloat(element, 'sceneHeight', self._sceneRect.height(), writeIfDefault=True)
+        self.writeColor(element, 'backgroundColor', self._backgroundBrush.color(), writeIfDefault=True)
 
-        self._grid = 0
-        self._gridVisible = False
-        self._gridBrush = QBrush()
-        self._gridSpacingMajor = 0
-        self._gridSpacingMinor = 0
+        DrawingItem.writeItemsToXml(element, self._items)
 
-        # Clear items from the scene
-        self.setSelectMode()
-        self.setSelectedItems([])
-        while (len(self._items) > 0):
-            item = self._items[-1]
-            self.removeItem(item)
-            del item
+    def readFromXml(self, element: ElementTree.Element) -> None:
+        self.clearItems()
+
+        self.setName(self.readStr(element, 'name'))
+        self.setSceneRect(QRectF(self.readFloat(element, 'sceneLeft'), self.readFloat(element, 'sceneTop'),
+                                 self.readFloat(element, 'sceneWidth'), self.readFloat(element, 'sceneHeight')))
+        self.setBackgroundBrush(QBrush(self.readColor(element, 'backgroundColor')))
+
+        items = DrawingItem.readItemsFromXml(element)
+        for item in items:
+            self.addItem(item)
 
     # ==================================================================================================================
 
@@ -654,12 +660,12 @@ class DrawingView(QAbstractScrollArea):
 
             option = QStyleOptionRubberBand()
             option.initFrom(self.viewport())
-            option.rect = rect
-            option.shape = QRubberBand.Shape.Rectangle
+            option.rect = rect                              # type: ignore
+            option.shape = QRubberBand.Shape.Rectangle      # type: ignore
 
             mask = QStyleHintReturnMask()
             if (self.viewport().style().styleHint(QStyle.StyleHint.SH_RubberBand_Mask, option, self.viewport(), mask)):
-                painter.setClipRegion(mask.region, Qt.ClipOperation.IntersectClip)
+                painter.setClipRegion(mask.region, Qt.ClipOperation.IntersectClip)      # type: ignore
 
             self.viewport().style().drawControl(QStyle.ControlElement.CE_RubberBand, option, painter, self.viewport())
 
@@ -714,34 +720,34 @@ class DrawingView(QAbstractScrollArea):
     # ==================================================================================================================
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        if (event.button() == Qt.MouseButton.LeftButton and self._mouseState == DrawingView.MouseState.Idle):
-            self._mouseState = DrawingView.MouseState.HandlingLeftButtonEvent
+        if (event.button() == Qt.MouseButton.LeftButton and self._mouseState == DrawingPageView.MouseState.Idle):
+            self._mouseState = DrawingPageView.MouseState.HandlingLeftButtonEvent
             self._mouseButtonDownPosition = event.pos()
             self._mouseButtonDownScenePosition = self.mapToScene(self._mouseButtonDownPosition)
 
             # Handle the left mouse press event depending on the current mode
             match (self._mode):
-                case DrawingView.Mode.SelectMode:
+                case DrawingPageView.Mode.SelectMode:
                     self._selectModeLeftMousePressEvent(event)
-                case DrawingView.Mode.ScrollMode:
+                case DrawingPageView.Mode.ScrollMode:
                     self._scrollModeLeftMousePressEvent(event)
-                case DrawingView.Mode.ZoomMode:
+                case DrawingPageView.Mode.ZoomMode:
                     self._zoomModeLeftMousePressEvent(event)
-                case DrawingView.Mode.PlaceMode:
+                case DrawingPageView.Mode.PlaceMode:
                     self._placeModeLeftMousePressEvent(event)
 
-        elif (event.button() == Qt.MouseButton.RightButton and self._mouseState == DrawingView.MouseState.Idle):
-            self._mouseState = DrawingView.MouseState.HandlingRightButtonEvent
+        elif (event.button() == Qt.MouseButton.RightButton and self._mouseState == DrawingPageView.MouseState.Idle):
+            self._mouseState = DrawingPageView.MouseState.HandlingRightButtonEvent
             self._mouseButtonDownPosition = event.pos()
             self._mouseButtonDownScenePosition = self.mapToScene(self._mouseButtonDownPosition)
 
             # Handle the right mouse press event depending on the current mode. Modes other than SelectMode ignore
             # this event.
-            if (self._mode == DrawingView.Mode.SelectMode):
+            if (self._mode == DrawingPageView.Mode.SelectMode):
                 self._selectModeRightMousePressEvent(event)
 
-        elif (event.button() == Qt.MouseButton.MiddleButton and self._mouseState == DrawingView.MouseState.Idle):
-            self._mouseState = DrawingView.MouseState.HandlingMiddleButtonEvent
+        elif (event.button() == Qt.MouseButton.MiddleButton and self._mouseState == DrawingPageView.MouseState.Idle):
+            self._mouseState = DrawingPageView.MouseState.HandlingMiddleButtonEvent
             self._mouseButtonDownPosition = event.pos()
             self._mouseButtonDownScenePosition = self.mapToScene(self._mouseButtonDownPosition)
 
@@ -757,74 +763,74 @@ class DrawingView(QAbstractScrollArea):
         self.mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if ((event.buttons() & Qt.MouseButton.LeftButton) and self._mouseState == DrawingView.MouseState.HandlingLeftButtonEvent):       # noqa
+        if ((event.buttons() & Qt.MouseButton.LeftButton) and self._mouseState == DrawingPageView.MouseState.HandlingLeftButtonEvent):       # noqa
             dragDistance = (self._mouseButtonDownPosition - event.pos()).manhattanLength()      # type:ignore
             self._mouseDragged = (self._mouseDragged or dragDistance >= QApplication.startDragDistance())
 
             if (self._mouseDragged):
                 # Handle the left mouse drag event depending on the current mode
                 match (self._mode):
-                    case DrawingView.Mode.SelectMode:
+                    case DrawingPageView.Mode.SelectMode:
                         self._selectModeLeftMouseDragEvent(event)
-                    case DrawingView.Mode.ScrollMode:
+                    case DrawingPageView.Mode.ScrollMode:
                         self._scrollModeLeftMouseDragEvent(event)
-                    case DrawingView.Mode.ZoomMode:
+                    case DrawingPageView.Mode.ZoomMode:
                         self._zoomModeLeftMouseDragEvent(event)
-                    case DrawingView.Mode.PlaceMode:
+                    case DrawingPageView.Mode.PlaceMode:
                         self._placeModeLeftMouseDragEvent(event)
 
-        elif ((event.buttons() & Qt.MouseButton.RightButton) and self._mouseState == DrawingView.MouseState.HandlingRightButtonEvent):   # noqa
+        elif ((event.buttons() & Qt.MouseButton.RightButton) and self._mouseState == DrawingPageView.MouseState.HandlingRightButtonEvent):   # noqa
             # In all modes, right mouse drag events are ignored
             pass
 
-        elif ((event.buttons() & Qt.MouseButton.MiddleButton) and self._mouseState == DrawingView.MouseState.HandlingMiddleButtonEvent): # noqa
+        elif ((event.buttons() & Qt.MouseButton.MiddleButton) and self._mouseState == DrawingPageView.MouseState.HandlingMiddleButtonEvent): # noqa
             # Update current position for mouse pan events
             self._panCurrentPosition = event.pos()
 
         else:
             # Handle the left mouse move event (with no buttons held down) depending on the current mode
             match (self._mode):
-                case DrawingView.Mode.SelectMode:
+                case DrawingPageView.Mode.SelectMode:
                     self._selectModeNoButtonMouseMoveEvent(event)
-                case DrawingView.Mode.ScrollMode:
+                case DrawingPageView.Mode.ScrollMode:
                     self._scrollModeNoButtonMouseMoveEvent(event)
-                case DrawingView.Mode.ZoomMode:
+                case DrawingPageView.Mode.ZoomMode:
                     self._zoomModeNoButtonMouseMoveEvent(event)
-                case DrawingView.Mode.PlaceMode:
+                case DrawingPageView.Mode.PlaceMode:
                     self._placeModeNoButtonMouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if (event.button() == Qt.MouseButton.LeftButton and self._mouseState == DrawingView.MouseState.HandlingLeftButtonEvent):        # noqa
+        if (event.button() == Qt.MouseButton.LeftButton and self._mouseState == DrawingPageView.MouseState.HandlingLeftButtonEvent):        # noqa
             # Handle the left mouse release event depending on the current mode
             match (self._mode):
-                case DrawingView.Mode.SelectMode:
+                case DrawingPageView.Mode.SelectMode:
                     self._selectModeLeftMouseReleaseEvent(event)
-                case DrawingView.Mode.ScrollMode:
+                case DrawingPageView.Mode.ScrollMode:
                     self._scrollModeLeftMouseReleaseEvent(event)
-                case DrawingView.Mode.ZoomMode:
+                case DrawingPageView.Mode.ZoomMode:
                     self._zoomModeLeftMouseReleaseEvent(event)
-                case DrawingView.Mode.PlaceMode:
+                case DrawingPageView.Mode.PlaceMode:
                     self._placeModeLeftMouseReleaseEvent(event)
 
-            self._mouseState = DrawingView.MouseState.Idle
+            self._mouseState = DrawingPageView.MouseState.Idle
             self._mouseDragged = False
 
-        elif (event.button() == Qt.MouseButton.RightButton and self._mouseState == DrawingView.MouseState.HandlingRightButtonEvent):    # noqa
+        elif (event.button() == Qt.MouseButton.RightButton and self._mouseState == DrawingPageView.MouseState.HandlingRightButtonEvent):    # noqa
             # Handle the right mouse press event depending on the current mode. Modes other than SelectMode will
             # trigger the view to go to SelectMode.
-            if (self._mode == DrawingView.Mode.SelectMode):
+            if (self._mode == DrawingPageView.Mode.SelectMode):
                 self._selectModeRightMouseReleaseEvent(event)
             else:
                 self.setSelectMode()
 
-            self._mouseState = DrawingView.MouseState.Idle
+            self._mouseState = DrawingPageView.MouseState.Idle
 
-        elif (event.button() == Qt.MouseButton.MiddleButton and self._mouseState == DrawingView.MouseState.HandlingMiddleButtonEvent):  # noqa
+        elif (event.button() == Qt.MouseButton.MiddleButton and self._mouseState == DrawingPageView.MouseState.HandlingMiddleButtonEvent):  # noqa
             # Stop mouse pan events.
             self.setCursor(self._panOriginalCursor)
             self._panTimer.stop()
 
-            self._mouseState = DrawingView.MouseState.Idle
+            self._mouseState = DrawingPageView.MouseState.Idle
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
@@ -842,7 +848,7 @@ class DrawingView(QAbstractScrollArea):
         self.mouseInfoChanged.emit(self._createMouseInfo1(self.mapToScene(event.pos())))
 
     def _selectModeLeftMousePressEvent(self, event: QMouseEvent) -> None:
-        self._selectMouseState = DrawingView.SelectModeMouseState.Select
+        self._selectMouseState = DrawingPageView.SelectModeMouseState.Select
 
         # Update mouse down item
         self._selectMouseDownItem = self.itemAt(self._mouseButtonDownScenePosition)
@@ -865,7 +871,7 @@ class DrawingView(QAbstractScrollArea):
 
     def _selectModeLeftMouseDragEvent(self, event: QMouseEvent) -> None:
         match (self._selectMouseState):
-            case DrawingView.SelectModeMouseState.Select:
+            case DrawingPageView.SelectModeMouseState.Select:
                 # If we clicked on a control point within a selected item and the item can be resized, then resize the
                 # item.  Otherwise, if we clicked on a selected item, move the item. Otherwise we didn't click on a
                 # selected item, so start drawing a rubber band for item selection.
@@ -873,21 +879,21 @@ class DrawingView(QAbstractScrollArea):
                     canResize = (len(self._selectedItems) == 1 and len(self._selectMouseDownItem.points()) >= 2 and
                                  self._selectMouseDownPoint is not None and self._selectMouseDownPoint.isControlPoint())
                     if (canResize):
-                        self._selectMouseState = DrawingView.SelectModeMouseState.ResizeItem
+                        self._selectMouseState = DrawingPageView.SelectModeMouseState.ResizeItem
                         self._selectModeResizeItemStartEvent(event)
                     else:
-                        self._selectMouseState = DrawingView.SelectModeMouseState.MoveItems
+                        self._selectMouseState = DrawingPageView.SelectModeMouseState.MoveItems
                         self._selectModeMoveItemsStartEvent(event)
                 else:
-                    self._selectMouseState = DrawingView.SelectModeMouseState.RubberBand
+                    self._selectMouseState = DrawingPageView.SelectModeMouseState.RubberBand
                     self._selectModeRubberBandStartEvent(event)
-            case DrawingView.SelectModeMouseState.MoveItems:
+            case DrawingPageView.SelectModeMouseState.MoveItems:
                 # Move the selected items within the scene
                 self._selectModeMoveItemsUpdateEvent(event)
-            case DrawingView.SelectModeMouseState.ResizeItem:
+            case DrawingPageView.SelectModeMouseState.ResizeItem:
                 # Resize the selected item within the scene
                 self._selectModeResizeItemUpdateEvent(event)
-            case DrawingView.SelectModeMouseState.RubberBand:
+            case DrawingPageView.SelectModeMouseState.RubberBand:
                 # Update the rubber band rect to be used for item selection
                 self._selectModeRubberBandUpdateEvent(event)
             case _:
@@ -896,16 +902,16 @@ class DrawingView(QAbstractScrollArea):
 
     def _selectModeLeftMouseReleaseEvent(self, event: QMouseEvent) -> None:
         match (self._selectMouseState):
-            case DrawingView.SelectModeMouseState.Select:
+            case DrawingPageView.SelectModeMouseState.Select:
                 # Select or deselect item as needed
                 self._selectModeSingleSelectEvent(event)
-            case DrawingView.SelectModeMouseState.MoveItems:
+            case DrawingPageView.SelectModeMouseState.MoveItems:
                 # Move the selected items within the scene
                 self._selectModeMoveItemsEndEvent(event)
-            case DrawingView.SelectModeMouseState.ResizeItem:
+            case DrawingPageView.SelectModeMouseState.ResizeItem:
                 # Resize the selected item within the scene
                 self._selectModeResizeItemEndEvent(event)
-            case DrawingView.SelectModeMouseState.RubberBand:
+            case DrawingPageView.SelectModeMouseState.RubberBand:
                 # Update the rubber band rect to be used for item selection
                 self._selectModeRubberBandEndEvent(event)
             case _:
@@ -913,7 +919,7 @@ class DrawingView(QAbstractScrollArea):
                 pass
 
         # Reset the select mode left mouse event variables
-        self._selectMouseState = DrawingView.SelectModeMouseState.Idle
+        self._selectMouseState = DrawingPageView.SelectModeMouseState.Idle
         self._selectMouseDownItem = None
         self._selectMouseDownPoint = None
 
@@ -1143,7 +1149,7 @@ class DrawingView(QAbstractScrollArea):
         pen = item.property('pen')
         if (pen is not None):
             # Determine minimum pen width
-            mappedPenSize = self.mapToScene(QPoint(8, 8)) - self.mapToScene(QPoint(0, 0))    # type: ignore
+            mappedPenSize = self.mapToScene(QPoint(8, 8)) - self.mapToScene(QPoint(0, 0))
             minimumPenWidth = max(abs(mappedPenSize.x()), abs(mappedPenSize.y()))
 
             # Override item's default pen width if needed

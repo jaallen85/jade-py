@@ -15,21 +15,22 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PyQt6.QtCore import QSize
-from PyQt6.QtWidgets import QScrollArea, QStackedWidget
+from PySide6.QtCore import QSize
+from PySide6.QtWidgets import QScrollArea, QStackedWidget
 from .drawing.drawingitem import DrawingItem
+from .drawing.drawingpagewidget import DrawingPageWidget
+from .drawing.drawingunits import DrawingUnits
 from .drawing.drawingwidget import DrawingWidget
-from .drawing.drawingmultipagewidget import DrawingMultiPageWidget
 from .properties.multipleitempropertieswidget import MultipleItemPropertiesWidget
 from .properties.pagepropertieswidget import PagePropertiesWidget
 from .properties.singleitempropertieswidget import SingleItemPropertiesWidget
 
 
 class PropertiesBrowser(QStackedWidget):
-    def __init__(self, drawing: DrawingMultiPageWidget) -> None:
+    def __init__(self, drawing: DrawingWidget) -> None:
         super().__init__()
 
-        self._drawing: DrawingMultiPageWidget = drawing
+        self._drawing: DrawingWidget = drawing
 
         self._pagePropertiesWidget: PagePropertiesWidget = PagePropertiesWidget()
         self._pagePropertiesScroll: QScrollArea = QScrollArea()
@@ -65,6 +66,12 @@ class PropertiesBrowser(QStackedWidget):
         self._singleItemsPropertiesWidget.itemResized.connect(self._drawing.resizeCurrentItem)
         self._singleItemsPropertiesWidget.itemPropertyChanged.connect(self._drawing.updateCurrentItemsProperty)
 
+        self._pagePropertiesWidget.setDrawingProperty('grid', self._drawing.grid())
+        self._pagePropertiesWidget.setDrawingProperty('gridVisible', self._drawing.isGridVisible())
+        self._pagePropertiesWidget.setDrawingProperty('gridBrush', self._drawing.gridBrush())
+        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMajor', self._drawing.gridSpacingMajor())
+        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMinor', self._drawing.gridSpacingMinor())
+
     # ==================================================================================================================
 
     def sizeHint(self) -> QSize:
@@ -74,11 +81,9 @@ class PropertiesBrowser(QStackedWidget):
 
     def setDrawingProperty(self, name: str, value: typing.Any) -> None:
         self._pagePropertiesWidget.setDrawingProperty(name, value)
-        self._multipleItemsPropertiesWidget.setDrawingProperty(name, value)
-        self._singleItemsPropertiesWidget.setDrawingProperty(name, value)
         self.setCurrentIndex(0)
 
-    def setPage(self, page: DrawingWidget | None) -> None:
+    def setPage(self, page: DrawingPageWidget | None) -> None:
         self._pagePropertiesWidget.setPage(page)
         self.setCurrentIndex(0)
 
@@ -95,3 +100,10 @@ class PropertiesBrowser(QStackedWidget):
             self.setCurrentIndex(2)
         else:
             self.setCurrentIndex(0)
+
+    # ==================================================================================================================
+
+    def setUnits(self, units: DrawingUnits) -> None:
+        self._pagePropertiesWidget.setUnits(units)
+        self._multipleItemsPropertiesWidget.setUnits(units)
+        self._singleItemsPropertiesWidget.setUnits(units)

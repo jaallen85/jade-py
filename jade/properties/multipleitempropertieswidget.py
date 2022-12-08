@@ -15,17 +15,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PyQt6.QtCore import pyqtSignal, Qt, QPointF
-from PyQt6.QtGui import QColor, QFontMetrics, QIcon
-from PyQt6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QGroupBox, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QPointF, Signal
+from PySide6.QtGui import QColor, QFontMetrics, QIcon
+from PySide6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QGroupBox, QVBoxLayout, QWidget
 from ..drawing.drawingitem import DrawingItem
-from ..drawing.drawingtypes import DrawingUnits
+from ..drawing.drawingunits import DrawingUnits
 from .helperwidgets import ColorWidget, SizeEdit
 
 
 class MultipleItemPropertiesWidget(QWidget):
-    itemsMovedDelta = pyqtSignal(QPointF)
-    itemsPropertyChanged = pyqtSignal(str, object)
+    itemsMovedDelta = Signal(QPointF)
+    itemsPropertyChanged = Signal(str, object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -144,13 +144,12 @@ class MultipleItemPropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
-    def setDrawingProperty(self, name: str, value: typing.Any) -> None:
+    def setUnits(self, units: DrawingUnits) -> None:
         self.blockSignals(True)
-        if (name == 'units' and isinstance(value, DrawingUnits)):
-            self._rectCornerRadiusEdit.setUnits(value)
-            self._penWidthEdit.setUnits(value)
-            self._startArrowSizeEdit.setUnits(value)
-            self._endArrowSizeEdit.setUnits(value)
+        self._rectCornerRadiusEdit.setUnits(units)
+        self._penWidthEdit.setUnits(units)
+        self._startArrowSizeEdit.setUnits(units)
+        self._endArrowSizeEdit.setUnits(units)
         self.blockSignals(False)
 
     # ==================================================================================================================
