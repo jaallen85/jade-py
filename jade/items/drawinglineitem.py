@@ -178,9 +178,8 @@ class DrawingLineItem(DrawingItem):
 
         # Add shape for each arrow, if necessary
         lineLength = self._line.length()
-        endArrowAngle = self._line.angle()
-        startArrowAngle = 180 + endArrowAngle
-
+        startArrowAngle = self._line.angle()
+        endArrowAngle = 180 + startArrowAngle
         if (lineLength >= self._startArrow.size()):
             shape.addPath(self._startArrow.shape(self._pen, self._line.p1(), startArrowAngle))
         if (lineLength >= self._endArrow.size()):
@@ -201,8 +200,8 @@ class DrawingLineItem(DrawingItem):
 
         # Draw arrows if necessary
         lineLength = self._line.length()
-        endArrowAngle = self._line.angle()
-        startArrowAngle = 180 + endArrowAngle
+        startArrowAngle = self._line.angle()
+        endArrowAngle = 180 + startArrowAngle
 
         if (lineLength >= self._startArrow.size()):
             self._startArrow.paint(painter, self._pen, self._line.p1(), startArrowAngle)

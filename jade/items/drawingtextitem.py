@@ -92,6 +92,22 @@ class DrawingTextItem(DrawingItem):
             font = self.font()
             font.setPointSizeF(value)
             self.setFont(font)
+        elif (name == 'fontBold' and isinstance(value, bool)):
+            font = self.font()
+            font.setBold(value)
+            self.setFont(font)
+        elif (name == 'fontItalic' and isinstance(value, bool)):
+            font = self.font()
+            font.setItalic(value)
+            self.setFont(font)
+        elif (name == 'fontUnderline' and isinstance(value, bool)):
+            font = self.font()
+            font.setUnderline(value)
+            self.setFont(font)
+        elif (name == 'fontStrikeOut' and isinstance(value, bool)):
+            font = self.font()
+            font.setStrikeOut(value)
+            self.setFont(font)
         elif (name == 'fontStyle' and isinstance(value, list) and len(value) == 4):
             font = self.font()
             font.setBold(value[0])
@@ -117,6 +133,14 @@ class DrawingTextItem(DrawingItem):
             return self.font().family()
         if (name == 'fontSize'):
             return self.font().pointSizeF()
+        if (name == 'fontBold'):
+            return self.font().bold()
+        if (name == 'fontItalic'):
+            return self.font().italic()
+        if (name == 'fontUnderline'):
+            return self.font().underline()
+        if (name == 'fontStrikeOut'):
+            return self.font().strikeOut()
         if (name == 'fontStyle'):
             styles = []
             styles.append(self.font().bold())

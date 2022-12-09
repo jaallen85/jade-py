@@ -43,7 +43,7 @@ class PagesBrowser(QListWidget):
 
         # Menus and actions
         renamePageAction = QAction('Rename Page', self)
-        renamePageAction.triggered.connect(self._renamePage)      # type: ignore
+        renamePageAction.triggered.connect(self._renamePage)        # type: ignore
         self.addAction(renamePageAction)
 
         self._contextMenu: QMenu = QMenu()

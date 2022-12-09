@@ -450,7 +450,7 @@ class DrawingItem(ABC, DrawingXmlInterface):
                                          (point.isFree() or otherPoint.isFree()))
                         if (shouldConnect):
                             vec = item.mapToScene(point.position())
-                            vec = vec - otherItem.mapToScene(otherPoint.position())     # type: ignore
+                            vec = vec - otherItem.mapToScene(otherPoint.position())
                             distance = math.sqrt(vec.x() * vec.x() + vec.y() * vec.y())
                             if (distance <= 0.01):
                                 point.addConnection(otherPoint)

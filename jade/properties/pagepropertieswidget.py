@@ -70,18 +70,18 @@ class PagePropertiesWidget(QWidget):
 
         self._gridVisibleCombo: QComboBox = QComboBox()
         self._gridVisibleCombo.addItems(['Hidden', 'Visible'])
-        self._gridVisibleCombo.activated.connect(self._handleGridVisibleChange)                     # type: ignore
+        self._gridVisibleCombo.activated.connect(self._handleGridVisibleChange)     # type: ignore
 
         self._gridColorWidget: ColorWidget = ColorWidget()
         self._gridColorWidget.colorChanged.connect(self._handleGridColorChange)
 
         self._gridSpacingMajorWidget: QLineEdit = QLineEdit('1')
         self._gridSpacingMajorWidget.setValidator(QIntValidator(1, int(1E6), self._gridSpacingMajorWidget))
-        self._gridSpacingMajorWidget.editingFinished.connect(self._handleGridSpacingMajorChange)    # type: ignore
+        self._gridSpacingMajorWidget.editingFinished.connect(self._handleGridSpacingMajorChange)        # type: ignore
 
         self._gridSpacingMinorWidget: QLineEdit = QLineEdit('1')
         self._gridSpacingMinorWidget.setValidator(QIntValidator(1, int(1E6), self._gridSpacingMinorWidget))
-        self._gridSpacingMinorWidget.editingFinished.connect(self._handleGridSpacingMinorChange)    # type: ignore
+        self._gridSpacingMinorWidget.editingFinished.connect(self._handleGridSpacingMinorChange)        # type: ignore
 
         gridGroup = QGroupBox('Grid')
         gridLayout = QFormLayout()

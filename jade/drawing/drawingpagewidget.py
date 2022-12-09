@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from enum import Enum
+from enum import IntEnum
 from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QPoint, QPointF, QRectF, Signal
 from PySide6.QtGui import QCursor, QMouseEvent, QUndoCommand
@@ -766,9 +766,10 @@ class DrawingUndoCommand(QUndoCommand):
 # ======================================================================================================================
 
 class DrawingItemsUndoCommand(DrawingUndoCommand):
-    class Id(Enum):
+    class Id(IntEnum):
         MoveItemsId = 0
         ResizeItemId = 1
+        SetItemsPropertyId = 2
 
     # ==================================================================================================================
 
@@ -892,7 +893,7 @@ class DrawingMoveItemsCommand(DrawingItemsUndoCommand):
         return self._finalMove
 
     def id(self) -> int:
-        return DrawingItemsUndoCommand.Id.MoveItemsId.value
+        return DrawingItemsUndoCommand.Id.MoveItemsId
 
     def mergeWith(self, command: QUndoCommand) -> bool:
         if (isinstance(command, DrawingMoveItemsCommand) and self.page() == command.page() and
@@ -943,7 +944,7 @@ class DrawingResizeItemCommand(DrawingItemsUndoCommand):
         return self._finalResize
 
     def id(self) -> int:
-        return DrawingItemsUndoCommand.Id.ResizeItemId.value
+        return DrawingItemsUndoCommand.Id.ResizeItemId
 
     def mergeWith(self, command: QUndoCommand) -> bool:
         if (isinstance(command, DrawingResizeItemCommand) and self.page() == command.page() and
@@ -1149,6 +1150,24 @@ class DrawingSetItemsPropertyCommand(DrawingItemsUndoCommand):
         self._originalValues: dict[DrawingItem, typing.Any] = {}
         for item in self._items:
             self._originalValues[item] = item.property(name)
+
+    def name(self) -> str:
+        return self._name
+
+    def value(self) -> typing.Any:
+        return self._value
+
+    def id(self) -> int:
+        return DrawingItemsUndoCommand.Id.SetItemsPropertyId
+
+    def mergeWith(self, command: QUndoCommand) -> bool:
+        if (isinstance(command, DrawingSetItemsPropertyCommand) and self.page() == command.page()):
+            if (len(self.items()) == 1 and len(command.items()) == 1 and self.items()[0] == command.items()[0] and
+                    self.name() == 'caption' and command.name() == 'caption'):
+                self._value = command.value()
+                self.mergeChildren(command)
+                return True
+        return False
 
     def redo(self) -> None:
         self.page().setItemsProperty(self._items, self._name, self._value)

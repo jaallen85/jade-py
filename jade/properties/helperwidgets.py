@@ -31,10 +31,10 @@ class PositionEdit(QLineEdit):
         self._units: DrawingUnits = units
         self._cachedText: str = self.positionToString(self._position, self._units)
         self.setText(self._cachedText)
-        self.editingFinished.connect(self.validateInputAndSendPositionChanged)  # type: ignore
+        self.editingFinished.connect(self.validateInputAndSendPositionChanged)      # type: ignore
 
     def sizeHint(self) -> QSize:
-        return QFontMetrics(self.font()).boundingRect('-8888.88 888').size() + QSize(16, 2)     # type: ignore
+        return QFontMetrics(self.font()).boundingRect('-8888.88 888').size() + QSize(16, 2)
 
     def setPosition(self, position: float) -> None:
         if (self._position != position or self._position == 0):
@@ -95,10 +95,10 @@ class SizeEdit(QLineEdit):
         self._units: DrawingUnits = units
         self._cachedText: str = self.sizeToString(self._size, self._units)
         self.setText(self._cachedText)
-        self.editingFinished.connect(self.validateInputAndSendSizeChanged)  # type: ignore
+        self.editingFinished.connect(self.validateInputAndSendSizeChanged)      # type: ignore
 
     def sizeHint(self) -> QSize:
-        return QFontMetrics(self.font()).boundingRect('-8888.88 888').size() + QSize(16, 2)     # type: ignore
+        return QFontMetrics(self.font()).boundingRect('-8888.88 888').size() + QSize(16, 2)
 
     def setSize(self, size: float) -> None:
         if (self._size != size or self._size == 0):
@@ -213,7 +213,7 @@ class SizeWidget(QWidget):
         self._widthEdit.setUnits(units)
         self._heightEdit.setUnits(units)
 
-    def size(self) -> QSizeF:   # type: ignore
+    def size(self) -> QSizeF:       # type: ignore
         return QSizeF(self._widthEdit.size(), self._heightEdit.size())
 
     def units(self) -> DrawingUnits:

@@ -38,15 +38,11 @@ from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
-#   - Test DrawingArrow implementation on lines, curves, and polylines
-#   - DrawingCurveItem: resizing start/end point should also move the corresponding control point; dotted lines should be drawn when selected
-#
 #   - Add items:
 #     - Electric items
 #     - Logic items
 #   - Single/multiple item properties:
 #     - Polygon/polyline
-#     - Text
 #     - Position/size?
 #   - Main window
 #     - Save/load settings
@@ -227,7 +223,7 @@ class MainWindow(QMainWindow):
         self._zoomCombo.addItems(['Fit to Page', '25%', '50%', '100%', '150%', '200%', '300%', '400%'])
         self._zoomCombo.setEditable(True)
         self._zoomCombo.setCurrentIndex(3)
-        self._zoomCombo.textActivated.connect(self._setZoomLevel)   # type: ignore
+        self._zoomCombo.textActivated.connect(self._setZoomLevel)       # type: ignore
         self._drawing.scaleChanged.connect(self._setZoomComboText)
 
         zoomWidget = QWidget()
@@ -490,6 +486,7 @@ class MainWindow(QMainWindow):
                     zoomLevel = float(text)
                 scale = DrawingUnits.convert(zoomLevel / 1000, DrawingUnits.Inches, self._drawingUnits)
                 self._drawing.setScale(scale)
+                self._zoomCombo.clearFocus()
             except ValueError:
                 pass
 

@@ -185,7 +185,7 @@ class DrawingCurveItem(DrawingItem):
         shape = self._strokePath(self._curvePath, self._pen)
 
         # Add shape for each arrow, if necessary
-        if (self._curve.size() >= 2):
+        if (self._curve.size() == 4):
             curveLength = self._curveLength()
             if (curveLength >= self._startArrow.size()):
                 shape.addPath(self._startArrow.shape(self._pen, self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
@@ -208,8 +208,8 @@ class DrawingCurveItem(DrawingItem):
         painter.setPen(self._pen)
         painter.drawPath(self._curvePath)
 
-        # Draw arrows if necessary
-        if (self._curve.size() >= 2):
+        if (self._curve.size() == 4):
+            # Draw arrows, if necessary
             curveLength = self._curveLength()
             if (curveLength >= self._startArrow.size()):
                 self._startArrow.paint(painter, self._pen, self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
@@ -218,10 +218,27 @@ class DrawingCurveItem(DrawingItem):
                 self._endArrow.paint(painter, self._pen, self._curve.at(DrawingCurveItem.PointIndex.EndPoint),
                                      self._endArrowAngle())
 
+            # Draw control lines, if necessary
+            if (self.isSelected()):
+                originalPenStyle = self._pen.style()
+                originalPenWidth = self._pen.widthF()
+
+                self._pen.setStyle(Qt.PenStyle.DotLine)
+                self._pen.setWidthF(originalPenWidth * 0.75)
+                painter.setPen(self._pen)
+                painter.drawLine(self._curve.at(0), self._curve.at(1))
+                painter.drawLine(self._curve.at(3), self._curve.at(2))
+
+                self._pen.setStyle(originalPenStyle)
+                self._pen.setWidthF(originalPenWidth)
+
     # ==================================================================================================================
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
-        if (point in self._points):
+        if (point in self._points and self._curve.size() == 4):
+            originalStartControlOffset = self._curve.at(1) - self._curve.at(0)
+            originalEndControlOffset = self._curve.at(2) - self._curve.at(3)
+
             pointIndex = self._points.index(point)
             position = self.mapFromScene(position)
 
@@ -229,6 +246,14 @@ class DrawingCurveItem(DrawingItem):
             if (0 <= pointIndex < curve.size()):
                 curve.takeAt(pointIndex)
                 curve.insert(pointIndex, position)
+
+            # If the start or end point is resized, also move the corresponding control point
+            if (pointIndex == DrawingCurveItem.PointIndex.StartPoint):
+                curve.takeAt(DrawingCurveItem.PointIndex.StartControlPoint)
+                curve.insert(DrawingCurveItem.PointIndex.StartControlPoint, position + originalStartControlOffset)
+            elif (pointIndex == DrawingCurveItem.PointIndex.EndPoint):
+                curve.takeAt(DrawingCurveItem.PointIndex.EndControlPoint)
+                curve.insert(DrawingCurveItem.PointIndex.EndControlPoint, position + originalEndControlOffset)
 
             # Keep the item's position at the first point of the curve
             firstPointPosition = curve.at(0)

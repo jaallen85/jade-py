@@ -174,7 +174,6 @@ class DrawingPolylineItem(DrawingItem):
         polylinePath.moveTo(self._polyline.at(0))
         for index in range(1, self._polyline.size()):
             polylinePath.lineTo(self._polyline.at(index))
-        polylinePath.lineTo(self._polyline.at(0))
         shape = self._strokePath(polylinePath, self._pen)
 
         # Add shape for each arrow, if necessary
@@ -317,10 +316,10 @@ class DrawingPolylineItem(DrawingItem):
         return QLineF(self._polyline.at(0), self._polyline.at(1)).length()
 
     def _lastSegmentLength(self) -> float:
-        return QLineF(self._polyline.at(-1), self._polyline.at(-2)).length()
+        return QLineF(self._polyline.at(self._polyline.size() - 1), self._polyline.at(self._polyline.size() - 2)).length()  # noqa
 
     def _startArrowAngle(self) -> float:
         return QLineF(self._polyline.at(0), self._polyline.at(1)).angle()
 
     def _endArrowAngle(self) -> float:
-        return QLineF(self._polyline.at(-1), self._polyline.at(-2)).angle()
+        return QLineF(self._polyline.at(self._polyline.size() - 1), self._polyline.at(self._polyline.size() - 2)).angle()   # noqa

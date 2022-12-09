@@ -91,6 +91,7 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         self._createActions()
         self._createContextMenus()
         self.currentItemsChanged.connect(self._updateActionsFromSelection)
+        self.currentItemsPropertyChanged.connect(self._updateActionsFromSelection)
 
     def _createActions(self) -> None:
         # Normal actions
