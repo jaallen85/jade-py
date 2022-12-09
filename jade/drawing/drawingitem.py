@@ -396,15 +396,21 @@ class DrawingItem(ABC, DrawingXmlInterface):
         for itemIndex, item in enumerate(items):
             for pointIndex, point in enumerate(item.points()):
                 for targetPoint in point.connections():
-                    targetItem = point.item()
+                    targetItem = targetPoint.item()
                     if (targetItem in items):
                         # There is a connection here that must be maintained in the copied items
-                        copiedPoint = copiedItems[itemIndex].points()[pointIndex]
-                        copiedTargetItem = copiedItems[items.index(targetItem)]
-                        copiedTargetPoint = copiedTargetItem.points()[targetItem.points().index(targetPoint)]
+                        targetItemIndex = items.index(targetItem)
+                        targetItemPointIndex = targetItem.points().index(targetPoint)
 
-                        copiedPoint.addConnection(copiedTargetPoint)
-                        copiedTargetPoint.addConnection(copiedPoint)
+                        copiedItem = copiedItems[itemIndex]
+                        copiedItemPoint = copiedItem.points()[pointIndex]
+
+                        copiedTargetItem = copiedItems[targetItemIndex]
+                        copiedTargetItemPoint = copiedTargetItem.points()[targetItemPointIndex]
+
+                        # Create connection
+                        copiedItemPoint.addConnection(copiedTargetItemPoint)
+                        copiedTargetItemPoint.addConnection(copiedItemPoint)
 
         return copiedItems
 

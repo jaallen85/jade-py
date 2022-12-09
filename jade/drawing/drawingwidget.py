@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QMenu, QStackedWidget, QVBoxLayout, QWidget
 from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
 from .drawingitempoint import DrawingItemPoint
-from .drawingpagewidget import DrawingItemsUndoCommand, DrawingUndoCommand, DrawingPageWidget
+from .drawingpagewidget import DrawingItemsUndoCommand, DrawingPageUndoCommand, DrawingPageWidget
 from .drawingxmlinterface import DrawingXmlInterface
 
 
@@ -626,7 +626,7 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         if (self.mode() == DrawingPageWidget.Mode.SelectMode):
             # Get the command that will be undone by the call to self._undoStack.undo()
             command = self._undoStack.command(self._undoStack.index() - 1)
-            if (isinstance(command, DrawingUndoCommand)):
+            if (isinstance(command, DrawingPageUndoCommand)):
                 self.setCurrentPage(command.page())
                 if (command.viewRect().isValid()):
                     self.zoomToRect(command.viewRect())
@@ -645,7 +645,7 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         if (self.mode() == DrawingPageWidget.Mode.SelectMode):
             # Get the command that will be redone by the call to self._undoStack.redo()
             command = self._undoStack.command(self._undoStack.index())
-            if (isinstance(command, DrawingUndoCommand)):
+            if (isinstance(command, DrawingPageUndoCommand)):
                 self.setCurrentPage(command.page())
                 if (command.viewRect().isValid()):
                     self.zoomToRect(command.viewRect())
@@ -1006,9 +1006,8 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
 # ======================================================================================================================
 
 class DrawingInsertPageCommand(QUndoCommand):
-    def __init__(self, widget: DrawingWidget, page: DrawingPageWidget, index: int,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__('Insert Page', parent)
+    def __init__(self, widget: DrawingWidget, page: DrawingPageWidget, index: int) -> None:
+        super().__init__('Insert Page')
 
         # Assumes page is not already a member of widget.pages()
         self._widget: DrawingWidget = widget
@@ -1034,8 +1033,8 @@ class DrawingInsertPageCommand(QUndoCommand):
 # ======================================================================================================================
 
 class DrawingRemovePageCommand(QUndoCommand):
-    def __init__(self, widget: DrawingWidget, page: DrawingPageWidget, parent: QUndoCommand | None = None) -> None:
-        super().__init__('Remove Page', parent)
+    def __init__(self, widget: DrawingWidget, page: DrawingPageWidget) -> None:
+        super().__init__('Remove Page')
 
         # Assumes page is a member of widget.pages()
         self._widget: DrawingWidget = widget
@@ -1061,9 +1060,8 @@ class DrawingRemovePageCommand(QUndoCommand):
 # ======================================================================================================================
 
 class DrawingMovePageCommand(QUndoCommand):
-    def __init__(self, widget: DrawingWidget, page: DrawingPageWidget, newIndex: int,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__('Remove Page', parent)
+    def __init__(self, widget: DrawingWidget, page: DrawingPageWidget, newIndex: int) -> None:
+        super().__init__('Remove Page')
 
         # Assumes page is a member of widget.pages()
         self._widget: DrawingWidget = widget
@@ -1083,9 +1081,8 @@ class DrawingMovePageCommand(QUndoCommand):
 # ======================================================================================================================
 
 class DrawingSetPropertyCommand(QUndoCommand):
-    def __init__(self, widget: DrawingWidget, name: str, value: typing.Any,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__('Set Property', parent)
+    def __init__(self, widget: DrawingWidget, name: str, value: typing.Any) -> None:
+        super().__init__('Set Property')
 
         self._widget: DrawingWidget = widget
         self._name: str = name

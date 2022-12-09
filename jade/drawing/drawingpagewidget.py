@@ -235,7 +235,7 @@ class DrawingPageWidget(DrawingPageView):
     def delete(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode):
             if (len(self._selectedItems) > 0):
-                self._removeItemsCommand(self._selectedItems)
+                self._pushUndoCommand(self._removeItemsCommand(self._selectedItems))
         else:
             self.setSelectMode()
 
@@ -247,7 +247,8 @@ class DrawingPageWidget(DrawingPageView):
                 newPositions = {}
                 for item in self._selectedItems:
                     newPositions[item] = item.position() + delta
-                self._moveItemsCommand(self._selectedItems, newPositions, finalMove=True, place=True)
+                self._pushUndoCommand(self._moveItemsCommand(self._selectedItems, newPositions, finalMove=True,
+                                                             place=True))
 
     def moveCurrentItem(self, position: QPointF) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode):
@@ -255,20 +256,22 @@ class DrawingPageWidget(DrawingPageView):
                 newPositions = {}
                 for item in self._selectedItems:
                     newPositions[item] = position
-                self._moveItemsCommand(self._selectedItems, newPositions, finalMove=True, place=True)
+                self._pushUndoCommand(self._moveItemsCommand(self._selectedItems, newPositions, finalMove=True,
+                                                             place=True))
 
     def resizeCurrentItem(self, point: DrawingItemPoint, position: QPointF) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode):
             if (len(self._selectedItems) == 1):
-                self._resizeItemCommand(point, position, snapTo45Degrees=False, finalResize=True, place=True,
-                                        disconnect=False)
+                self._pushUndoCommand(self._resizeItemCommand(point, position, snapTo45Degrees=False, finalResize=True,
+                                                              place=True, disconnect=False))
 
     # ==================================================================================================================
 
     def rotateCurrentItems(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode):
             if (len(self._selectedItems) > 0):
-                self._rotateItemsCommand(self._selectedItems, self.roundPointToGrid(self._selectedItemsCenter))
+                self._pushUndoCommand(self._rotateItemsCommand(
+                    self._selectedItems, self.roundPointToGrid(self._selectedItemsCenter)))
         elif (self._mode == DrawingPageWidget.Mode.PlaceMode):
             if (len(self._placeModeItems) > 0):
                 # Don't rotate if we're placing a single item using a mouse-press-and-release
@@ -279,7 +282,8 @@ class DrawingPageWidget(DrawingPageView):
     def rotateBackCurrentItems(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode):
             if (len(self._selectedItems) > 0):
-                self._rotateBackItemsCommand(self._selectedItems, self.roundPointToGrid(self._selectedItemsCenter))
+                self._pushUndoCommand(self._rotateBackItemsCommand(
+                    self._selectedItems, self.roundPointToGrid(self._selectedItemsCenter)))
         elif (self._mode == DrawingPageWidget.Mode.PlaceMode):
             if (len(self._placeModeItems) > 0):
                 # Don't rotate if we're placing a single item using a mouse-press-and-release
@@ -290,7 +294,8 @@ class DrawingPageWidget(DrawingPageView):
     def flipCurrentItemsHorizontal(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode):
             if (len(self._selectedItems) > 0):
-                self._flipItemsHorizontalCommand(self._selectedItems, self.roundPointToGrid(self._selectedItemsCenter))
+                self._pushUndoCommand(self._flipItemsHorizontalCommand(
+                    self._selectedItems, self.roundPointToGrid(self._selectedItemsCenter)))
         elif (self._mode == DrawingPageWidget.Mode.PlaceMode):
             if (len(self._placeModeItems) > 0):
                 # Don't flip if we're placing a single item using a mouse-press-and-release
@@ -301,7 +306,8 @@ class DrawingPageWidget(DrawingPageView):
     def flipCurrentItemsVertical(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode):
             if (len(self._selectedItems) > 0):
-                self._flipItemsVerticalCommand(self._selectedItems, self.roundPointToGrid(self._selectedItemsCenter))
+                self._pushUndoCommand(self._flipItemsVerticalCommand(
+                    self._selectedItems, self.roundPointToGrid(self._selectedItemsCenter)))
         elif (self._mode == DrawingPageWidget.Mode.PlaceMode):
             if (len(self._placeModeItems) > 0):
                 # Don't flip if we're placing a single item using a mouse-press-and-release
@@ -322,7 +328,7 @@ class DrawingPageWidget(DrawingPageView):
                 itemsOrdered.remove(item)
                 itemsOrdered.insert(itemIndex + 1, item)
 
-            self._reorderItemsCommand(itemsOrdered)
+            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered))
 
     def sendCurrentItemsBackward(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) > 0):
@@ -335,7 +341,7 @@ class DrawingPageWidget(DrawingPageView):
                 itemsOrdered.remove(item)
                 itemsOrdered.insert(itemIndex - 1, item)
 
-            self._reorderItemsCommand(itemsOrdered)
+            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered))
 
     def bringCurrentItemsToFront(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) > 0):
@@ -347,7 +353,7 @@ class DrawingPageWidget(DrawingPageView):
                 itemsOrdered.remove(item)
                 itemsOrdered.append(item)
 
-            self._reorderItemsCommand(itemsOrdered)
+            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered))
 
     def sendCurrentItemsToBack(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) > 0):
@@ -359,7 +365,7 @@ class DrawingPageWidget(DrawingPageView):
                 itemsOrdered.remove(item)
                 itemsOrdered.insert(0, item)
 
-            self._reorderItemsCommand(itemsOrdered)
+            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered))
 
     # ==================================================================================================================
 
@@ -379,9 +385,9 @@ class DrawingPageWidget(DrawingPageView):
             # Replace the selected items with the new group item
             self.setSelectedItems([])
 
-            groupCommand = QUndoCommand('Group Items')
-            self._removeItemsCommand(itemsToRemove, groupCommand)
-            self._addItemsCommand([itemGroup], False, groupCommand)
+            groupCommand = DrawingPageUndoCommand(self, 'Group Items')
+            groupCommand.addChild(self._removeItemsCommand(itemsToRemove))
+            groupCommand.addChild(self._addItemsCommand([itemGroup], False))
             self._pushUndoCommand(groupCommand)
 
     def ungroupCurrentItem(self) -> None:
@@ -399,9 +405,9 @@ class DrawingPageWidget(DrawingPageView):
                 # Replace the selected group item with copies of its constituent items
                 self.setSelectedItems([])
 
-                ungroupCommand = QUndoCommand('Group Items')
-                self._removeItemsCommand([itemGroup], ungroupCommand)
-                self._addItemsCommand(itemsToAdd, False, ungroupCommand)
+                ungroupCommand = DrawingPageUndoCommand(self, 'Group Items')
+                ungroupCommand.addChild(self._removeItemsCommand([itemGroup]))
+                ungroupCommand.addChild(self._addItemsCommand(itemsToAdd, False))
                 self._pushUndoCommand(ungroupCommand)
 
     # ==================================================================================================================
@@ -410,13 +416,15 @@ class DrawingPageWidget(DrawingPageView):
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) == 1):
             item = self._selectedItems[0]
             if (item.canInsertPoints()):
-                self._insertPointCommand(item, self.roundPointToGrid(self._mouseButtonDownScenePosition))
+                self._pushUndoCommand(self._insertPointCommand(
+                    item, self.roundPointToGrid(self._mouseButtonDownScenePosition)))
 
     def removeCurrentItemPoint(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) == 1):
             item = self._selectedItems[0]
             if (item.canRemovePoints()):
-                self._removePointCommand(item, self.roundPointToGrid(self._mouseButtonDownScenePosition))
+                self._pushUndoCommand(self._removePointCommand(
+                    item, self.roundPointToGrid(self._mouseButtonDownScenePosition)))
 
     # ==================================================================================================================
 
@@ -459,7 +467,8 @@ class DrawingPageWidget(DrawingPageView):
                 for item in self._selectedItems:
                     newPositions[item] = self._selectMoveItemsInitialPositions[item] + deltaPosition
 
-                self._moveItemsCommand(self._selectedItems, newPositions, finalMove, place=placeItems)
+                self._pushUndoCommand(self._moveItemsCommand(self._selectedItems, newPositions, finalMove,
+                                      place=placeItems))
 
                 if (not finalMove):
                     position1 = self._selectMoveItemsInitialPositions[self._selectedItems[0]]
@@ -494,8 +503,8 @@ class DrawingPageWidget(DrawingPageView):
         if (self._selectMouseDownItem is not None and self._selectMouseDownPoint is not None):
             newPosition = self.roundPointToGrid(mousePosition)
             if (finalResize or newPosition != self._selectResizeItemPreviousPosition):
-                self._resizeItemCommand(self._selectMouseDownPoint, newPosition, snapTo45Degrees, finalResize,
-                                        place=finalResize, disconnect=True)
+                self._pushUndoCommand(self._resizeItemCommand(self._selectMouseDownPoint, newPosition, snapTo45Degrees,
+                                                              finalResize, place=finalResize, disconnect=True))
 
                 if (not finalResize):
                     self.mouseInfoChanged.emit(self._createMouseInfo2(self._selectResizeItemInitialPosition,
@@ -553,7 +562,7 @@ class DrawingPageWidget(DrawingPageView):
     def _placeModeLeftMouseReleaseEvent(self, event: QMouseEvent) -> None:
         if (len(self._placeModeItems) > 0 or (len(self._placeModeItems) == 1 and self._placeModeItems[0].isValid())):
             # Place the items within the scene.
-            self._addItemsCommand(self._placeModeItems, place=(len(self._placeModeItems) == 1))
+            self._pushUndoCommand(self._addItemsCommand(self._placeModeItems, place=(len(self._placeModeItems) == 1)))
             for item in self._placeModeItems:
                 item.placeEndEvent()
 
@@ -564,48 +573,43 @@ class DrawingPageWidget(DrawingPageView):
 
     # ==================================================================================================================
 
-    def _addItemsCommand(self, items: list[DrawingItem], place: bool, command: QUndoCommand | None = None) -> None:
+    def _addItemsCommand(self, items: list[DrawingItem], place: bool) -> 'DrawingAddItemsCommand':
         # Assume items is not empty and that each item in items is not already a member of self.items()
-        addCommand = DrawingAddItemsCommand(self, items, command)
+        addCommand = DrawingAddItemsCommand(self, items)
         if (place):
             addCommand.redo()
             self._placeItems(items, addCommand)
             addCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(addCommand)
+        return addCommand
 
-    def _removeItemsCommand(self, items: list[DrawingItem], command: QUndoCommand | None = None) -> None:
+    def _removeItemsCommand(self, items: list[DrawingItem]) -> 'DrawingRemoveItemsCommand':
         # Assume items is not empty and that each item in items is a member of self.items()
-        removeCommand = DrawingRemoveItemsCommand(self, items, command)
+        removeCommand = DrawingRemoveItemsCommand(self, items)
         removeCommand.redo()
         self._unplaceItems(items, removeCommand)
         removeCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(removeCommand)
+        return removeCommand
 
-    def _reorderItemsCommand(self, items: list[DrawingItem], command: QUndoCommand | None = None) -> None:
+    def _reorderItemsCommand(self, items: list[DrawingItem]) -> 'DrawingReorderItemsCommand':
         # Assumes that all members of self.items() are present in items with no extras
-        reorderCommand = DrawingReorderItemsCommand(self, items, command)
-        if (command is None):
-            self._pushUndoCommand(reorderCommand)
+        return DrawingReorderItemsCommand(self, items)
 
     def _moveItemsCommand(self, items: list[DrawingItem], positions: dict[DrawingItem, QPointF], finalMove: bool,
-                          place: bool, command: QUndoCommand | None = None) -> None:
+                          place: bool) -> 'DrawingMoveItemsCommand':
         # Assume items is not empty and that each item in items is a member of self.items() and has a corresponding
         # position in positions
-        moveCommand = DrawingMoveItemsCommand(self, items, positions, finalMove, command)
+        moveCommand = DrawingMoveItemsCommand(self, items, positions, finalMove)
         moveCommand.redo()
         self._tryToMaintainConnections(items, True, True, None, moveCommand)
         if (place):
             self._placeItems(items, moveCommand)
         moveCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(moveCommand)
+        return moveCommand
 
     def _resizeItemCommand(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool, finalResize: bool,
-                           place: bool, disconnect: bool, command: QUndoCommand | None = None) -> None:
+                           place: bool, disconnect: bool) -> 'DrawingResizeItemCommand':
         # Assume the point is a member of a valid item which is in turn a member of self.items()
-        resizeCommand = DrawingResizeItemCommand(self, point, position, snapTo45Degrees, finalResize, command)
+        resizeCommand = DrawingResizeItemCommand(self, point, position, snapTo45Degrees, finalResize)
         resizeCommand.redo()
         if (disconnect):
             self._disconnectAll(point, resizeCommand)
@@ -613,89 +617,80 @@ class DrawingPageWidget(DrawingPageView):
         if (place):
             self._placeItems([point.item()], resizeCommand)
         resizeCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(resizeCommand)
+        return resizeCommand
 
-    def _rotateItemsCommand(self, items: list[DrawingItem], position: QPointF,
-                            command: QUndoCommand | None = None) -> None:
+    def _rotateItemsCommand(self, items: list[DrawingItem],
+                            position: QPointF) -> 'DrawingRotateItemsCommand':
         # Assume items is not empty and that each item in items is a member of self.items()
-        rotateCommand = DrawingRotateItemsCommand(self, items, position, command)
+        rotateCommand = DrawingRotateItemsCommand(self, items, position)
         rotateCommand.redo()
         self._tryToMaintainConnections(items, True, True, None, rotateCommand)
         rotateCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(rotateCommand)
+        return rotateCommand
 
-    def _rotateBackItemsCommand(self, items: list[DrawingItem], position: QPointF,
-                                command: QUndoCommand | None = None) -> None:
+    def _rotateBackItemsCommand(self, items: list[DrawingItem],
+                                position: QPointF) -> 'DrawingRotateBackItemsCommand':
         # Assume items is not empty and that each item in items is a member of self.items()
-        rotateCommand = DrawingRotateBackItemsCommand(self, items, position, command)
+        rotateCommand = DrawingRotateBackItemsCommand(self, items, position)
         rotateCommand.redo()
         self._tryToMaintainConnections(items, True, True, None, rotateCommand)
         rotateCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(rotateCommand)
+        return rotateCommand
 
-    def _flipItemsHorizontalCommand(self, items: list[DrawingItem], position: QPointF,
-                                    command: QUndoCommand | None = None) -> None:
+    def _flipItemsHorizontalCommand(self, items: list[DrawingItem],
+                                    position: QPointF) -> 'DrawingFlipItemsHorizontalCommand':
         # Assume items is not empty and that each item in items is a member of self.items()
-        rotateCommand = DrawingFlipItemsHorizontalCommand(self, items, position, command)
-        rotateCommand.redo()
-        self._tryToMaintainConnections(items, True, True, None, rotateCommand)
-        rotateCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(rotateCommand)
+        flipCommand = DrawingFlipItemsHorizontalCommand(self, items, position)
+        flipCommand.redo()
+        self._tryToMaintainConnections(items, True, True, None, flipCommand)
+        flipCommand.undo()
+        return flipCommand
 
-    def _flipItemsVerticalCommand(self, items: list[DrawingItem], position: QPointF,
-                                  command: QUndoCommand | None = None) -> None:
+    def _flipItemsVerticalCommand(self, items: list[DrawingItem],
+                                  position: QPointF) -> 'DrawingFlipItemsVerticalCommand':
         # Assume items is not empty and that each item in items is a member of self.items()
-        rotateCommand = DrawingFlipItemsVerticalCommand(self, items, position, command)
-        rotateCommand.redo()
-        self._tryToMaintainConnections(items, True, True, None, rotateCommand)
-        rotateCommand.undo()
-        if (command is None):
-            self._pushUndoCommand(rotateCommand)
+        flipCommand = DrawingFlipItemsVerticalCommand(self, items, position)
+        flipCommand.redo()
+        self._tryToMaintainConnections(items, True, True, None, flipCommand)
+        flipCommand.undo()
+        return flipCommand
 
-    def _insertPointCommand(self, item: DrawingItem, position: QPointF, command: QUndoCommand | None = None) -> None:
+    def _insertPointCommand(self, item: DrawingItem, position: QPointF) -> 'DrawingItemInsertPointCommand':
         # Assumes the item is a member of self.items()
-        insertCommand = DrawingItemInsertPointCommand(self, item, position, command)
-        if (command is None):
-            self._pushUndoCommand(insertCommand)
+        return DrawingItemInsertPointCommand(self, item, position)
 
-    def _removePointCommand(self, item: DrawingItem, position: QPointF, command: QUndoCommand | None = None) -> None:
+    def _removePointCommand(self, item: DrawingItem, position: QPointF) -> 'DrawingItemRemovePointCommand':
         # Assumes the item is a member of self.items()
-        removeCommand = DrawingItemRemovePointCommand(self, item, position, command)
-        if (command is None):
-            self._pushUndoCommand(removeCommand)
+        return DrawingItemRemovePointCommand(self, item, position)
 
-    def _connectPointsCommand(self, point1: DrawingItemPoint, point2: DrawingItemPoint,
-                              command: QUndoCommand | None = None) -> None:
+    def _connectPointsCommand(self, point1: DrawingItemPoint,
+                              point2: DrawingItemPoint) -> 'DrawingItemPointConnectCommand':
         # Assumes point1 and point2 are not already connected
-        connectCommand = DrawingItemPointConnectCommand(point1, point2, command)
+        connectCommand = DrawingItemPointConnectCommand(point1, point2)
 
-        point1Position = point1.item().mapToScene(point1.position())
-        point2Position = point2.item().mapToScene(point2.position())
-        if (point1Position != point2Position):
-            if (point2.isControlPoint()):
-                self._resizeItemCommand(point2, point1Position, False, finalResize=False, place=False, disconnect=True,
-                                        command=connectCommand)
-            elif (point1.isControlPoint()):
-                self._resizeItemCommand(point1, point2Position, False, finalResize=False, place=False, disconnect=True,
-                                        command=connectCommand)
+        point1Item = point1.item()
+        point2Item = point2.item()
+        if (point1Item is not None and point2Item is not None):
+            point1Position = point1Item.mapToScene(point1.position())
+            point2Position = point2Item.mapToScene(point2.position())
+            if (point1Position != point2Position):
+                if (point2.isControlPoint()):
+                    connectCommand.addChild(self._resizeItemCommand(point2, point1Position, False, finalResize=False,
+                                            place=False, disconnect=True))
+                elif (point1.isControlPoint()):
+                    connectCommand.addChild(self._resizeItemCommand(point1, point2Position, False, finalResize=False,
+                                            place=False, disconnect=True))
 
-        if (command is None):
-            self._pushUndoCommand(connectCommand)
+        return connectCommand
 
-    def _disconnectPointsCommand(self, point1: DrawingItemPoint, point2: DrawingItemPoint,
-                                 command: QUndoCommand | None = None) -> None:
+    def _disconnectPointsCommand(self, point1: DrawingItemPoint,
+                                 point2: DrawingItemPoint) -> 'DrawingItemPointDisconnectCommand':
         # Assumes point1 and point2 are connected
-        disconnectCommand = DrawingItemPointDisconnectCommand(point1, point2, command)
-        if (command is None):
-            self._pushUndoCommand(disconnectCommand)
+        return DrawingItemPointDisconnectCommand(point1, point2)
 
     # ==================================================================================================================
 
-    def _placeItems(self, items: list[DrawingItem], command: QUndoCommand | None = None) -> None:
+    def _placeItems(self, items: list[DrawingItem], command: 'DrawingUndoCommand') -> None:
         # Assume each item in items already is or is about to become a member of self.items()
         for widgetItem in self._items:
             if (widgetItem not in items and widgetItem not in self._placeModeItems):
@@ -703,18 +698,18 @@ class DrawingPageWidget(DrawingPageView):
                     for item in items:
                         for point in item.points():
                             if (self._shouldConnect(point, widgetItemPoint)):
-                                self._connectPointsCommand(point, widgetItemPoint, command)
+                                command.addChild(self._connectPointsCommand(point, widgetItemPoint))
 
-    def _unplaceItems(self, items: list[DrawingItem], command: QUndoCommand | None = None) -> None:
+    def _unplaceItems(self, items: list[DrawingItem], command: 'DrawingUndoCommand') -> None:
         # Assume each item in items is a member of self.items()
         for item in items:
             for point in item.points():
                 for targetPoint in point.connections():
                     if (targetPoint.item() not in items):
-                        self._disconnectPointsCommand(point, targetPoint, command)
+                        command.addChild(self._disconnectPointsCommand(point, targetPoint))
 
     def _tryToMaintainConnections(self, items: list[DrawingItem], allowResize: bool, checkControlPoints: bool,
-                                  pointToSkip: DrawingItemPoint | None, command: QUndoCommand | None = None) -> None:
+                                  pointToSkip: DrawingItemPoint | None, command: 'DrawingUndoCommand') -> None:
         # Assume each item in items is a member of self.items()
         for item in items:
             for point in item.points():
@@ -723,15 +718,15 @@ class DrawingPageWidget(DrawingPageView):
                         if (item.mapToScene(point.position()) != targetPoint.item().mapToScene(targetPoint.position())):
                             # Try to maintain the connection by resizing targetPoint if possible
                             if (allowResize and targetPoint.isFree() and not self._shouldDisconnect(point, targetPoint)):   # noqa
-                                self._resizeItemCommand(targetPoint, item.mapToScene(point.position()), False,
-                                                        finalResize=False, place=False, disconnect=False,
-                                                        command=command)
+                                command.addChild(
+                                    self._resizeItemCommand(targetPoint, item.mapToScene(point.position()), False,
+                                                            finalResize=False, place=False, disconnect=False))
                             else:
-                                self._disconnectPointsCommand(point, targetPoint, command)
+                                command.addChild(self._disconnectPointsCommand(point, targetPoint))
 
-    def _disconnectAll(self, point: DrawingItemPoint, command: QUndoCommand | None = None) -> None:
+    def _disconnectAll(self, point: DrawingItemPoint, command: 'DrawingUndoCommand') -> None:
         for targetPoint in point.connections():
-            self._disconnectPointsCommand(point, targetPoint, command)
+            command.addChild(self._disconnectPointsCommand(point, targetPoint))
 
     # ==================================================================================================================
 
@@ -750,8 +745,33 @@ class DrawingPageWidget(DrawingPageView):
 # ======================================================================================================================
 
 class DrawingUndoCommand(QUndoCommand):
-    def __init__(self, page: DrawingPageWidget, text: str, parent: QUndoCommand | None = None) -> None:
-        super().__init__(text, parent)
+    def __init__(self, text: str) -> None:
+        super().__init__(text)
+
+        self._children: list[QUndoCommand] = []
+
+    def addChild(self, command: QUndoCommand) -> None:
+        self._children.append(command)
+
+    def children(self) -> list[QUndoCommand]:
+        return self._children
+
+    def redo(self) -> None:
+        for child in self._children:
+            child.redo()
+        super().redo()
+
+    def undo(self) -> None:
+        super().undo()
+        for child in reversed(self._children):
+            child.undo()
+
+
+# ======================================================================================================================
+
+class DrawingPageUndoCommand(DrawingUndoCommand):
+    def __init__(self, page: DrawingPageWidget, text: str) -> None:
+        super().__init__(text)
 
         self._page: DrawingPageWidget = page
         self._viewRect: QRectF = self._page.visibleRect()
@@ -765,7 +785,7 @@ class DrawingUndoCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingItemsUndoCommand(DrawingUndoCommand):
+class DrawingItemsUndoCommand(DrawingPageUndoCommand):
     class Id(IntEnum):
         MoveItemsId = 0
         ResizeItemId = 1
@@ -773,10 +793,8 @@ class DrawingItemsUndoCommand(DrawingUndoCommand):
 
     # ==================================================================================================================
 
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], text: str,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, text, parent)
-
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], text: str) -> None:
+        super().__init__(page, text)
         self._items = items
 
     def items(self) -> list[DrawingItem]:
@@ -785,22 +803,24 @@ class DrawingItemsUndoCommand(DrawingUndoCommand):
     # ==================================================================================================================
 
     def mergeChildren(self, command: QUndoCommand) -> None:
-        for commandChildIndex in range(command.childCount()):
-            commandChild = command.child(commandChildIndex)
-            if (isinstance(commandChild, DrawingResizeItemCommand)):
-                DrawingResizeItemCommand(commandChild.page(), commandChild.point(), commandChild.position(),
-                                         commandChild.shouldSnapTo45Degrees(), commandChild.isFinalResize(), self)
-            elif (isinstance(commandChild, DrawingItemPointConnectCommand)):
-                DrawingItemPointConnectCommand(commandChild.point1(), commandChild.point2(), self)
-            elif (isinstance(commandChild, DrawingItemPointDisconnectCommand)):
-                DrawingItemPointDisconnectCommand(commandChild.point1(), commandChild.point2(), self)
+        if (isinstance(command, DrawingUndoCommand)):
+            for commandChild in command.children():
+                if (isinstance(commandChild, DrawingResizeItemCommand)):
+                    self.addChild(DrawingResizeItemCommand(commandChild.page(), commandChild.point(),
+                                                           commandChild.position(),
+                                                           commandChild.shouldSnapTo45Degrees(),
+                                                           commandChild.isFinalResize()))
+                elif (isinstance(commandChild, DrawingItemPointConnectCommand)):
+                    self.addChild(DrawingItemPointConnectCommand(commandChild.point1(), commandChild.point2()))
+                elif (isinstance(commandChild, DrawingItemPointDisconnectCommand)):
+                    self.addChild(DrawingItemPointDisconnectCommand(commandChild.point1(), commandChild.point2()))
 
 
 # ======================================================================================================================
 
-class DrawingAddItemsCommand(DrawingUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, 'Add Items', parent)
+class DrawingAddItemsCommand(DrawingPageUndoCommand):
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem]) -> None:
+        super().__init__(page, 'Add Items')
 
         # Assumes each item in items is a not already a member of page.items()
         self._items: list[DrawingItem] = items
@@ -823,9 +843,9 @@ class DrawingAddItemsCommand(DrawingUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingRemoveItemsCommand(DrawingUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, 'Remove Items', parent)
+class DrawingRemoveItemsCommand(DrawingPageUndoCommand):
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem]) -> None:
+        super().__init__(page, 'Remove Items')
 
         # Assumes each item in items is a member of page.items()
         self._items: list[DrawingItem] = items
@@ -852,9 +872,9 @@ class DrawingRemoveItemsCommand(DrawingUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingReorderItemsCommand(DrawingUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, 'Reorder Items', parent)
+class DrawingReorderItemsCommand(DrawingPageUndoCommand):
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem]) -> None:
+        super().__init__(page, 'Reorder Items')
 
         # Assumes each item in items is a member of page.items() and no items have been added or removed
         self._items: list[DrawingItem] = items
@@ -875,8 +895,8 @@ class DrawingReorderItemsCommand(DrawingUndoCommand):
 
 class DrawingMoveItemsCommand(DrawingItemsUndoCommand):
     def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], positions: dict[DrawingItem, QPointF],
-                 finalMove: bool, parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, items, 'Move Items', parent)
+                 finalMove: bool) -> None:
+        super().__init__(page, items, 'Move Items')
 
         # Assumes each item in items is a member of page.items() and has a corresponding position in positions
         self._positions: dict[DrawingItem, QPointF] = positions
@@ -917,8 +937,8 @@ class DrawingMoveItemsCommand(DrawingItemsUndoCommand):
 
 class DrawingResizeItemCommand(DrawingItemsUndoCommand):
     def __init__(self, page: DrawingPageWidget, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool,
-                 finalResize: bool, parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, [point.item()], 'Resize Item', parent)
+                 finalResize: bool) -> None:
+        super().__init__(page, [point.item()], 'Resize Item')
 
         # Assume the point is a member of a valid item which is in turn a member of page.items()
         self._point: DrawingItemPoint = point
@@ -968,9 +988,8 @@ class DrawingResizeItemCommand(DrawingItemsUndoCommand):
 # ======================================================================================================================
 
 class DrawingRotateItemsCommand(DrawingItemsUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], position: QPointF,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, items, 'Rotate Items', parent)
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], position: QPointF) -> None:
+        super().__init__(page, items, 'Rotate Items')
 
         # Assumes each item in items is a member of page.items()
         self._position: QPointF = position
@@ -987,9 +1006,8 @@ class DrawingRotateItemsCommand(DrawingItemsUndoCommand):
 # ======================================================================================================================
 
 class DrawingRotateBackItemsCommand(DrawingItemsUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], position: QPointF,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, items, 'Rotate Back Items', parent)
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], position: QPointF) -> None:
+        super().__init__(page, items, 'Rotate Back Items')
 
         # Assumes each item in items is a member of page.items()
         self._position: QPointF = position
@@ -1006,9 +1024,8 @@ class DrawingRotateBackItemsCommand(DrawingItemsUndoCommand):
 # ======================================================================================================================
 
 class DrawingFlipItemsHorizontalCommand(DrawingItemsUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], position: QPointF,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, items, 'Flip Items Horizontal', parent)
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], position: QPointF) -> None:
+        super().__init__(page, items, 'Flip Items Horizontal')
 
         # Assumes each item in items is a member of page.items()
         self._position: QPointF = position
@@ -1025,9 +1042,8 @@ class DrawingFlipItemsHorizontalCommand(DrawingItemsUndoCommand):
 # ======================================================================================================================
 
 class DrawingFlipItemsVerticalCommand(DrawingItemsUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], position: QPointF,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, items, 'Flip Items Vertical', parent)
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], position: QPointF) -> None:
+        super().__init__(page, items, 'Flip Items Vertical')
 
         # Assumes each item in items is a member of page.items()
         self._position: QPointF = position
@@ -1044,9 +1060,8 @@ class DrawingFlipItemsVerticalCommand(DrawingItemsUndoCommand):
 # ======================================================================================================================
 
 class DrawingItemInsertPointCommand(DrawingItemsUndoCommand):
-    def __init__(self, page: DrawingPageWidget, item: DrawingItem, position: QPointF,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, [item], 'Insert Point', parent)
+    def __init__(self, page: DrawingPageWidget, item: DrawingItem, position: QPointF) -> None:
+        super().__init__(page, [item], 'Insert Point')
 
         # Assumes the item is a member of page.items()
         self._item: DrawingItem = item
@@ -1064,9 +1079,8 @@ class DrawingItemInsertPointCommand(DrawingItemsUndoCommand):
 # ======================================================================================================================
 
 class DrawingItemRemovePointCommand(DrawingItemsUndoCommand):
-    def __init__(self, page: DrawingPageWidget, item: DrawingItem, position: QPointF,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, [item], 'Remove Point', parent)
+    def __init__(self, page: DrawingPageWidget, item: DrawingItem, position: QPointF) -> None:
+        super().__init__(page, [item], 'Remove Point')
 
         # Assumes the item is a member of page.items()
         self._item: DrawingItem = item
@@ -1084,9 +1098,9 @@ class DrawingItemRemovePointCommand(DrawingItemsUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingItemPointConnectCommand(QUndoCommand):
-    def __init__(self, point1: DrawingItemPoint, point2: DrawingItemPoint, parent: QUndoCommand | None = None) -> None:
-        super().__init__('Connect Points', parent)
+class DrawingItemPointConnectCommand(DrawingUndoCommand):
+    def __init__(self, point1: DrawingItemPoint, point2: DrawingItemPoint) -> None:
+        super().__init__('Connect Points')
 
         # Assumes point1 and point2 are not already connected
         self._point1: DrawingItemPoint = point1
@@ -1111,9 +1125,9 @@ class DrawingItemPointConnectCommand(QUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingItemPointDisconnectCommand(QUndoCommand):
-    def __init__(self, point1: DrawingItemPoint, point2: DrawingItemPoint, parent: QUndoCommand | None = None) -> None:
-        super().__init__('Disconnect Points', parent)
+class DrawingItemPointDisconnectCommand(DrawingUndoCommand):
+    def __init__(self, point1: DrawingItemPoint, point2: DrawingItemPoint) -> None:
+        super().__init__('Disconnect Points')
 
         # Assumes point1 and point2 are connected
         self._point1: DrawingItemPoint = point1
@@ -1139,9 +1153,8 @@ class DrawingItemPointDisconnectCommand(QUndoCommand):
 # ======================================================================================================================
 
 class DrawingSetItemsPropertyCommand(DrawingItemsUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], name: str, value: typing.Any,
-                 parent: QUndoCommand | None = None) -> None:
-        super().__init__(page, items, 'Set Items Property', parent)
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], name: str, value: typing.Any) -> None:
+        super().__init__(page, items, 'Set Items Property')
 
         # Assumes each item in items is a member of page.items()
         self._name: str = name
@@ -1180,10 +1193,9 @@ class DrawingSetItemsPropertyCommand(DrawingItemsUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingSetPagePropertyCommand(DrawingUndoCommand):
-    def __init__(self, page: DrawingPageWidget, name: str, value: typing.Any, parent:
-                 QUndoCommand | None = None) -> None:
-        super().__init__(page, 'Set Property', parent)
+class DrawingSetPagePropertyCommand(DrawingPageUndoCommand):
+    def __init__(self, page: DrawingPageWidget, name: str, value: typing.Any) -> None:
+        super().__init__(page, 'Set Property')
 
         self._name: str = name
         self._value: typing.Any = value
