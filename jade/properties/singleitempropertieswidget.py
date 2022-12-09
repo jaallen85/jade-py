@@ -38,14 +38,33 @@ class SingleItemPropertiesWidget(QWidget):
         self._labelWidth: int = QFontMetrics(self.font()).boundingRect("Minor Grid Spacing:").width() + 8
 
         layout = QVBoxLayout()
+        layout.addWidget(self._createPositionGroup())
         layout.addWidget(self._createLineGroup())
         layout.addWidget(self._createCurveGroup())
         layout.addWidget(self._createRectGroup())
+        layout.addWidget(self._createEllipseGroup())
+        layout.addWidget(self._createPolygonGroup())
+        layout.addWidget(self._createPolylineGroup())
         layout.addWidget(self._createPenBrushGroup())
         layout.addWidget(self._createArrowGroup())
         layout.addWidget(self._createTextGroup())
         layout.addWidget(QWidget(), 100)
         self.setLayout(layout)
+
+    def _createPositionGroup(self) -> QGroupBox:
+        self._positionWidget: PositionWidget = PositionWidget()
+        self._positionWidget.positionChanged.connect(self._handlePositionChange)
+
+        self._positionGroup: QGroupBox = QGroupBox('Position')
+        self._positionLayout: QFormLayout = QFormLayout()
+        self._positionLayout.addRow('Position:', self._positionWidget)
+        self._positionLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        self._positionLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._positionLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self._positionLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
+        self._positionGroup.setLayout(self._positionLayout)
+
+        return self._positionGroup
 
     def _createLineGroup(self) -> QGroupBox:
         self._lineStartWidget: PositionWidget = PositionWidget()
@@ -123,6 +142,53 @@ class SingleItemPropertiesWidget(QWidget):
         self._rectGroup.setLayout(self._rectLayout)
 
         return self._rectGroup
+
+    def _createEllipseGroup(self) -> QGroupBox:
+        self._ellipseTopLeftWidget: PositionWidget = PositionWidget()
+        self._ellipseTopLeftWidget.positionChanged.connect(self._handleEllipseTopLeftChange)
+
+        self._ellipseBottomRightWidget: PositionWidget = PositionWidget()
+        self._ellipseBottomRightWidget.positionChanged.connect(self._handleEllipseBottomRightChange)
+
+        self._ellipseSizeWidget: SizeWidget = SizeWidget()
+        self._ellipseSizeWidget.sizeChanged.connect(self._handleEllipseSizeChange)
+
+        self._ellipseGroup: QGroupBox = QGroupBox('Ellipse')
+        self._ellipseLayout: QFormLayout = QFormLayout()
+        self._ellipseLayout.addRow('Top-Left:', self._ellipseTopLeftWidget)
+        self._ellipseLayout.addRow('Bottom-Right:', self._ellipseBottomRightWidget)
+        self._ellipseLayout.addRow('Size:', self._ellipseSizeWidget)
+        self._ellipseLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        self._ellipseLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._ellipseLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self._ellipseLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
+        self._ellipseGroup.setLayout(self._ellipseLayout)
+
+        return self._ellipseGroup
+
+    def _createPolygonGroup(self) -> QGroupBox:
+        self._polygonWidgets: list[PositionWidget] = []
+
+        self._polygonGroup: QGroupBox = QGroupBox('Polygon')
+        self._polygonLayout: QFormLayout = QFormLayout()
+        self._polygonLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        self._polygonLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._polygonLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self._polygonGroup.setLayout(self._polygonLayout)
+
+        return self._polygonGroup
+
+    def _createPolylineGroup(self) -> QGroupBox:
+        self._polylineWidgets: list[PositionWidget] = []
+
+        self._polylineGroup: QGroupBox = QGroupBox('Polyline')
+        self._polylineLayout: QFormLayout = QFormLayout()
+        self._polylineLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        self._polylineLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._polylineLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self._polylineGroup.setLayout(self._polylineLayout)
+
+        return self._polylineGroup
 
     def _createPenBrushGroup(self) -> QGroupBox:
         self._penStyleCombo: QComboBox = QComboBox()
@@ -334,6 +400,8 @@ class SingleItemPropertiesWidget(QWidget):
     def setUnits(self, units: DrawingUnits) -> None:
         self.blockSignals(True)
 
+        self._positionWidget.setUnits(units)
+
         self._lineStartWidget.setUnits(units)
         self._lineEndWidget.setUnits(units)
         self._lineSizeWidget.setUnits(units)
@@ -347,6 +415,10 @@ class SingleItemPropertiesWidget(QWidget):
         self._rectBottomRightWidget.setUnits(units)
         self._rectSizeWidget.setUnits(units)
         self._rectCornerRadiusEdit.setUnits(units)
+
+        self._ellipseTopLeftWidget.setUnits(units)
+        self._ellipseBottomRightWidget.setUnits(units)
+        self._ellipseSizeWidget.setUnits(units)
 
         self._penWidthEdit.setUnits(units)
 
@@ -362,13 +434,32 @@ class SingleItemPropertiesWidget(QWidget):
     def setItem(self, item: DrawingItem) -> None:
         self._item = item
         self.blockSignals(True)
+        self._updatePositionGroup()
         self._updateLineGroup()
         self._updateCurveGroup()
         self._updateRectGroup()
+        self._updateEllipseGroup()
+        self._updatePolygonGroup()
+        self._updatePolylineGroup()
         self._updatePenBrushGroup()
         self._updateArrowGroup()
         self._updateTextGroup()
         self.blockSignals(False)
+
+    def _updatePositionGroup(self) -> None:
+        if (self._item is not None):
+            position = self._item.property('position')
+
+            # Position
+            showPosition = False
+            if (isinstance(position, QPointF)):
+                showPosition = True
+                self._positionWidget.setPosition(position)
+
+            # Set position group visibility
+            self._positionGroup.setVisible(showPosition)
+        else:
+            self._positionGroup.setVisible(False)
 
     def _updateLineGroup(self) -> None:
         if (self._item is not None):
@@ -432,6 +523,91 @@ class SingleItemPropertiesWidget(QWidget):
             self._rectGroup.setVisible(showRect or showCornerRadius)
         else:
             self._rectGroup.setVisible(False)
+
+    def _updateEllipseGroup(self) -> None:
+        if (self._item is not None):
+            ellipse = self._item.property('ellipse')
+
+            # Ellipse
+            showEllipse = False
+            if (isinstance(ellipse, QRectF)):
+                showEllipse = True
+                self._ellipseTopLeftWidget.setPosition(ellipse.topLeft())
+                self._ellipseBottomRightWidget.setPosition(ellipse.bottomRight())
+                self._ellipseSizeWidget.setSize(ellipse.size())
+
+            # Set ellipse group visibility
+            self._ellipseGroup.setVisible(showEllipse)
+        else:
+            self._ellipseGroup.setVisible(False)
+
+    def _updatePolygonGroup(self) -> None:
+        if (self._item is not None):
+            polygon = self._item.property('polygon')
+
+            # Polygon
+            showPolygon = False
+            if (isinstance(polygon, QPolygonF)):
+                showPolygon = True
+                if (len(self._polygonWidgets) != polygon.size()):
+                    while (self._polygonLayout.rowCount() > 0):
+                        self._polygonLayout.removeRow(0)
+                    self._polygonWidgets.clear()
+
+                    for index in range(polygon.size()):
+                        newPolygonWidget = PositionWidget()
+                        newPolygonWidget.positionChanged.connect(self._handlePolygonChange)
+                        if (index == 0):
+                            self._polygonLayout.addRow('First Point:', newPolygonWidget)
+                            self._polygonLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(
+                                self._labelWidth)
+                        elif (index == polygon.size() - 1):
+                            self._polygonLayout.addRow('Last Point:', newPolygonWidget)
+                        else:
+                            self._polygonLayout.addRow('', newPolygonWidget)
+                        self._polygonWidgets.append(newPolygonWidget)
+
+                for index in range(polygon.size()):
+                    self._polygonWidgets[index].setPosition(polygon.at(index))
+
+            # Set polygon group visibility
+            self._polygonGroup.setVisible(showPolygon)
+        else:
+            self._polygonGroup.setVisible(False)
+
+    def _updatePolylineGroup(self) -> None:
+        if (self._item is not None):
+            polyline = self._item.property('polyline')
+
+            # Polyline
+            showPolyline = False
+            if (isinstance(polyline, QPolygonF)):
+                showPolyline = True
+                if (len(self._polylineWidgets) != polyline.size()):
+                    while (self._polylineLayout.rowCount() > 0):
+                        self._polylineLayout.removeRow(0)
+                    self._polylineWidgets.clear()
+
+                    for index in range(polyline.size()):
+                        newPolylineWidget = PositionWidget()
+                        newPolylineWidget.positionChanged.connect(self._handlePolylineChange)
+                        if (index == 0):
+                            self._polylineLayout.addRow('Start Point:', newPolylineWidget)
+                            self._polylineLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(
+                                self._labelWidth)
+                        elif (index == polyline.size() - 1):
+                            self._polylineLayout.addRow('End Point:', newPolylineWidget)
+                        else:
+                            self._polylineLayout.addRow('', newPolylineWidget)
+                        self._polylineWidgets.append(newPolylineWidget)
+
+                for index in range(polyline.size()):
+                    self._polylineWidgets[index].setPosition(polyline.at(index))
+
+            # Set polyline group visibility
+            self._polylineGroup.setVisible(showPolyline)
+        else:
+            self._polylineGroup.setVisible(False)
 
     def _updatePenBrushGroup(self) -> None:
         if (self._item is not None):
@@ -552,6 +728,11 @@ class SingleItemPropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
+    def _handlePositionChange(self, position: QPointF) -> None:
+        self.itemMoved.emit(position)
+
+    # ==================================================================================================================
+
     def _handleLineStartChange(self, position: QPointF) -> None:
         if (self._item is not None):
             self.itemResized.emit(self._item.resizeStartPoint(), position)
@@ -610,6 +791,44 @@ class SingleItemPropertiesWidget(QWidget):
 
     def _handleRectCornerRadiusChange(self, size: float) -> None:
         self.itemPropertyChanged.emit('cornerRadius', size)
+
+    # ==================================================================================================================
+
+    def _handleEllipseTopLeftChange(self, position: QPointF) -> None:
+        if (self._item is not None):
+            self.itemResized.emit(self._item.resizeStartPoint(), position)
+
+    def _handleEllipseBottomRightChange(self, position: QPointF) -> None:
+        if (self._item is not None):
+            self.itemResized.emit(self._item.resizeEndPoint(), position)
+
+    def _handleEllipseSizeChange(self, size: QSizeF) -> None:
+        if (self._item is not None):
+            position = QPointF(self._ellipseTopLeftWidget.position().x() + size.width(),
+                               self._ellipseTopLeftWidget.position().y() + size.height())
+            self.itemResized.emit(self._item.resizeEndPoint(), position)
+
+    # ==================================================================================================================
+
+    def _handlePolygonChange(self, position: QPointF) -> None:
+        if (self._item is not None):
+            sender = self.sender()
+            if (isinstance(sender, PositionWidget) and sender in self._polygonWidgets):
+                index = self._polygonWidgets.index(sender)
+                points = self._item.points()
+                if (0 <= index < len(points)):
+                    self.itemResized.emit(points[index], position)
+
+    # ==================================================================================================================
+
+    def _handlePolylineChange(self, position: QPointF) -> None:
+        if (self._item is not None):
+            sender = self.sender()
+            if (isinstance(sender, PositionWidget) and sender in self._polylineWidgets):
+                index = self._polylineWidgets.index(sender)
+                points = self._item.points()
+                if (0 <= index < len(points)):
+                    self.itemResized.emit(points[index], position)
 
     # ==================================================================================================================
 

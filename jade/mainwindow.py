@@ -38,12 +38,10 @@ from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
+#   - Test DrawingItemGroup again
 #   - Add items:
 #     - Electric items
 #     - Logic items
-#   - Single/multiple item properties:
-#     - Polygon/polyline
-#     - Position/size?
 #   - Main window
 #     - Save/load settings
 #   - Exporters:
