@@ -466,7 +466,10 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
                 case DrawingPageView.Mode.ZoomMode:
                     self.modeStringChanged.emit('Zoom Mode')
                 case DrawingPageView.Mode.PlaceMode:
-                    self.modeStringChanged.emit('Place Mode')
+                    if (len(placeItems) == 1):
+                        self.modeStringChanged.emit(f'Place {placeItems[0].prettyName()}')
+                    else:
+                        self.modeStringChanged.emit('Place Mode')
 
             # Update cursor
             match (self._mode):

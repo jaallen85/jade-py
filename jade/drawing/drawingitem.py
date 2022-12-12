@@ -59,6 +59,10 @@ class DrawingItem(ABC, DrawingXmlInterface):
     def key(self) -> str:
         return ''
 
+    @abstractmethod
+    def prettyName(self) -> str:
+        return ''
+
     # ==================================================================================================================
 
     def parent(self) -> typing.Any:

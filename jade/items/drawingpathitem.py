@@ -74,6 +74,9 @@ class DrawingPathItem(DrawingItem):
     def key(self) -> str:
         return 'path'
 
+    def prettyName(self) -> str:
+        return self._pathName
+
     # ==================================================================================================================
 
     def setPathName(self, name: str) -> None:

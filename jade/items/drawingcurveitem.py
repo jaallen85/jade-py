@@ -64,6 +64,9 @@ class DrawingCurveItem(DrawingItem):
     def key(self) -> str:
         return 'curve'
 
+    def prettyName(self) -> str:
+        return 'Curve'
+
     # ==================================================================================================================
 
     def setCurve(self, curve: QPolygonF) -> None:

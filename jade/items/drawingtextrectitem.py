@@ -48,6 +48,9 @@ class DrawingTextRectItem(DrawingRectItem):
     def key(self) -> str:
         return 'textRect'
 
+    def prettyName(self) -> str:
+        return 'Text Rect'
+
     # ==================================================================================================================
 
     def setCaption(self, caption: str) -> None:

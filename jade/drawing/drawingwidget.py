@@ -22,9 +22,20 @@ from PySide6.QtGui import QAction, QActionGroup, QBrush, QColor, QFont, QIcon, Q
 from PySide6.QtWidgets import QMenu, QStackedWidget, QVBoxLayout, QWidget
 from .drawingarrow import DrawingArrow
 from .drawingitem import DrawingItem
+from .drawingitemgroup import DrawingItemGroup
 from .drawingitempoint import DrawingItemPoint
 from .drawingpagewidget import DrawingItemsUndoCommand, DrawingPageUndoCommand, DrawingPageWidget
 from .drawingxmlinterface import DrawingXmlInterface
+from ..items.drawingcurveitem import DrawingCurveItem
+from ..items.drawingellipseitem import DrawingEllipseItem
+from ..items.drawinglineitem import DrawingLineItem
+from ..items.drawingpathitem import DrawingPathItem
+from ..items.drawingpolygonitem import DrawingPolygonItem
+from ..items.drawingpolylineitem import DrawingPolylineItem
+from ..items.drawingrectitem import DrawingRectItem
+from ..items.drawingtextellipseitem import DrawingTextEllipseItem
+from ..items.drawingtextitem import DrawingTextItem
+from ..items.drawingtextrectitem import DrawingTextRectItem
 
 
 class DrawingWidget(QWidget, DrawingXmlInterface):
@@ -148,17 +159,17 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         self.scrollModeAction: QAction = self._addModeAction('Scroll Mode', '', 'icons:transform-move.png')
         self.zoomModeAction: QAction = self._addModeAction('Zoom Mode', '', 'icons:page-zoom.png')
 
-        self.placeLineAction: QAction = self._addModeAction('Place Line', 'line', 'icons:draw-line.png')
-        self.placeCurveAction: QAction = self._addModeAction('Place Curve', 'curve', 'icons:draw-curve.png')
-        self.placePolylineAction: QAction = self._addModeAction('Place Polyline', 'polyline', 'icons:draw-polyline.png')
-        self.placeRectAction: QAction = self._addModeAction('Place Rectangle', 'rect', 'icons:draw-rectangle.png')
-        self.placeEllipseAction: QAction = self._addModeAction('Place Ellipse', 'ellipse', 'icons:draw-ellipse.png')
-        self.placePolygonAction: QAction = self._addModeAction('Place Polygon', 'polygon', 'icons:draw-polygon.png')
-        self.placeTextAction: QAction = self._addModeAction('Place Text', 'text', 'icons:draw-text.png')
-        self.placeTextRectAction: QAction = self._addModeAction('Place Text Rectangle', 'textRect',
-                                                                'icons:text-rect.png')
-        self.placeTextEllipseAction: QAction = self._addModeAction('Place Text Ellipse', 'textEllipse',
-                                                                   'icons:text-ellipse.png')
+        self.placeLineAction: QAction = self._addPlaceAction(DrawingLineItem(), 'icons:draw-line.png')
+        self.placeCurveAction: QAction = self._addPlaceAction(DrawingCurveItem(), 'icons:draw-curve.png')
+        self.placePolylineAction: QAction = self._addPlaceAction(DrawingPolylineItem(), 'icons:draw-polyline.png')
+        self.placeRectAction: QAction = self._addPlaceAction(DrawingRectItem(), 'icons:draw-rectangle.png')
+        self.placeEllipseAction: QAction = self._addPlaceAction(DrawingEllipseItem(), 'icons:draw-ellipse.png')
+        self.placePolygonAction: QAction = self._addPlaceAction(DrawingPolygonItem(), 'icons:draw-polygon.png')
+        self.placeTextAction: QAction = self._addPlaceAction(DrawingTextItem(), 'icons:draw-text.png')
+        self.placeTextRectAction: QAction = self._addPlaceAction(DrawingTextRectItem(), 'icons:text-rect.png')
+        self.placeTextEllipseAction: QAction = self._addPlaceAction(DrawingTextEllipseItem(), 'icons:text-ellipse.png')
+        DrawingItem.registerFactoryItem(DrawingPathItem())
+        DrawingItem.registerFactoryItem(DrawingItemGroup())
 
         self.selectModeAction.setChecked(True)
 
@@ -953,6 +964,10 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         action.setCheckable(True)
         action.setActionGroup(self._modeActionGroup)
         return action
+
+    def _addPlaceAction(self, item: DrawingItem, iconPath: str = '') -> QAction:
+        DrawingItem.registerFactoryItem(item)
+        return self._addModeAction(f'Place {item.prettyName()}', item.key(), iconPath)
 
     def _setModeFromAction(self, action: QAction) -> None:
         if (action == self.selectModeAction):

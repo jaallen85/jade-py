@@ -49,6 +49,9 @@ class DrawingTextItem(DrawingItem):
     def key(self) -> str:
         return 'text'
 
+    def prettyName(self) -> str:
+        return 'Text'
+
     # ==================================================================================================================
 
     def setCaption(self, caption: str) -> None:

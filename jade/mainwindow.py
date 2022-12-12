@@ -20,25 +20,12 @@ from PySide6.QtCore import Qt, QSize, SignalInstance
 from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMessageBox, QToolBar, QWidget)
-from .drawing.drawingitem import DrawingItem
-from .drawing.drawingitemgroup import DrawingItemGroup
 from .drawing.drawingunits import DrawingUnits
 from .drawing.drawingwidget import DrawingWidget
-from .items.drawingcurveitem import DrawingCurveItem
-from .items.drawingellipseitem import DrawingEllipseItem
-from .items.drawinglineitem import DrawingLineItem
-from .items.drawingpathitem import DrawingPathItem
-from .items.drawingpolygonitem import DrawingPolygonItem
-from .items.drawingpolylineitem import DrawingPolylineItem
-from .items.drawingrectitem import DrawingRectItem
-from .items.drawingtextellipseitem import DrawingTextEllipseItem
-from .items.drawingtextitem import DrawingTextItem
-from .items.drawingtextrectitem import DrawingTextRectItem
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
-#   - Test DrawingItemGroup again
 #   - Add items:
 #     - Electric items
 #     - Logic items
@@ -65,19 +52,6 @@ class MainWindow(QMainWindow):
         self._promptCloseUnsaved: bool = True
         self._pagesDockVisibleOnClose: bool = True
         self._propertiesDockVisibleOnClose: bool = True
-
-        # Register items to DrawingItem factory
-        DrawingItem.registerFactoryItem(DrawingLineItem())
-        DrawingItem.registerFactoryItem(DrawingCurveItem())
-        DrawingItem.registerFactoryItem(DrawingPolylineItem())
-        DrawingItem.registerFactoryItem(DrawingRectItem())
-        DrawingItem.registerFactoryItem(DrawingEllipseItem())
-        DrawingItem.registerFactoryItem(DrawingPolygonItem())
-        DrawingItem.registerFactoryItem(DrawingTextItem())
-        DrawingItem.registerFactoryItem(DrawingTextRectItem())
-        DrawingItem.registerFactoryItem(DrawingTextEllipseItem())
-        DrawingItem.registerFactoryItem(DrawingPathItem())
-        DrawingItem.registerFactoryItem(DrawingItemGroup())
 
         # Main widget
         self._drawingUnits: DrawingUnits = DrawingUnits.Millimeters

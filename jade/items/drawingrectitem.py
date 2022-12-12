@@ -62,6 +62,9 @@ class DrawingRectItem(DrawingItem):
     def key(self) -> str:
         return 'rect'
 
+    def prettyName(self) -> str:
+        return 'Rect'
+
     # ==================================================================================================================
 
     def setRect(self, rect: QRectF) -> None:

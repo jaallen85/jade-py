@@ -66,6 +66,9 @@ class DrawingEllipseItem(DrawingItem):
     def key(self) -> str:
         return 'ellipse'
 
+    def prettyName(self) -> str:
+        return 'Ellipse'
+
     # ==================================================================================================================
 
     def setEllipse(self, ellipse: QRectF) -> None:

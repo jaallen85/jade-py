@@ -53,6 +53,6 @@ print(' ')
 print('-' * 80)
 print('pylint')
 print('-' * 80)
-subprocess.run(['pylint', '--disable=C0103,C0114,C0115,C0116,C0301,C0302,C0325,E0611,R0801,R0902,R0904,R0911,R0912,'
-                          'R0913,R0914,R0915,R0916,R1702,W0613', 'jade'])
+subprocess.run(['pylint', '--disable=C0103,C0114,C0115,C0116,C0301,C0302,C0325,E0611,R0801,R0902,R0904,R0911,'
+                          'R0912,R0913,R0914,R0915,R0916,R1702,W0613', 'jade'])
 print('pylint run complete.')

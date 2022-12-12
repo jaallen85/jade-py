@@ -50,6 +50,9 @@ class DrawingPolylineItem(DrawingItem):
     def key(self) -> str:
         return 'polyline'
 
+    def prettyName(self) -> str:
+        return 'Polyline'
+
     # ==================================================================================================================
 
     def setPolyline(self, polyline: QPolygonF) -> None:

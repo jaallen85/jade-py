@@ -47,6 +47,9 @@ class DrawingTextEllipseItem(DrawingEllipseItem):
     def key(self) -> str:
         return 'textEllipse'
 
+    def prettyName(self) -> str:
+        return 'Text Ellipse'
+
     # ==================================================================================================================
 
     def setCaption(self, caption: str) -> None:

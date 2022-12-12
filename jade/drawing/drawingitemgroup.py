@@ -59,6 +59,9 @@ class DrawingItemGroup(DrawingItem):
     def key(self) -> str:
         return 'group'
 
+    def prettyName(self) -> str:
+        return 'Group'
+
     # ==================================================================================================================
 
     def setItems(self, items: list[DrawingItem]) -> None:

@@ -47,6 +47,9 @@ class DrawingPolygonItem(DrawingItem):
     def key(self) -> str:
         return 'polygon'
 
+    def prettyName(self) -> str:
+        return 'Polygon'
+
     # ==================================================================================================================
 
     def setPolygon(self, polygon: QPolygonF) -> None:

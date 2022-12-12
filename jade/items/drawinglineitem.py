@@ -59,6 +59,9 @@ class DrawingLineItem(DrawingItem):
     def key(self) -> str:
         return 'line'
 
+    def prettyName(self) -> str:
+        return 'Line'
+
     # ==================================================================================================================
 
     def setLine(self, line: QLineF) -> None:
