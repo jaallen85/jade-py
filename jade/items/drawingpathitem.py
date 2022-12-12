@@ -142,10 +142,10 @@ class DrawingPathItem(DrawingItem):
             self._points[DrawingPathItem.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
             self._points[DrawingPathItem.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
 
+            self._updatePathTransforms()
+
             for connectionPoint, pathPosition in self._additionalPathConnectionPoints.items():
                 connectionPoint.setPosition(self.mapFromPath(pathPosition))
-
-            self._updatePathTransforms()
 
     def rect(self) -> QRectF:
         return self._rect

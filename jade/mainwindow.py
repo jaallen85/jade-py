@@ -27,6 +27,7 @@ from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
+#   - Bug with pasting DrawingRectItem
 #   - Add items:
 #     - Electric items
 #     - Logic items
@@ -161,6 +162,12 @@ class MainWindow(QMainWindow):
             electricMenu.addAction(action)
         electricMenu.setIcon(electricMenu.actions()[0].icon())
         placeMenu.addMenu(electricMenu)
+
+        logicMenu = QMenu('Logic Items')
+        for action in self._diagram.logicActions:
+            logicMenu.addAction(action)
+        logicMenu.setIcon(logicMenu.actions()[0].icon())
+        placeMenu.addMenu(logicMenu)
 
         objectMenu = self.menuBar().addMenu('Object')
         objectMenu.addAction(self._diagram.rotateAction)

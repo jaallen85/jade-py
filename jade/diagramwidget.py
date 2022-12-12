@@ -35,6 +35,7 @@ from .items.drawingtextellipseitem import DrawingTextEllipseItem
 from .items.drawingtextitem import DrawingTextItem
 from .items.drawingtextrectitem import DrawingTextRectItem
 from .items.electricitems import ElectricItems
+from .items.logicitems import LogicItems
 from .properties.units import Units
 from .diagramtemplate import DiagramTemplate
 
@@ -199,6 +200,7 @@ class DiagramWidget(DrawingWidget):
         DrawingItem.registerFactoryItem(DrawingItemGroup())
 
         self.electricActions: list[QAction] = self._addPathActions(ElectricItems.create())
+        self.logicActions: list[QAction] = self._addPathActions(LogicItems.create())
 
         self.selectModeAction.setChecked(True)
 
