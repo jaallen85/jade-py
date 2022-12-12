@@ -19,18 +19,18 @@ from PySide6.QtCore import QSize
 from PySide6.QtWidgets import QScrollArea, QStackedWidget
 from .drawing.drawingitem import DrawingItem
 from .drawing.drawingpagewidget import DrawingPageWidget
-from .drawing.drawingunits import DrawingUnits
-from .drawing.drawingwidget import DrawingWidget
 from .properties.multipleitempropertieswidget import MultipleItemPropertiesWidget
 from .properties.pagepropertieswidget import PagePropertiesWidget
 from .properties.singleitempropertieswidget import SingleItemPropertiesWidget
+from .properties.units import Units
+from .diagramwidget import DiagramWidget
 
 
 class PropertiesBrowser(QStackedWidget):
-    def __init__(self, drawing: DrawingWidget) -> None:
+    def __init__(self, diagram: DiagramWidget) -> None:
         super().__init__()
 
-        self._drawing: DrawingWidget = drawing
+        self._diagram: DiagramWidget = diagram
 
         self._pagePropertiesWidget: PagePropertiesWidget = PagePropertiesWidget()
         self._pagePropertiesScroll: QScrollArea = QScrollArea()
@@ -50,27 +50,27 @@ class PropertiesBrowser(QStackedWidget):
         self._singleItemsPropertiesScroll.setWidgetResizable(True)
         self.addWidget(self._singleItemsPropertiesScroll)
 
-        self._drawing.propertyChanged.connect(self.setDrawingProperty)
-        self._drawing.currentPageChanged.connect(self.setPage)
-        self._drawing.currentPagePropertyChanged.connect(self.setPageProperty)
-        self._drawing.currentItemsChanged.connect(self.setItems)
-        self._drawing.currentItemsPropertyChanged.connect(self.setItems)
+        self._diagram.propertyChanged.connect(self.setDrawingProperty)
+        self._diagram.currentPageChanged.connect(self.setPage)
+        self._diagram.currentPagePropertyChanged.connect(self.setPageProperty)
+        self._diagram.currentItemsChanged.connect(self.setItems)
+        self._diagram.currentItemsPropertyChanged.connect(self.setItems)
 
-        self._pagePropertiesWidget.drawingPropertyChanged.connect(self._drawing.updateProperty)
-        self._pagePropertiesWidget.pagePropertyChanged.connect(self._drawing.updateCurrentPageProperty)
+        self._pagePropertiesWidget.drawingPropertyChanged.connect(self._diagram.updateProperty)
+        self._pagePropertiesWidget.pagePropertyChanged.connect(self._diagram.updateCurrentPageProperty)
 
-        self._multipleItemsPropertiesWidget.itemsMovedDelta.connect(self._drawing.moveCurrentItemsDelta)
-        self._multipleItemsPropertiesWidget.itemsPropertyChanged.connect(self._drawing.updateCurrentItemsProperty)
+        self._multipleItemsPropertiesWidget.itemsMovedDelta.connect(self._diagram.moveCurrentItemsDelta)
+        self._multipleItemsPropertiesWidget.itemsPropertyChanged.connect(self._diagram.updateCurrentItemsProperty)
 
-        self._singleItemsPropertiesWidget.itemMoved.connect(self._drawing.moveCurrentItem)
-        self._singleItemsPropertiesWidget.itemResized.connect(self._drawing.resizeCurrentItem)
-        self._singleItemsPropertiesWidget.itemPropertyChanged.connect(self._drawing.updateCurrentItemsProperty)
+        self._singleItemsPropertiesWidget.itemMoved.connect(self._diagram.moveCurrentItem)
+        self._singleItemsPropertiesWidget.itemResized.connect(self._diagram.resizeCurrentItem)
+        self._singleItemsPropertiesWidget.itemPropertyChanged.connect(self._diagram.updateCurrentItemsProperty)
 
-        self._pagePropertiesWidget.setDrawingProperty('grid', self._drawing.grid())
-        self._pagePropertiesWidget.setDrawingProperty('gridVisible', self._drawing.isGridVisible())
-        self._pagePropertiesWidget.setDrawingProperty('gridBrush', self._drawing.gridBrush())
-        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMajor', self._drawing.gridSpacingMajor())
-        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMinor', self._drawing.gridSpacingMinor())
+        self._pagePropertiesWidget.setDrawingProperty('grid', self._diagram.grid())
+        self._pagePropertiesWidget.setDrawingProperty('gridVisible', self._diagram.isGridVisible())
+        self._pagePropertiesWidget.setDrawingProperty('gridBrush', self._diagram.gridBrush())
+        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMajor', self._diagram.gridSpacingMajor())
+        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMinor', self._diagram.gridSpacingMinor())
 
     # ==================================================================================================================
 
@@ -103,7 +103,7 @@ class PropertiesBrowser(QStackedWidget):
 
     # ==================================================================================================================
 
-    def setUnits(self, units: DrawingUnits) -> None:
+    def setUnits(self, units: Units) -> None:
         self._pagePropertiesWidget.setUnits(units)
         self._multipleItemsPropertiesWidget.setUnits(units)
         self._singleItemsPropertiesWidget.setUnits(units)

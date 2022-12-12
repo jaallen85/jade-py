@@ -15,28 +15,28 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QAction, QContextMenuEvent, QDropEvent
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QMenu
 from .drawing.drawingpagewidget import DrawingPageWidget
-from .drawing.drawingwidget import DrawingWidget
+from .diagramwidget import DiagramWidget
 
 
 class PagesBrowser(QListWidget):
-    def __init__(self, drawing: DrawingWidget) -> None:
+    def __init__(self, diagram: DiagramWidget) -> None:
         super().__init__()
 
         self.setAlternatingRowColors(True)
         self.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.setDragDropMode(QListWidget.DragDropMode.InternalMove)
 
-        self._drawing: DrawingWidget = drawing
+        self._diagram: DiagramWidget = diagram
 
         # Signals and slots
-        self._drawing.pageInserted.connect(self._insertItem)
-        self._drawing.pageRemoved.connect(self._removeItem)
-        self._drawing.currentPageIndexChanged.connect(self._updateCurrentItem)
-        self._drawing.currentPagePropertyChanged.connect(self._updateCurrentItemText)
+        self._diagram.pageInserted.connect(self._insertItem)
+        self._diagram.pageRemoved.connect(self._removeItem)
+        self._diagram.currentPageIndexChanged.connect(self._updateCurrentItem)
+        self._diagram.currentPagePropertyChanged.connect(self._updateCurrentItemText)
 
         self.currentRowChanged.connect(self._updateCurrentPage)     # type: ignore
         self.itemChanged.connect(self._updateCurrentPageName)       # type: ignore
@@ -47,9 +47,14 @@ class PagesBrowser(QListWidget):
         self.addAction(renamePageAction)
 
         self._contextMenu: QMenu = QMenu()
-        self._contextMenu.addAction(self._drawing.insertPageAction)
-        self._contextMenu.addAction(self._drawing.removePageAction)
+        self._contextMenu.addAction(self._diagram.insertPageAction)
+        self._contextMenu.addAction(self._diagram.removePageAction)
         self._contextMenu.addAction(renamePageAction)
+
+    # ==================================================================================================================
+
+    def sizeHint(self) -> QSize:
+        return QSize(200, -1)
 
     # ==================================================================================================================
 
@@ -68,7 +73,7 @@ class PagesBrowser(QListWidget):
                 elif (self.dropIndicatorPosition() == QListWidget.DropIndicatorPosition.AboveItem and currentIndex < newIndex):     # noqa
                     newIndex = newIndex - 1
                 if (currentIndex != newIndex):
-                    self._drawing.moveCurrentPage(newIndex)
+                    self._diagram.moveCurrentPage(newIndex)
 
     # ==================================================================================================================
 
@@ -106,8 +111,8 @@ class PagesBrowser(QListWidget):
     # ==================================================================================================================
 
     def _updateCurrentPage(self, row: int) -> None:
-        self._drawing.setCurrentPageIndex(row)
+        self._diagram.setCurrentPageIndex(row)
 
     def _updateCurrentPageName(self, item: QListWidgetItem) -> None:
         if (item is not None):
-            self._drawing.renameCurrentPage(item.text())
+            self._diagram.renameCurrentPage(item.text())

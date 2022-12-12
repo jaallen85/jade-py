@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (QComboBox, QFontComboBox, QFormLayout, QFrame, QG
 from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitempoint import DrawingItemPoint
-from ..drawing.drawingunits import DrawingUnits
 from .helperwidgets import ColorWidget, PositionWidget, SizeWidget, SizeEdit
+from .units import Units
 
 
 class SingleItemPropertiesWidget(QWidget):
@@ -397,7 +397,7 @@ class SingleItemPropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
-    def setUnits(self, units: DrawingUnits) -> None:
+    def setUnits(self, units: Units) -> None:
         self.blockSignals(True)
 
         self._positionWidget.setUnits(units)

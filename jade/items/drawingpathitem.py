@@ -264,6 +264,15 @@ class DrawingPathItem(DrawingItem):
 
     # ==================================================================================================================
 
+    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+        size = grid
+        if (size <= 0):
+            size = sceneRect.width() / 320
+        self.setRect(QRectF(self._rect.left() * size, self._rect.top() * size,
+                            self._rect.width() * size, self._rect.height() * size))
+
+    # ==================================================================================================================
+
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 

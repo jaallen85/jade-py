@@ -20,8 +20,8 @@ from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFontComboBox, QFormLayout, QFrame, QGroupBox, QHBoxLayout,
                                QToolButton, QVBoxLayout, QWidget)
 from ..drawing.drawingitem import DrawingItem
-from ..drawing.drawingunits import DrawingUnits
 from .helperwidgets import ColorWidget, SizeEdit
+from .units import Units
 
 
 class MultipleItemPropertiesWidget(QWidget):
@@ -292,7 +292,7 @@ class MultipleItemPropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
-    def setUnits(self, units: DrawingUnits) -> None:
+    def setUnits(self, units: Units) -> None:
         self.blockSignals(True)
         self._rectCornerRadiusEdit.setUnits(units)
         self._penWidthEdit.setUnits(units)

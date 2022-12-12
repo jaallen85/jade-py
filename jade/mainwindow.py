@@ -20,8 +20,9 @@ from PySide6.QtCore import Qt, QSize, SignalInstance
 from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMenu, QMessageBox, QToolBar, QWidget)
-from .drawing.drawingunits import DrawingUnits
-from .drawing.drawingwidget import DrawingWidget
+from .properties.units import Units
+from .diagramtemplate import DiagramTemplate
+from .diagramwidget import DiagramWidget
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
@@ -37,8 +38,7 @@ from .propertiesbrowser import PropertiesBrowser
 #     - Export to VSDX
 #   - Preferences dialog
 #   - About dialog
-#   - Add templates with default page scene rect/background color, default units and grid size,
-#      - Template can even define specific items that can be added to the scene using the DrawingItem factory
+#   - Add template selection dialog to newDrawing
 
 
 class MainWindow(QMainWindow):
@@ -54,22 +54,21 @@ class MainWindow(QMainWindow):
         self._propertiesDockVisibleOnClose: bool = True
 
         # Main widget
-        self._drawingUnits: DrawingUnits = DrawingUnits.Millimeters
-        self._drawing: DrawingWidget = DrawingWidget()
-        self.setCentralWidget(self._drawing)
+        self._diagram: DiagramWidget = DiagramWidget()
+        self.setCentralWidget(self._diagram)
 
         # Dock widgets
-        self._pagesBrowser: PagesBrowser = PagesBrowser(self._drawing)
+        self._pagesBrowser: PagesBrowser = PagesBrowser(self._diagram)
         self._pagesDock: QDockWidget = self._addDockWidget('Pages', self._pagesBrowser,
                                                            Qt.DockWidgetArea.LeftDockWidgetArea)
 
-        self._propertiesBrowser: PropertiesBrowser = PropertiesBrowser(self._drawing)
+        self._propertiesBrowser: PropertiesBrowser = PropertiesBrowser(self._diagram)
         self._propertiesDock: QDockWidget = self._addDockWidget('Properties', self._propertiesBrowser,
                                                                 Qt.DockWidgetArea.RightDockWidgetArea)
         # Status bar widgets
-        self._modeLabel = self._addStatusBarLabel('Select Mode', 'Select Mode', self._drawing.modeStringChanged)
-        self._modifiedLabel = self._addStatusBarLabel('', 'Modified', self._drawing.modifiedStringChanged)
-        self._mouseInfoLabel = self._addStatusBarLabel('', '(XXXX.XX,XXXX.XX)', self._drawing.mouseInfoChanged)
+        self._modeLabel = self._addStatusBarLabel('Select Mode', 'Select Mode', self._diagram.modeStringChanged)
+        self._modifiedLabel = self._addStatusBarLabel('', 'Modified', self._diagram.modifiedStringChanged)
+        self._mouseInfoLabel = self._addStatusBarLabel('', '(XXXX.XX,XXXX.XX)', self._diagram.mouseInfoChanged)
 
         # Menus and toolbars
         self._createActions()
@@ -79,7 +78,7 @@ class MainWindow(QMainWindow):
         # Final window setup
         self.setWindowTitle('Jade')
         self.setWindowIcon(QIcon('icons:jade.png'))
-        self.resize(1698, 900)
+        self.resize(1776, 900)
 
         self._loadSettings()
 
@@ -130,65 +129,66 @@ class MainWindow(QMainWindow):
         fileMenu.addAction(self._exitAction)
 
         editMenu = self.menuBar().addMenu('Edit')
-        editMenu.addAction(self._drawing.undoAction)
-        editMenu.addAction(self._drawing.redoAction)
+        editMenu.addAction(self._diagram.undoAction)
+        editMenu.addAction(self._diagram.redoAction)
         editMenu.addSeparator()
-        editMenu.addAction(self._drawing.cutAction)
-        editMenu.addAction(self._drawing.copyAction)
-        editMenu.addAction(self._drawing.pasteAction)
-        editMenu.addAction(self._drawing.deleteAction)
+        editMenu.addAction(self._diagram.cutAction)
+        editMenu.addAction(self._diagram.copyAction)
+        editMenu.addAction(self._diagram.pasteAction)
+        editMenu.addAction(self._diagram.deleteAction)
         editMenu.addSeparator()
-        editMenu.addAction(self._drawing.selectAllAction)
-        editMenu.addAction(self._drawing.selectNoneAction)
+        editMenu.addAction(self._diagram.selectAllAction)
+        editMenu.addAction(self._diagram.selectNoneAction)
 
         placeMenu = self.menuBar().addMenu('Place')
-        placeMenu.addAction(self._drawing.selectModeAction)
-        placeMenu.addAction(self._drawing.scrollModeAction)
-        placeMenu.addAction(self._drawing.zoomModeAction)
+        placeMenu.addAction(self._diagram.selectModeAction)
+        placeMenu.addAction(self._diagram.scrollModeAction)
+        placeMenu.addAction(self._diagram.zoomModeAction)
         placeMenu.addSeparator()
-        placeMenu.addAction(self._drawing.placeLineAction)
-        placeMenu.addAction(self._drawing.placeCurveAction)
-        placeMenu.addAction(self._drawing.placePolylineAction)
-        placeMenu.addAction(self._drawing.placeRectAction)
-        placeMenu.addAction(self._drawing.placeEllipseAction)
-        placeMenu.addAction(self._drawing.placePolygonAction)
-        placeMenu.addAction(self._drawing.placeTextAction)
-        placeMenu.addAction(self._drawing.placeTextRectAction)
-        placeMenu.addAction(self._drawing.placeTextEllipseAction)
+        placeMenu.addAction(self._diagram.placeLineAction)
+        placeMenu.addAction(self._diagram.placeCurveAction)
+        placeMenu.addAction(self._diagram.placePolylineAction)
+        placeMenu.addAction(self._diagram.placeRectAction)
+        placeMenu.addAction(self._diagram.placeEllipseAction)
+        placeMenu.addAction(self._diagram.placePolygonAction)
+        placeMenu.addAction(self._diagram.placeTextAction)
+        placeMenu.addAction(self._diagram.placeTextRectAction)
+        placeMenu.addAction(self._diagram.placeTextEllipseAction)
         placeMenu.addSeparator()
 
         electricMenu = QMenu('Electric Items')
-        for action in self._drawing.electricActions:
+        for action in self._diagram.electricActions:
             electricMenu.addAction(action)
+        electricMenu.setIcon(electricMenu.actions()[0].icon())
         placeMenu.addMenu(electricMenu)
 
         objectMenu = self.menuBar().addMenu('Object')
-        objectMenu.addAction(self._drawing.rotateAction)
-        objectMenu.addAction(self._drawing.rotateBackAction)
-        objectMenu.addAction(self._drawing.flipHorizontalAction)
-        objectMenu.addAction(self._drawing.flipVerticalAction)
+        objectMenu.addAction(self._diagram.rotateAction)
+        objectMenu.addAction(self._diagram.rotateBackAction)
+        objectMenu.addAction(self._diagram.flipHorizontalAction)
+        objectMenu.addAction(self._diagram.flipVerticalAction)
         objectMenu.addSeparator()
-        objectMenu.addAction(self._drawing.bringForwardAction)
-        objectMenu.addAction(self._drawing.sendBackwardAction)
-        objectMenu.addAction(self._drawing.bringToFrontAction)
-        objectMenu.addAction(self._drawing.sendToBackAction)
+        objectMenu.addAction(self._diagram.bringForwardAction)
+        objectMenu.addAction(self._diagram.sendBackwardAction)
+        objectMenu.addAction(self._diagram.bringToFrontAction)
+        objectMenu.addAction(self._diagram.sendToBackAction)
         objectMenu.addSeparator()
-        objectMenu.addAction(self._drawing.groupAction)
-        objectMenu.addAction(self._drawing.ungroupAction)
+        objectMenu.addAction(self._diagram.groupAction)
+        objectMenu.addAction(self._diagram.ungroupAction)
         objectMenu.addSeparator()
-        objectMenu.addAction(self._drawing.insertPointAction)
-        objectMenu.addAction(self._drawing.removePointAction)
+        objectMenu.addAction(self._diagram.insertPointAction)
+        objectMenu.addAction(self._diagram.removePointAction)
 
         viewMenu = self.menuBar().addMenu('View')
         viewMenu.addAction(self._viewPropertiesAction)
         viewMenu.addSeparator()
-        viewMenu.addAction(self._drawing.insertPageAction)
-        viewMenu.addAction(self._drawing.removePageAction)
+        viewMenu.addAction(self._diagram.insertPageAction)
+        viewMenu.addAction(self._diagram.removePageAction)
         viewMenu.addAction(self._viewPagesAction)
         viewMenu.addSeparator()
-        viewMenu.addAction(self._drawing.zoomInAction)
-        viewMenu.addAction(self._drawing.zoomOutAction)
-        viewMenu.addAction(self._drawing.zoomFitAction)
+        viewMenu.addAction(self._diagram.zoomInAction)
+        viewMenu.addAction(self._diagram.zoomOutAction)
+        viewMenu.addAction(self._diagram.zoomFitAction)
 
         aboutMenu = self.menuBar().addMenu('About')
         aboutMenu.addAction(self._aboutAction)
@@ -202,7 +202,7 @@ class MainWindow(QMainWindow):
         self._zoomCombo.setEditable(True)
         self._zoomCombo.setCurrentIndex(3)
         self._zoomCombo.textActivated.connect(self._setZoomLevel)       # type: ignore
-        self._drawing.scaleChanged.connect(self._setZoomComboText)
+        self._diagram.scaleChanged.connect(self._setZoomComboText)
 
         zoomWidget = QWidget()
         zoomLayout = QHBoxLayout()
@@ -226,44 +226,44 @@ class MainWindow(QMainWindow):
         placeToolBar = QToolBar('Place Toolbar')
         placeToolBar.setObjectName('PlaceToolBar')
         placeToolBar.setIconSize(iconSize)
-        placeToolBar.addAction(self._drawing.selectModeAction)
-        placeToolBar.addAction(self._drawing.scrollModeAction)
-        placeToolBar.addAction(self._drawing.zoomModeAction)
+        placeToolBar.addAction(self._diagram.selectModeAction)
+        placeToolBar.addAction(self._diagram.scrollModeAction)
+        placeToolBar.addAction(self._diagram.zoomModeAction)
         placeToolBar.addSeparator()
-        placeToolBar.addAction(self._drawing.placeLineAction)
-        placeToolBar.addAction(self._drawing.placeCurveAction)
-        placeToolBar.addAction(self._drawing.placePolylineAction)
-        placeToolBar.addAction(self._drawing.placeRectAction)
-        placeToolBar.addAction(self._drawing.placeEllipseAction)
-        placeToolBar.addAction(self._drawing.placePolygonAction)
-        placeToolBar.addAction(self._drawing.placeTextAction)
-        placeToolBar.addAction(self._drawing.placeTextRectAction)
-        placeToolBar.addAction(self._drawing.placeTextEllipseAction)
+        placeToolBar.addAction(self._diagram.placeLineAction)
+        placeToolBar.addAction(self._diagram.placeCurveAction)
+        placeToolBar.addAction(self._diagram.placePolylineAction)
+        placeToolBar.addAction(self._diagram.placeRectAction)
+        placeToolBar.addAction(self._diagram.placeEllipseAction)
+        placeToolBar.addAction(self._diagram.placePolygonAction)
+        placeToolBar.addAction(self._diagram.placeTextAction)
+        placeToolBar.addAction(self._diagram.placeTextRectAction)
+        placeToolBar.addAction(self._diagram.placeTextEllipseAction)
         self.addToolBar(placeToolBar)
 
         objectToolBar = QToolBar('Object Toolbar')
         objectToolBar.setObjectName('ObjectToolBar')
         objectToolBar.setIconSize(iconSize)
-        objectToolBar.addAction(self._drawing.rotateAction)
-        objectToolBar.addAction(self._drawing.rotateBackAction)
-        objectToolBar.addAction(self._drawing.flipHorizontalAction)
-        objectToolBar.addAction(self._drawing.flipVerticalAction)
+        objectToolBar.addAction(self._diagram.rotateAction)
+        objectToolBar.addAction(self._diagram.rotateBackAction)
+        objectToolBar.addAction(self._diagram.flipHorizontalAction)
+        objectToolBar.addAction(self._diagram.flipVerticalAction)
         objectToolBar.addSeparator()
-        objectToolBar.addAction(self._drawing.bringForwardAction)
-        objectToolBar.addAction(self._drawing.sendBackwardAction)
-        objectToolBar.addAction(self._drawing.bringToFrontAction)
-        objectToolBar.addAction(self._drawing.sendToBackAction)
+        objectToolBar.addAction(self._diagram.bringForwardAction)
+        objectToolBar.addAction(self._diagram.sendBackwardAction)
+        objectToolBar.addAction(self._diagram.bringToFrontAction)
+        objectToolBar.addAction(self._diagram.sendToBackAction)
         objectToolBar.addSeparator()
-        objectToolBar.addAction(self._drawing.groupAction)
-        objectToolBar.addAction(self._drawing.ungroupAction)
+        objectToolBar.addAction(self._diagram.groupAction)
+        objectToolBar.addAction(self._diagram.ungroupAction)
         self.addToolBar(objectToolBar)
 
         viewToolBar = QToolBar('View Toolbar')
         viewToolBar.setObjectName('ViewToolBar')
         viewToolBar.setIconSize(iconSize)
-        viewToolBar.addAction(self._drawing.zoomInAction)
+        viewToolBar.addAction(self._diagram.zoomInAction)
         viewToolBar.addWidget(zoomWidget)
-        viewToolBar.addAction(self._drawing.zoomOutAction)
+        viewToolBar.addAction(self._diagram.zoomOutAction)
         self.addToolBar(viewToolBar)
 
     # ==================================================================================================================
@@ -274,7 +274,10 @@ class MainWindow(QMainWindow):
 
         # Create a new drawing only if there is no open drawing (i.e. close was successful or unneeded)
         if (not self.isDrawingVisible()):
-            self._drawing.createNew()
+            selectedTemplate = DiagramTemplate.createDefaultTemplates()[0]
+            self._propertiesBrowser.setUnits(selectedTemplate.units())
+
+            self._diagram.createFromTemplate(selectedTemplate)
             self._newDrawingCount = self._newDrawingCount + 1
             self._setFilePath(f'Untitled {self._newDrawingCount}')
             self._setDrawingVisible(True)
@@ -294,7 +297,7 @@ class MainWindow(QMainWindow):
             # Open an existing drawing only if there is no open drawing (i.e. close was successful or unneeded)
             if (not self.isDrawingVisible()):
                 # Use the selected path to load the drawing from file
-                if (self._drawing.loadFromFile(path)):
+                if (self._diagram.loadFromFile(path)):
                     self._setFilePath(path)
                     self._setDrawingVisible(True)
 
@@ -310,7 +313,7 @@ class MainWindow(QMainWindow):
                 # Use either the provided path or the cached self._filePath to save the drawing to file
                 if (path == ''):
                     path = self._filePath
-                if (self._drawing.saveToFile(path)):
+                if (self._diagram.saveToFile(path)):
                     self._setFilePath(path)
 
     def saveDrawingAs(self) -> None:
@@ -328,7 +331,7 @@ class MainWindow(QMainWindow):
                     path = f'{path}.jdm'
 
                 # Use the selected path to save the drawing to file
-                if (self._drawing.saveToFile(path)):
+                if (self._diagram.saveToFile(path)):
                     self._setFilePath(path)
 
                 # Update the cached working directory
@@ -338,7 +341,7 @@ class MainWindow(QMainWindow):
         if (self.isDrawingVisible()):
             proceedToClose = True
 
-            if (self._promptCloseUnsaved and not self._drawing.isClean()):
+            if (self._promptCloseUnsaved and not self._diagram.isClean()):
                 # If drawing has unsaved changes, prompt the user whether to save before closing
                 text = f'Save changes to {os.path.basename(self._filePath)} before closing?'
                 buttons = (QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No |
@@ -355,7 +358,7 @@ class MainWindow(QMainWindow):
 
                 # Allow the close to proceed if the user clicked Yes and the save was successful or
                 # if the user clicked No
-                proceedToClose = ((selectedButton == QMessageBox.StandardButton.Yes and self._drawing.isClean()) or
+                proceedToClose = ((selectedButton == QMessageBox.StandardButton.Yes and self._diagram.isClean()) or
                                   selectedButton == QMessageBox.StandardButton.No)
 
             if (proceedToClose):
@@ -364,7 +367,7 @@ class MainWindow(QMainWindow):
                 self._setFilePath('')
 
     def isDrawingVisible(self) -> bool:
-        return self._drawing.isVisible()
+        return self._diagram.isVisible()
 
     def filePath(self) -> str:
         return self._filePath
@@ -393,7 +396,7 @@ class MainWindow(QMainWindow):
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         if (not event.spontaneous()):
-            self._drawing.zoomFit()
+            self._diagram.zoomFit()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.closeDrawing()
@@ -412,13 +415,13 @@ class MainWindow(QMainWindow):
         self.saveDrawing()
 
     def _setDrawingVisible(self, visible: bool) -> None:
-        self._drawing.setVisible(visible)
+        self._diagram.setVisible(visible)
 
         # Update drawing
         if (visible):
-            self._drawing.zoomFit()
+            self._diagram.zoomFit()
         else:
-            self._drawing.clear()
+            self._diagram.clear()
 
         # Update dock widget visibility
         if (visible):
@@ -438,7 +441,7 @@ class MainWindow(QMainWindow):
         self._exportSvgAction.setEnabled(visible)
         self._exportVsdxAction.setEnabled(visible)
 
-        self._drawing.setActionsEnabled(visible)
+        self._diagram.setActionsEnabled(visible)
 
     def _setFilePath(self, path: str) -> None:
         self._filePath = path
@@ -450,20 +453,20 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def _setZoomComboText(self, scale: float) -> None:
-        zoomLevel = DrawingUnits.convert(scale, self._drawingUnits, DrawingUnits.Inches) * 1000
-        self._zoomCombo.setCurrentText(f'{zoomLevel:.4g}%')
+        zoomLevel = Units.convert(scale, Units.Inches, self._diagram.units())
+        self._zoomCombo.setCurrentText(f'{zoomLevel:.2f}%')
 
     def _setZoomLevel(self, text: str) -> None:
         if (text == 'Fit to Page'):
-            self._drawing.zoomFit()
+            self._diagram.zoomFit()
         else:
             try:
                 if (text.endswith('%')):
                     zoomLevel = float(text[:-1])
                 else:
                     zoomLevel = float(text)
-                scale = DrawingUnits.convert(zoomLevel / 1000, DrawingUnits.Inches, self._drawingUnits)
-                self._drawing.setScale(scale)
+                scale = Units.convert(zoomLevel, self._diagram.units(), Units.Inches)
+                self._diagram.setScale(scale)
                 self._zoomCombo.clearFocus()
             except ValueError:
                 pass

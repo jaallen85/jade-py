@@ -19,16 +19,16 @@ from PySide6.QtCore import Qt, QPointF, QRect, QSize, QSizeF, Signal
 from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QMouseEvent, QPaintEvent, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QColorDialog, QHBoxLayout, QMenu, QLineEdit, QPushButton, QSizePolicy, QWidget, \
                             QWidgetAction
-from ..drawing.drawingunits import DrawingUnits
+from .units import Units
 
 
 class PositionEdit(QLineEdit):
     positionChanged = Signal(float)
 
-    def __init__(self, position: float = 0.0, units: DrawingUnits = DrawingUnits.Millimeters) -> None:
+    def __init__(self, position: float = 0.0, units: Units = Units.Millimeters) -> None:
         super().__init__()
         self._position: float = position
-        self._units: DrawingUnits = units
+        self._units: Units = units
         self._cachedText: str = self.positionToString(self._position, self._units)
         self.setText(self._cachedText)
         self.editingFinished.connect(self.validateInputAndSendPositionChanged)      # type: ignore
@@ -45,19 +45,19 @@ class PositionEdit(QLineEdit):
         else:
             self.setText(self._cachedText)
 
-    def setUnits(self, units: DrawingUnits) -> None:
+    def setUnits(self, units: Units) -> None:
         if (self._units != units):
-            newPosition = DrawingUnits.convert(self._position, self._units, units)
+            newPosition = Units.convert(self._position, self._units, units)
             self._units = units
             self.setPosition(newPosition)
 
     def position(self) -> float:
         return self._position
 
-    def units(self) -> DrawingUnits:
+    def units(self) -> Units:
         return self._units
 
-    def positionToString(self, position: float, units: DrawingUnits) -> str:
+    def positionToString(self, position: float, units: Units) -> str:
         return f'{position:.8g} {units.toString()}'
 
     def validateInputAndSendPositionChanged(self) -> None:
@@ -66,8 +66,8 @@ class PositionEdit(QLineEdit):
         if (match):
             try:
                 position = float(match.string[:match.start(0)].strip())
-                units = DrawingUnits.fromString(match.group(0))
-                self.setPosition(DrawingUnits.convert(position, units, self._units))
+                units = Units.fromString(match.group(0))
+                self.setPosition(Units.convert(position, units, self._units))
                 self.blockSignals(True)
                 self.clearFocus()
                 self.blockSignals(False)
@@ -88,11 +88,11 @@ class PositionEdit(QLineEdit):
 class SizeEdit(QLineEdit):
     sizeChanged = Signal(float)
 
-    def __init__(self, size: float = 0.0, units: DrawingUnits = DrawingUnits.Millimeters) -> None:
+    def __init__(self, size: float = 0.0, units: Units = Units.Millimeters) -> None:
         super().__init__()
         size = max(size, 0)
         self._size: float = size
-        self._units: DrawingUnits = units
+        self._units: Units = units
         self._cachedText: str = self.sizeToString(self._size, self._units)
         self.setText(self._cachedText)
         self.editingFinished.connect(self.validateInputAndSendSizeChanged)      # type: ignore
@@ -109,19 +109,19 @@ class SizeEdit(QLineEdit):
         else:
             self.setText(self._cachedText)
 
-    def setUnits(self, units: DrawingUnits) -> None:
+    def setUnits(self, units: Units) -> None:
         if (self._units != units):
-            newSize = DrawingUnits.convert(self._size, self._units, units)
+            newSize = Units.convert(self._size, self._units, units)
             self._units = units
             self.setSize(newSize)
 
     def size(self) -> float:    # type: ignore
         return self._size
 
-    def units(self) -> DrawingUnits:
+    def units(self) -> Units:
         return self._units
 
-    def sizeToString(self, size: float, units: DrawingUnits):
+    def sizeToString(self, size: float, units: Units):
         return f'{size:.8g} {units.toString()}'
 
     def validateInputAndSendSizeChanged(self) -> None:
@@ -130,8 +130,8 @@ class SizeEdit(QLineEdit):
         if (match):
             try:
                 size = float(match.string[:match.start(0)].strip())
-                units = DrawingUnits.fromString(match.group(0))
-                self.setSize(DrawingUnits.convert(size, units, self._units))
+                units = Units.fromString(match.group(0))
+                self.setSize(Units.convert(size, units, self._units))
                 self.blockSignals(True)
                 self.clearFocus()
                 self.blockSignals(False)
@@ -152,7 +152,7 @@ class SizeEdit(QLineEdit):
 class PositionWidget(QWidget):
     positionChanged = Signal(QPointF)
 
-    def __init__(self, position: QPointF = QPointF(0, 0), units: DrawingUnits = DrawingUnits.Millimeters) -> None:
+    def __init__(self, position: QPointF = QPointF(0, 0), units: Units = Units.Millimeters) -> None:
         super().__init__()
         self._xEdit: PositionEdit = PositionEdit(position.x(), units)
         self._yEdit: PositionEdit = PositionEdit(position.y(), units)
@@ -171,14 +171,14 @@ class PositionWidget(QWidget):
         self._xEdit.setPosition(position.x())
         self._yEdit.setPosition(position.y())
 
-    def setUnits(self, units: DrawingUnits) -> None:
+    def setUnits(self, units: Units) -> None:
         self._xEdit.setUnits(units)
         self._yEdit.setUnits(units)
 
     def position(self) -> QPointF:
         return QPointF(self._xEdit.position(), self._yEdit.position())
 
-    def units(self) -> DrawingUnits:
+    def units(self) -> Units:
         return self._xEdit.units()
 
     def sendPositionChanged(self) -> None:
@@ -190,7 +190,7 @@ class PositionWidget(QWidget):
 class SizeWidget(QWidget):
     sizeChanged = Signal(QSizeF)
 
-    def __init__(self, size: QSizeF = QSizeF(0, 0), units: DrawingUnits = DrawingUnits.Millimeters) -> None:
+    def __init__(self, size: QSizeF = QSizeF(0, 0), units: Units = Units.Millimeters) -> None:
         super().__init__()
         self._widthEdit: SizeEdit = SizeEdit(size.width(), units)
         self._heightEdit: SizeEdit = SizeEdit(size.height(), units)
@@ -209,14 +209,14 @@ class SizeWidget(QWidget):
         self._widthEdit.setSize(size.width())
         self._heightEdit.setSize(size.height())
 
-    def setUnits(self, units: DrawingUnits) -> None:
+    def setUnits(self, units: Units) -> None:
         self._widthEdit.setUnits(units)
         self._heightEdit.setUnits(units)
 
     def size(self) -> QSizeF:       # type: ignore
         return QSizeF(self._widthEdit.size(), self._heightEdit.size())
 
-    def units(self) -> DrawingUnits:
+    def units(self) -> Units:
         return self._widthEdit.units()
 
     def sendSizeChanged(self) -> None:

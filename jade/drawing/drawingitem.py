@@ -430,6 +430,9 @@ class DrawingItem(ABC, DrawingXmlInterface):
         for item in DrawingItem._factoryItems:
             if (key == item.key()):
                 return copy.copy(item)
+        for item in DrawingItem._factoryItems:
+            if (key == item.prettyName()):
+                return copy.copy(item)
         return None
 
     # ==================================================================================================================
