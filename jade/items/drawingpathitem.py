@@ -61,12 +61,13 @@ class DrawingPathItem(DrawingItem):
         copiedItem.setPathName(self.pathName())
         copiedItem.setPath(self.path(), self.pathRect())
 
+        copiedItem.setRect(self.rect())
+        copiedItem.setPen(self.pen())
+
         connectionPoints = self.connectionPoints()
         for index in range(connectionPoints.size()):
             copiedItem.addConnectionPoint(connectionPoints.at(index))
 
-        copiedItem.setRect(self.rect())
-        copiedItem.setPen(self.pen())
         return copiedItem
 
     # ==================================================================================================================
@@ -263,11 +264,6 @@ class DrawingPathItem(DrawingItem):
 
     # ==================================================================================================================
 
-    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
-        self.setRect(self.pathRect())
-
-    # ==================================================================================================================
-
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
@@ -309,13 +305,13 @@ class DrawingPathItem(DrawingItem):
     # ==================================================================================================================
 
     def _updatePathTransforms(self):
-        self._pathTransform.clear()
-        self._pathTransformInverse.clear()
+        self._pathTransform = QTransform()
+        self._pathTransformInverse = QTransform()
         if (self.isValid()):
-            self._pathTransform.translate(-self._rect.left(), -self._rect.top())
+            self._pathTransform.translate(-self._pathRect.left(), -self._pathRect.top())
             self._pathTransform.scale(self._pathRect.width() / self._rect.width(),
                                       self._pathRect.height() / self._rect.height())
-            self._pathTransform.translate(self._pathRect.left(), self._pathRect.top())
+            self._pathTransform.translate(self._rect.left(), self._rect.top())
 
             self._pathTransformInverse = self._pathTransform.inverted()[0]
 

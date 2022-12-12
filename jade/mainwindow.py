@@ -19,7 +19,7 @@ import typing
 from PySide6.QtCore import Qt, QSize, SignalInstance
 from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
-                               QMessageBox, QToolBar, QWidget)
+                               QMenu, QMessageBox, QToolBar, QWidget)
 from .drawing.drawingunits import DrawingUnits
 from .drawing.drawingwidget import DrawingWidget
 from .pagesbrowser import PagesBrowser
@@ -155,6 +155,12 @@ class MainWindow(QMainWindow):
         placeMenu.addAction(self._drawing.placeTextAction)
         placeMenu.addAction(self._drawing.placeTextRectAction)
         placeMenu.addAction(self._drawing.placeTextEllipseAction)
+        placeMenu.addSeparator()
+
+        electricMenu = QMenu('Electric Items')
+        for action in self._drawing.electricActions:
+            electricMenu.addAction(action)
+        placeMenu.addMenu(electricMenu)
 
         objectMenu = self.menuBar().addMenu('Object')
         objectMenu.addAction(self._drawing.rotateAction)

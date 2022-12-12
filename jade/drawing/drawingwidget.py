@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import copy
 import typing
 from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QPoint, QPointF, QRectF, Signal
@@ -36,6 +37,7 @@ from ..items.drawingrectitem import DrawingRectItem
 from ..items.drawingtextellipseitem import DrawingTextEllipseItem
 from ..items.drawingtextitem import DrawingTextItem
 from ..items.drawingtextrectitem import DrawingTextRectItem
+from ..items.electricitems import ElectricItems
 
 
 class DrawingWidget(QWidget, DrawingXmlInterface):
@@ -59,6 +61,8 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
 
     def __init__(self) -> None:
         super().__init__()
+
+        self._factoryPathItems: list[DrawingPathItem] = []
 
         self._defaultSceneRect: QRectF = QRectF(-20, -20, 800, 600)
         self._defaultBackgroundBrush: QBrush = QBrush(QColor(255, 255, 255))
@@ -170,6 +174,8 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         self.placeTextEllipseAction: QAction = self._addPlaceAction(DrawingTextEllipseItem(), 'icons:text-ellipse.png')
         DrawingItem.registerFactoryItem(DrawingPathItem())
         DrawingItem.registerFactoryItem(DrawingItemGroup())
+
+        self.electricActions: list[QAction] = self._addPathActions(ElectricItems.create())
 
         self.selectModeAction.setChecked(True)
 
@@ -969,6 +975,13 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         DrawingItem.registerFactoryItem(item)
         return self._addModeAction(f'Place {item.prettyName()}', item.key(), iconPath)
 
+    def _addPathActions(self, items: list[tuple[DrawingPathItem, str]]) -> list[QAction]:
+        actions = []
+        for pathItem, iconPath in items:
+            self._factoryPathItems.append(pathItem)
+            actions.append(self._addModeAction(f'Place {pathItem.prettyName()}', pathItem.pathName(), iconPath))
+        return actions
+
     def _setModeFromAction(self, action: QAction) -> None:
         if (action == self.selectModeAction):
             self.setSelectMode()
@@ -978,7 +991,16 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
             self.setZoomMode()
         else:
             if (self._currentPage is not None):
-                item = DrawingItem.createItemFromFactory(action.property('key'))
+                key = action.property('key')
+                item = DrawingItem.createItemFromFactory(key)
+                if (item is None):
+                    for pathItem in self._factoryPathItems:
+                        if (key == pathItem.pathName()):
+                            item = copy.copy(pathItem)
+                    if (item is not None):
+                        item.setRect(QRectF(item.rect().left() * self._grid, item.rect().top() * self._grid,
+                                            item.rect().width() * self._grid, item.rect().height() * self._grid))
+
                 if (item is not None):
                     # Set default item properties
                     item.setProperty('pen', QPen(self._defaultPen))
