@@ -27,7 +27,6 @@ from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
-#   - Bug with pasting DrawingRectItem
 #   - Add items:
 #     - Electric items
 #     - Logic items

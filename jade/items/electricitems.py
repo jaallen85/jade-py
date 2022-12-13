@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from PySide6.QtCore import QLineF, QPointF, QRectF
+from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPainterPath
 from ..items.drawingpathitem import DrawingPathItem
 
@@ -34,15 +34,24 @@ class ElectricItems:
         pathRect = QRectF(-4.0, -1.0, 8.0, 2.0)
 
         path = QPainterPath()
-        ElectricItems.addLineToPath(path, QLineF(-4.0, 0.0, -3.0, 0.0))
-        ElectricItems.addLineToPath(path, QLineF(-3.0, 0.0, -2.5, -1.0))
-        ElectricItems.addLineToPath(path, QLineF(-2.5, -1.0, -1.5, 1.0))
-        ElectricItems.addLineToPath(path, QLineF(-1.5, 1.0, -0.5, -1.0))
-        ElectricItems.addLineToPath(path, QLineF(-0.5, -1.0, 0.5, 1.0))
-        ElectricItems.addLineToPath(path, QLineF(0.5, 1.0, 1.5, -1.0))
-        ElectricItems.addLineToPath(path, QLineF(1.5, -1.0, 2.5, 1.0))
-        ElectricItems.addLineToPath(path, QLineF(2.5, 1.0, 3.0, 0.0))
-        ElectricItems.addLineToPath(path, QLineF(3.0, 0.0, 4.0, 0.0))
+        path.moveTo(-4.0, 0.0)
+        path.lineTo(-3.0, 0.0)
+        path.moveTo(-3.0, 0.0)
+        path.lineTo(-2.5, -1.0)
+        path.moveTo(-2.5, -1.0)
+        path.lineTo(-1.5, 1.0)
+        path.moveTo(-1.5, 1.0)
+        path.lineTo(-0.5, -1.0)
+        path.moveTo(-0.5, -1.0)
+        path.lineTo(0.5, 1.0)
+        path.moveTo(0.5, 1.0)
+        path.lineTo(1.5, -1.0)
+        path.moveTo(1.5, -1.0)
+        path.lineTo(2.5, 1.0)
+        path.moveTo(2.5, 1.0)
+        path.lineTo(3.0, 0.0)
+        path.moveTo(3.0, 0.0)
+        path.lineTo(4.0, 0.0)
 
         item = DrawingPathItem()
         item.setPathName('Resistor 1')
@@ -59,12 +68,16 @@ class ElectricItems:
         pathRect = QRectF(-4.0, -1.0, 8.0, 2.0)
 
         path = QPainterPath()
-        ElectricItems.addLineToPath(path, QLineF(-4.0, 0.0, -3.0, 0.0))
-        ElectricItems.addLineToPath(path, QLineF(-3.0, -1.0, 3.0, -1.0))
-        ElectricItems.addLineToPath(path, QLineF(3.0, -1.0, 3.0, 1.0))
-        ElectricItems.addLineToPath(path, QLineF(3.0, 1.0, -3.0, 1.0))
-        ElectricItems.addLineToPath(path, QLineF(-3.0, 1.0, -3.0, -1.0))
-        ElectricItems.addLineToPath(path, QLineF(3.0, 0, 4.0, 0))
+        path.moveTo(-3.0, -1.0)
+        path.lineTo(3.0, -1.0)
+        path.lineTo(3.0, 1.0)
+        path.lineTo(-3.0, 1.0)
+        path.lineTo(-3.0, -1.0)
+
+        path.moveTo(-4.0, 0.0)
+        path.lineTo(-3.0, 0.0)
+        path.moveTo(4.0, 0.0)
+        path.lineTo(3.0, 0.0)
 
         item = DrawingPathItem()
         item.setPathName('Resistor 2')
@@ -73,10 +86,3 @@ class ElectricItems:
         item.addConnectionPoint(QPointF(-4.0, 0.0))
         item.addConnectionPoint(QPointF(4.0, 0.0))
         return item
-
-    # ======================================================================================================================
-
-    @staticmethod
-    def addLineToPath(path: QPainterPath, line: QLineF) -> None:
-        path.moveTo(line.x1(), line.y1())
-        path.lineTo(line.x2(), line.y2())
