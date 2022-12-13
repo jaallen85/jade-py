@@ -60,6 +60,7 @@ class PreferencesDialog(QDialog):
         self.setLayout(vLayout)
 
         self.setWindowTitle('Preferences')
+        self.setWindowIcon(QIcon('icons:jade.png'))
         self.resize(460, 580)
 
     def _setupGeneralWidget(self) -> None:

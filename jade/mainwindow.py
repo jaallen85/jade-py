@@ -22,6 +22,7 @@ from PySide6.QtGui import QAction, QBrush, QCloseEvent, QFontMetrics, QIcon, QKe
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMenu, QMessageBox, QToolBar, QWidget)
 from .drawing.drawingxmlinterface import DrawingXmlInterface
+from .aboutdialog import AboutDialog
 from .diagramwidget import DiagramWidget
 from .pagesbrowser import PagesBrowser
 from .preferencesdialog import PreferencesDialog
@@ -36,7 +37,6 @@ from .propertiesbrowser import PropertiesBrowser
 #     - Export to SVG
 #     - Export to ODG
 #     - Export to VSDX
-#   - About dialog
 
 
 class MainWindow(QMainWindow, DrawingXmlInterface):
@@ -429,7 +429,8 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
             self._diagram.setDefaultTextBrush(dialog.defaultTextBrush())
 
     def about(self) -> None:
-        pass
+        dialog = AboutDialog()
+        dialog.exec()
 
     # ==================================================================================================================
 
