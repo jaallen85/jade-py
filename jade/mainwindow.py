@@ -16,30 +16,30 @@
 
 import os
 import typing
-from PySide6.QtCore import Qt, QSize, SignalInstance
-from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
+from xml.etree import ElementTree
+from PySide6.QtCore import Qt, QRectF, QSize, SignalInstance
+from PySide6.QtGui import QAction, QBrush, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMenu, QMessageBox, QToolBar, QWidget)
+from .drawing.drawingxmlinterface import DrawingXmlInterface
 from .diagramwidget import DiagramWidget
 from .pagesbrowser import PagesBrowser
+from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
 #   - Add items:
 #     - Electric items
 #     - Logic items
-#   - Main window
-#     - Save/load settings
 #   - Exporters:
 #     - Export to PNG
 #     - Export to SVG
+#     - Export to ODG
 #     - Export to VSDX
-#   - Preferences dialog
 #   - About dialog
-#   - Add template selection dialog to newDrawing
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow, DrawingXmlInterface):
     def __init__(self) -> None:
         super().__init__()
 
@@ -387,7 +387,46 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def preferences(self) -> None:
-        pass
+        dialog = PreferencesDialog()
+
+        dialog.setPromptWhenOverwriting(self._promptOverwrite)
+        dialog.setPromptWhenClosingUnsaved(self._promptCloseUnsaved)
+
+        dialog.setDefaultSceneRect(self._diagram.defaultSceneRect())
+        dialog.setDefaultBackgroundBrush(self._diagram.defaultBackgroundBrush())
+        dialog.setDefaultGrid(self._diagram.defaultGrid())
+        dialog.setDefaultGridVisible(self._diagram.isDefaultGridVisible())
+        dialog.setDefaultGridBrush(self._diagram.defaultGridBrush())
+        dialog.setDefaultGridSpacingMajor(self._diagram.defaultGridSpacingMajor())
+        dialog.setDefaultGridSpacingMinor(self._diagram.defaultGridSpacingMinor())
+
+        dialog.setDefaultPen(self._diagram.defaultPen())
+        dialog.setDefaultBrush(self._diagram.defaultBrush())
+        dialog.setDefaultStartArrow(self._diagram.defaultStartArrow())
+        dialog.setDefaultEndArrow(self._diagram.defaultEndArrow())
+        dialog.setDefaultFont(self._diagram.defaultFont())
+        dialog.setDefaultTextAlignment(self._diagram.defaultTextAlignment())
+        dialog.setDefaultTextBrush(self._diagram.defaultTextBrush())
+
+        if (dialog.exec() == PreferencesDialog.DialogCode.Accepted):
+            self._promptOverwrite = dialog.shouldPromptWhenOverwriting()
+            self._promptCloseUnsaved = dialog.shouldPromptWhenClosingUnsaved()
+
+            self._diagram.setDefaultSceneRect(dialog.defaultSceneRect())
+            self._diagram.setDefaultBackgroundBrush(dialog.defaultBackgroundBrush())
+            self._diagram.setDefaultGrid(dialog.defaultGrid())
+            self._diagram.setDefaultGridVisible(dialog.isDefaultGridVisible())
+            self._diagram.setDefaultGridBrush(dialog.defaultGridBrush())
+            self._diagram.setDefaultGridSpacingMajor(dialog.defaultGridSpacingMajor())
+            self._diagram.setDefaultGridSpacingMinor(dialog.defaultGridSpacingMinor())
+
+            self._diagram.setDefaultPen(dialog.defaultPen())
+            self._diagram.setDefaultBrush(dialog.defaultBrush())
+            self._diagram.setDefaultStartArrow(dialog.defaultStartArrow())
+            self._diagram.setDefaultEndArrow(dialog.defaultEndArrow())
+            self._diagram.setDefaultFont(dialog.defaultFont())
+            self._diagram.setDefaultTextAlignment(dialog.defaultTextAlignment())
+            self._diagram.setDefaultTextBrush(dialog.defaultTextBrush())
 
     def about(self) -> None:
         pass
@@ -473,10 +512,78 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def _saveSettings(self) -> None:
-        pass
+        configElement = ElementTree.Element('jade-config')
+
+        # Main window properties
+        self.writeStr(configElement, 'workingDir', self._workingDir)
+        self.writeBool(configElement, 'promptOverwrite', self._promptOverwrite)
+        self.writeBool(configElement, 'promptCloseUnsaved', self._promptCloseUnsaved)
+
+        # Default drawing properties
+        diagramElement = ElementTree.SubElement(configElement, 'diagramDefaults')
+        self.writeFloat(diagramElement, 'sceneLeft', self._diagram.defaultSceneRect().left(), writeIfDefault=True)
+        self.writeFloat(diagramElement, 'sceneTop', self._diagram.defaultSceneRect().top(), writeIfDefault=True)
+        self.writeFloat(diagramElement, 'sceneWidth', self._diagram.defaultSceneRect().width(), writeIfDefault=True)
+        self.writeFloat(diagramElement, 'sceneHeight', self._diagram.defaultSceneRect().height(), writeIfDefault=True)
+        self.writeColor(diagramElement, 'backgroundColor', self._diagram.defaultBackgroundBrush().color(),
+                        writeIfDefault=True)
+        self.writeFloat(diagramElement, 'grid', self._diagram.defaultGrid(), writeIfDefault=True)
+        self.writeBool(diagramElement, 'gridVisible', self._diagram.isDefaultGridVisible(), writeIfDefault=True)
+        self.writeColor(diagramElement, 'gridColor', self._diagram.defaultGridBrush().color(), writeIfDefault=True)
+        self.writeInt(diagramElement, 'gridSpacingMajor', self._diagram.defaultGridSpacingMajor(), writeIfDefault=True)
+        self.writeInt(diagramElement, 'gridSpacingMinor', self._diagram.defaultGridSpacingMinor(), writeIfDefault=True)
+
+        # Default item properties
+        itemElement = ElementTree.SubElement(configElement, 'itemDefaults')
+        self.writePen(itemElement, 'pen', self._diagram.defaultPen())
+        self.writeBrush(itemElement, 'brush', self._diagram.defaultBrush())
+        self.writeArrow(itemElement, 'startArrow', self._diagram.defaultStartArrow())
+        self.writeArrow(itemElement, 'endArrow', self._diagram.defaultEndArrow())
+        self.writeFont(itemElement, 'font', self._diagram.defaultFont())
+        self.writeAlignment(itemElement, 'textAlignment', self._diagram.defaultTextAlignment())
+        self.writeBrush(itemElement, 'text', self._diagram.defaultTextBrush())
+
+        ElementTree.indent(configElement, space='  ')
+        with open('./config.xml', 'w', encoding='utf-8') as file:
+            file.write(ElementTree.tostring(configElement, encoding='unicode', xml_declaration=True))
+            file.write('\n')
 
     def _loadSettings(self) -> None:
-        pass
+        try:
+            xml = ElementTree.parse('./config.xml')
+            configElement = xml.getroot()
+            if (configElement.tag == 'jade-config'):
+                # Main window properties
+                self._workingDir = self.readStr(configElement, 'workingDir')
+                self._promptOverwrite = self.readBool(configElement, 'promptOverwrite')
+                self._promptCloseUnsaved = self.readBool(configElement, 'promptCloseUnsaved')
+
+                # Default drawing properties
+                for diagramElement in configElement.findall('diagramDefaults'):
+                    self._diagram.setDefaultSceneRect(QRectF(self.readFloat(diagramElement, 'sceneLeft'),
+                                                             self.readFloat(diagramElement, 'sceneTop'),
+                                                             self.readFloat(diagramElement, 'sceneWidth'),
+                                                             self.readFloat(diagramElement, 'sceneHeight')))
+                    self._diagram.setDefaultBackgroundBrush(QBrush(self.readColor(diagramElement, 'backgroundColor')))
+                    self._diagram.setDefaultGrid(self.readFloat(diagramElement, 'grid'))
+                    self._diagram.setDefaultGridVisible(self.readBool(diagramElement, 'gridVisible'))
+                    self._diagram.setDefaultGridBrush(QBrush(self.readColor(diagramElement, 'gridColor')))
+                    self._diagram.setDefaultGridSpacingMajor(self.readInt(diagramElement, 'gridSpacingMajor'))
+                    self._diagram.setDefaultGridSpacingMinor(self.readInt(diagramElement, 'gridSpacingMinor'))
+
+                # Default item properties
+                for itemElement in configElement.findall('itemDefaults'):
+                    self._diagram.setDefaultPen(self.readPen(itemElement, 'pen'))
+                    self._diagram.setDefaultBrush(self.readBrush(itemElement, 'brush'))
+                    self._diagram.setDefaultStartArrow(self.readArrow(itemElement, 'startArrow'))
+                    self._diagram.setDefaultEndArrow(self.readArrow(itemElement, 'endArrow'))
+                    self._diagram.setDefaultFont(self.readFont(itemElement, 'font'))
+                    self._diagram.setDefaultTextAlignment(self.readAlignment(itemElement, 'textAlignment'))
+                    self._diagram.setDefaultTextBrush(self.readBrush(itemElement, 'text'))
+
+            self._diagram.clear()
+        except FileNotFoundError:
+            pass
 
     # ==================================================================================================================
 

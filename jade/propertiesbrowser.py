@@ -37,6 +37,12 @@ class PropertiesBrowser(QStackedWidget):
         self._pagePropertiesScroll.setWidgetResizable(True)
         self.addWidget(self._pagePropertiesScroll)
 
+        self._pagePropertiesWidget.setDrawingProperty('grid', self._diagram.grid())
+        self._pagePropertiesWidget.setDrawingProperty('gridVisible', self._diagram.isGridVisible())
+        self._pagePropertiesWidget.setDrawingProperty('gridBrush', self._diagram.gridBrush())
+        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMajor', self._diagram.gridSpacingMajor())
+        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMinor', self._diagram.gridSpacingMinor())
+
         self._multipleItemsPropertiesWidget: MultipleItemPropertiesWidget = MultipleItemPropertiesWidget()
         self._multipleItemsPropertiesScroll: QScrollArea = QScrollArea()
         self._multipleItemsPropertiesScroll.setWidget(self._multipleItemsPropertiesWidget)
@@ -64,13 +70,6 @@ class PropertiesBrowser(QStackedWidget):
         self._singleItemsPropertiesWidget.itemMoved.connect(self._diagram.moveCurrentItem)
         self._singleItemsPropertiesWidget.itemResized.connect(self._diagram.resizeCurrentItem)
         self._singleItemsPropertiesWidget.itemPropertyChanged.connect(self._diagram.updateCurrentItemsProperty)
-
-        self._pagePropertiesWidget.setDrawingProperty('grid', self._diagram.grid())
-        self._pagePropertiesWidget.setDrawingProperty('gridVisible', self._diagram.isGridVisible())
-        self._pagePropertiesWidget.setDrawingProperty('gridBrush', self._diagram.gridBrush())
-        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMajor', self._diagram.gridSpacingMajor())
-        self._pagePropertiesWidget.setDrawingProperty('gridSpacingMinor', self._diagram.gridSpacingMinor())
-
     # ==================================================================================================================
 
     def sizeHint(self) -> QSize:

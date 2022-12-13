@@ -34,7 +34,7 @@ class SingleItemPropertiesWidget(QWidget):
 
         self._item: DrawingItem | None = None
 
-        self._labelWidth: int = QFontMetrics(self.font()).boundingRect("Minor Grid Spacing:").width() + 8
+        self._labelWidth: int = QFontMetrics(super().font()).boundingRect("Minor Grid Spacing:").width() + 8
 
         layout = QVBoxLayout()
         layout.addWidget(self._createPositionGroup())
@@ -62,6 +62,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._positionLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._positionLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
         self._positionGroup.setLayout(self._positionLayout)
+        self._positionGroup.setVisible(False)
 
         return self._positionGroup
 
@@ -85,6 +86,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._lineLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._lineLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
         self._lineGroup.setLayout(self._lineLayout)
+        self._lineGroup.setVisible(False)
 
         return self._lineGroup
 
@@ -112,6 +114,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._curveLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._curveLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
         self._curveGroup.setLayout(self._curveLayout)
+        self._curveGroup.setVisible(False)
 
         return self._curveGroup
 
@@ -139,6 +142,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._rectLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._rectLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
         self._rectGroup.setLayout(self._rectLayout)
+        self._rectGroup.setVisible(False)
 
         return self._rectGroup
 
@@ -162,6 +166,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._ellipseLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._ellipseLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
         self._ellipseGroup.setLayout(self._ellipseLayout)
+        self._ellipseGroup.setVisible(False)
 
         return self._ellipseGroup
 
@@ -174,6 +179,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._polygonLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._polygonLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._polygonGroup.setLayout(self._polygonLayout)
+        self._polygonGroup.setVisible(False)
 
         return self._polygonGroup
 
@@ -186,6 +192,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._polylineLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._polylineLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._polylineGroup.setLayout(self._polylineLayout)
+        self._polylineGroup.setVisible(False)
 
         return self._polylineGroup
 
@@ -323,7 +330,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._textAlignmentVCenterButton.clicked.connect(self._handleTextAlignmentChange)   # type: ignore
 
         self._textAlignmentBottomButton: QToolButton = QToolButton()
-        self._textAlignmentBottomButton.setIcon(QIcon('icons:align-vertical-right.png'))
+        self._textAlignmentBottomButton.setIcon(QIcon('icons:align-vertical-bottom.png'))
         self._textAlignmentBottomButton.setToolTip('Align Bottom')
         self._textAlignmentBottomButton.setCheckable(True)
         self._textAlignmentBottomButton.setAutoExclusive(True)
@@ -390,9 +397,96 @@ class SingleItemPropertiesWidget(QWidget):
         self._textLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._textLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._textLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
+        self._textLayout.setRowVisible(self._textWidget, False)
         self._textGroup.setLayout(self._textLayout)
 
         return self._textGroup
+
+    # ==================================================================================================================
+
+    def setPen(self, pen: QPen) -> None:
+        self._penStyleCombo.setCurrentIndex(pen.style().value)      # type: ignore
+        self._penWidthEdit.setSize(pen.widthF())
+        self._penColorWidget.setColor(pen.brush().color())
+
+    def setBrush(self, brush: QBrush) -> None:
+        self._brushColorWidget.setColor(brush.color())
+
+    def setStartArrow(self, arrow: DrawingArrow) -> None:
+        self._startArrowStyleCombo.setCurrentIndex(arrow.style().value)
+        self._startArrowSizeEdit.setSize(arrow.size())
+
+    def setEndArrow(self, arrow: DrawingArrow) -> None:
+        self._endArrowStyleCombo.setCurrentIndex(arrow.style().value)
+        self._endArrowSizeEdit.setSize(arrow.size())
+
+    def setFont(self, font: QFont) -> None:     # type: ignore
+        self._fontFamilyCombo.setCurrentFont(font)
+        self._fontSizeEdit.setSize(font.pointSizeF())
+        self._fontBoldButton.setChecked(font.bold())
+        self._fontItalicButton.setChecked(font.italic())
+        self._fontUnderlineButton.setChecked(font.underline())
+        self._fontStrikeOutButton.setChecked(font.strikeOut())
+
+    def setTextAlignment(self, alignment: Qt.AlignmentFlag) -> None:
+        horizontal = (alignment & Qt.AlignmentFlag.AlignHorizontal_Mask)
+        if (horizontal & Qt.AlignmentFlag.AlignHCenter):
+            self._textAlignmentHCenterButton.setChecked(True)
+        elif (horizontal & Qt.AlignmentFlag.AlignRight):
+            self._textAlignmentRightButton.setChecked(True)
+        else:
+            self._textAlignmentLeftButton.setChecked(True)
+        vertical = (alignment & Qt.AlignmentFlag.AlignVertical_Mask)
+        if (vertical & Qt.AlignmentFlag.AlignVCenter):
+            self._textAlignmentVCenterButton.setChecked(True)
+        elif (vertical & Qt.AlignmentFlag.AlignBottom):
+            self._textAlignmentBottomButton.setChecked(True)
+        else:
+            self._textAlignmentTopButton.setChecked(True)
+
+    def setTextBrush(self, brush: QBrush) -> None:
+        self._textColorWidget.setColor(brush.color())
+
+    def pen(self) -> QPen:
+        return QPen(QBrush(self._penColorWidget.color()), self._penWidthEdit.size(),
+                    Qt.PenStyle(self._penStyleCombo.currentIndex()), Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+
+    def brush(self) -> QBrush:
+        return QBrush(self._brushColorWidget.color())
+
+    def startArrow(self) -> DrawingArrow:
+        return DrawingArrow(DrawingArrow.Style(self._startArrowStyleCombo.currentIndex()),
+                            self._startArrowSizeEdit.size())
+
+    def endArrow(self) -> DrawingArrow:
+        return DrawingArrow(DrawingArrow.Style(self._endArrowStyleCombo.currentIndex()),
+                            self._endArrowSizeEdit.size())
+
+    def font(self) -> QFont:
+        font = QFont()
+        font.setFamily(self._fontFamilyCombo.currentFont().family())
+        font.setPointSizeF(self._fontSizeEdit.size())
+        font.setBold(self._fontBoldButton.isChecked())
+        font.setItalic(self._fontItalicButton.isChecked())
+        font.setUnderline(self._fontUnderlineButton.isChecked())
+        font.setStrikeOut(self._fontStrikeOutButton.isChecked())
+        return font
+
+    def textAlignment(self) -> Qt.AlignmentFlag:
+        horizontal = Qt.AlignmentFlag.AlignLeft
+        if (self._textAlignmentHCenterButton.isChecked()):
+            horizontal = Qt.AlignmentFlag.AlignHCenter
+        elif (self._textAlignmentRightButton.isChecked()):
+            horizontal = Qt.AlignmentFlag.AlignRight
+        vertical = Qt.AlignmentFlag.AlignLeft
+        if (self._textAlignmentVCenterButton.isChecked()):
+            vertical = Qt.AlignmentFlag.AlignVCenter
+        elif (self._textAlignmentBottomButton.isChecked()):
+            vertical = Qt.AlignmentFlag.AlignBottom
+        return (horizontal | vertical)
+
+    def textBrush(self) -> QBrush:
+        return QBrush(self._textColorWidget.color())
 
     # ==================================================================================================================
 
@@ -583,15 +677,13 @@ class SingleItemPropertiesWidget(QWidget):
             showPen = False
             if (isinstance(pen, QPen)):
                 showPen = True
-                self._penStyleCombo.setCurrentIndex(pen.style().value)      # type: ignore
-                self._penWidthEdit.setSize(pen.widthF())
-                self._penColorWidget.setColor(pen.brush().color())
+                self.setPen(pen)
 
             # Brush
             showBrush = False
             if (isinstance(brush, QBrush)):
                 showBrush = True
-                self._brushColorWidget.setColor(brush.color())
+                self.setBrush(brush)
 
             # Set pen/brush group visibility
             self._penBrushLayout.setRowVisible(self._penStyleCombo, showPen)
@@ -611,15 +703,13 @@ class SingleItemPropertiesWidget(QWidget):
             showStartArrow = False
             if (isinstance(startArrow, DrawingArrow)):
                 showStartArrow = True
-                self._startArrowStyleCombo.setCurrentIndex(startArrow.style().value)
-                self._startArrowSizeEdit.setSize(startArrow.size())
+                self.setStartArrow(startArrow)
 
             # End arrow
             showEndArrow = False
             if (isinstance(endArrow, DrawingArrow)):
                 showEndArrow = True
-                self._endArrowStyleCombo.setCurrentIndex(endArrow.style().value)
-                self._endArrowSizeEdit.setSize(endArrow.size())
+                self.setEndArrow(endArrow)
 
             # Set arrow group visibility
             self._arrowLayout.setRowVisible(self._startArrowStyleCombo, showStartArrow)
@@ -634,44 +724,26 @@ class SingleItemPropertiesWidget(QWidget):
         if (self._item is not None):
             font = self._item.property('font')
             textAlignment = self._item.property('textAlignment')
-            textColor = self._item.property('textColor')
+            textBrush = self._item.property('textBrush')
             text = self._item.property('caption')
 
             # Font
             showFont = False
             if (isinstance(font, QFont)):
                 showFont = True
-                self._fontFamilyCombo.setCurrentFont(font)
-                self._fontSizeEdit.setSize(font.pointSizeF())
-                self._fontBoldButton.setChecked(font.bold())
-                self._fontItalicButton.setChecked(font.italic())
-                self._fontUnderlineButton.setChecked(font.underline())
-                self._fontStrikeOutButton.setChecked(font.strikeOut())
+                self.setFont(font)
 
             # Text Alignment
             showTextAlignment = False
             if (isinstance(textAlignment, Qt.AlignmentFlag)):
                 showTextAlignment = True
-                horizontal = (textAlignment & Qt.AlignmentFlag.AlignHorizontal_Mask)
-                if (horizontal & Qt.AlignmentFlag.AlignHCenter):
-                    self._textAlignmentHCenterButton.setChecked(True)
-                elif (horizontal & Qt.AlignmentFlag.AlignRight):
-                    self._textAlignmentRightButton.setChecked(True)
-                else:
-                    self._textAlignmentLeftButton.setChecked(True)
-                vertical = (textAlignment & Qt.AlignmentFlag.AlignVertical_Mask)
-                if (vertical & Qt.AlignmentFlag.AlignVCenter):
-                    self._textAlignmentVCenterButton.setChecked(True)
-                elif (vertical & Qt.AlignmentFlag.AlignBottom):
-                    self._textAlignmentBottomButton.setChecked(True)
-                else:
-                    self._textAlignmentTopButton.setChecked(True)
+                self.setTextAlignment(textAlignment)
 
-            # Text Color
-            showTextColor = False
-            if (isinstance(textColor, QColor)):
-                showTextColor = True
-                self._textColorWidget.setColor(textColor)
+            # Text Brush
+            showTextBrush = False
+            if (isinstance(textBrush, QBrush)):
+                showTextBrush = True
+                self.setTextBrush(textBrush)
 
             # Text
             showText = False
@@ -685,9 +757,9 @@ class SingleItemPropertiesWidget(QWidget):
             self._textLayout.setRowVisible(self._fontSizeEdit, showFont)
             self._textLayout.setRowVisible(self._fontStyleWidget, showFont)
             self._textLayout.setRowVisible(self._textAlignmentWidget, showTextAlignment)
-            self._textLayout.setRowVisible(self._textColorWidget, showTextColor)
+            self._textLayout.setRowVisible(self._textColorWidget, showTextBrush)
             self._textLayout.setRowVisible(self._textWidget, showText)
-            self._textGroup.setVisible(showFont or showTextAlignment or showTextColor or showText)
+            self._textGroup.setVisible(showFont or showTextAlignment or showTextBrush or showText)
         else:
             self._textGroup.setVisible(False)
 
@@ -840,17 +912,7 @@ class SingleItemPropertiesWidget(QWidget):
         self.itemPropertyChanged.emit('fontStyle', styles)
 
     def _handleTextAlignmentChange(self) -> None:
-        horizontal = Qt.AlignmentFlag.AlignLeft
-        if (self._textAlignmentHCenterButton.isChecked()):
-            horizontal = Qt.AlignmentFlag.AlignHCenter
-        elif (self._textAlignmentRightButton.isChecked()):
-            horizontal = Qt.AlignmentFlag.AlignRight
-        vertical = Qt.AlignmentFlag.AlignLeft
-        if (self._textAlignmentVCenterButton.isChecked()):
-            vertical = Qt.AlignmentFlag.AlignVCenter
-        elif (self._textAlignmentBottomButton.isChecked()):
-            vertical = Qt.AlignmentFlag.AlignBottom
-        self.itemPropertyChanged.emit('textAlignment', horizontal | vertical)
+        self.itemPropertyChanged.emit('textAlignment', self.textAlignment())
 
     def _handleTextColorChange(self, color: QColor) -> None:
         self.itemPropertyChanged.emit('textColor', color)

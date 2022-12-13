@@ -97,7 +97,7 @@ class DrawingXmlInterface:
                 penStyle = '"dash-dot'
             case Qt.PenStyle.DashDotDotLine:
                 penStyle = 'dash-dot-dot'
-        self.writeStr(element, name, penStyle)
+        self.writeStr(element, f'{name}Style', penStyle)
 
     def writeFont(self, element: ElementTree.Element, name: str, font: QFont) -> None:
         self.writeStr(element, f'{name}Name', font.family())

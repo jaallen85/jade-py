@@ -450,8 +450,10 @@ class DiagramWidget(DrawingWidget):
         diagramElement = ElementTree.Element('jade-diagram')
         self.writeToXml(diagramElement)
 
+        ElementTree.indent(diagramElement, space='  ')
         with open(path, 'w', encoding='utf-8') as file:
             file.write(ElementTree.tostring(diagramElement, encoding='unicode', xml_declaration=True))
+            file.write('\n')
 
         self._undoStack.setClean()
         return True

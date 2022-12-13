@@ -99,37 +99,88 @@ class PagePropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
+    def setSceneRect(self, rect: QRectF) -> None:
+        self._sceneRectTopLeftWidget.setPosition(rect.topLeft())
+        self._sceneRectSizeWidget.setSize(rect.size())
+
+    def setBackgroundBrush(self, brush: QBrush) -> None:
+        self._backgroundColorWidget.setColor(brush.color())
+
+    def setGrid(self, grid: float) -> None:
+        self._gridEdit.setSize(grid)
+
+    def setGridVisible(self, visible: bool) -> None:
+        self._gridVisibleCombo.setCurrentIndex(1 if visible else 0)
+
+    def setGridBrush(self, brush: QBrush) -> None:
+        self._gridColorWidget.setColor(brush.color())
+
+    def setGridSpacingMajor(self, spacing: int) -> None:
+        self._gridSpacingMajorWidget.setText(str(spacing))
+        self._cachedGridSpacingMajor = spacing
+
+    def setGridSpacingMinor(self, spacing: int) -> None:
+        self._gridSpacingMinorWidget.setText(str(spacing))
+        self._cachedGridSpacingMinor = spacing
+
+    def sceneRect(self) -> QRectF:
+        return QRectF(self._sceneRectTopLeftWidget.position(), self._sceneRectSizeWidget.size()).normalized()
+
+    def backgroundBrush(self) -> QBrush:
+        return QBrush(self._backgroundColorWidget.color())
+
+    def grid(self) -> float:
+        return self._gridEdit.size()
+
+    def isGridVisible(self) -> bool:
+        return (self._gridVisibleCombo.currentIndex() == 1)
+
+    def gridBrush(self) -> QBrush:
+        return QBrush(self._gridColorWidget.color())
+
+    def gridSpacingMajor(self) -> int:
+        try:
+            return int(self._gridSpacingMajorWidget.text())
+        except ValueError:
+            pass
+        return self._cachedGridSpacingMajor
+
+    def gridSpacingMinor(self) -> int:
+        try:
+            return int(self._gridSpacingMinorWidget.text())
+        except ValueError:
+            pass
+        return self._cachedGridSpacingMinor
+
+    # ==================================================================================================================
+
     def setDrawingProperty(self, name: str, value: typing.Any) -> None:
         self.blockSignals(True)
         if (name == 'grid' and isinstance(value, float)):
-            self._gridEdit.setSize(value)
+            self.setGrid(value)
         elif (name == 'gridVisible' and isinstance(value, bool)):
-            self._gridVisibleCombo.setCurrentIndex(1 if value else 0)
+            self.setGridVisible(value)
         elif (name == 'gridBrush' and isinstance(value, QBrush)):
-            self._gridColorWidget.setColor(value.color())
+            self.setGridBrush(value)
         elif (name == 'gridSpacingMajor' and isinstance(value, int)):
-            self._gridSpacingMajorWidget.setText(str(value))
-            self._cachedGridSpacingMajor = value
+            self.setGridSpacingMajor(value)
         elif (name == 'gridSpacingMinor' and isinstance(value, int)):
-            self._gridSpacingMinorWidget.setText(str(value))
-            self._cachedGridSpacingMinor = value
+            self.setGridSpacingMinor(value)
         self.blockSignals(False)
 
     def setPage(self, page: DrawingPageWidget | None) -> None:
         if (page is not None):
             self.blockSignals(True)
-            self._sceneRectTopLeftWidget.setPosition(page.sceneRect().topLeft())
-            self._sceneRectSizeWidget.setSize(page.sceneRect().size())
-            self._backgroundColorWidget.setColor(page.backgroundBrush().color())
+            self.setSceneRect(page.sceneRect())
+            self.setBackgroundBrush(page.backgroundBrush())
             self.blockSignals(False)
 
     def setPageProperty(self, name: str, value: typing.Any) -> None:
         self.blockSignals(True)
         if (name == 'sceneRect' and isinstance(value, QRectF)):
-            self._sceneRectTopLeftWidget.setPosition(value.topLeft())
-            self._sceneRectSizeWidget.setSize(value.size())
+            self.setSceneRect(value)
         elif (name == 'backgroundBrush' and isinstance(value, QBrush)):
-            self._backgroundColorWidget.setColor(value.color())
+            self.setBackgroundBrush(value)
         self.blockSignals(False)
 
     # ==================================================================================================================
