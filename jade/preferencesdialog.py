@@ -24,8 +24,8 @@ from .properties.singleitempropertieswidget import SingleItemPropertiesWidget
 
 
 class PreferencesDialog(QDialog):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
 
         rect = QFontMetrics(self.font()).boundingRect('Diagram Defaults')
         width = rect.width() + 24

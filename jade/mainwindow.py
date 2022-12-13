@@ -29,14 +29,9 @@ from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
-#   - Add items:
-#     - Electric items
-#     - Logic items
-#   - Exporters:
-#     - Export to PNG
-#     - Export to SVG
-#     - Export to ODG
-#     - Export to VSDX
+#   - Export to PNG
+#   - Export to SVG
+#   - Export to ODG and/or VSDX
 
 
 class MainWindow(QMainWindow, DrawingXmlInterface):
@@ -387,7 +382,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
     # ==================================================================================================================
 
     def preferences(self) -> None:
-        dialog = PreferencesDialog()
+        dialog = PreferencesDialog(self)
 
         dialog.setPromptWhenOverwriting(self._promptOverwrite)
         dialog.setPromptWhenClosingUnsaved(self._promptCloseUnsaved)
@@ -429,7 +424,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
             self._diagram.setDefaultTextBrush(dialog.defaultTextBrush())
 
     def about(self) -> None:
-        dialog = AboutDialog()
+        dialog = AboutDialog(self)
         dialog.exec()
 
     # ==================================================================================================================

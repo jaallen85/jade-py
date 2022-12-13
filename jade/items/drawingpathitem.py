@@ -18,7 +18,7 @@ import typing
 from enum import IntEnum
 from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QPointF, QRectF
-from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF, QTransform
+from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitempoint import DrawingItemPoint
 
@@ -48,8 +48,6 @@ class DrawingPathItem(DrawingItem):
 
         self._pen: QPen = QPen()
 
-        self._pathTransform: QTransform = QTransform()
-        self._pathTransformInverse: QTransform = QTransform()
         self._transformedPath: QPainterPath = QPainterPath()
 
         for _ in range(8):
@@ -192,13 +190,15 @@ class DrawingPathItem(DrawingItem):
     # ==================================================================================================================
 
     def mapToPath(self, position: QPointF) -> QPointF:
-        return self._pathTransform.map(position)
+        return QPointF((position.x() - self._rect.left()) / self._rect.width() * self._pathRect.width() + self._pathRect.left(),    # noqa
+	                   (position.y() - self._rect.top()) / self._rect.height() * self._pathRect.height() + self._pathRect.top())    # noqa
 
     def mapRectToPath(self, rect: QRectF) -> QRectF:
         return QRectF(self.mapToPath(rect.topLeft()), self.mapToPath(rect.bottomRight()))
 
     def mapFromPath(self, position: QPointF) -> QPointF:
-        return self._pathTransformInverse.map(position)
+        return QPointF((position.x() - self._pathRect.left()) / self._pathRect.width() * self._rect.width() + self._rect.left(),    # noqa
+	                   (position.y() - self._pathRect.top()) / self._pathRect.height() * self._rect.height() + self._rect.top())    # noqa
 
     def mapRectFromPath(self, rect: QRectF) -> QRectF:
         return QRectF(self.mapFromPath(rect.topLeft()), self.mapFromPath(rect.bottomRight()))
@@ -219,6 +219,9 @@ class DrawingPathItem(DrawingItem):
         shape = QPainterPath()
         shape.addRect(self._rect.normalized())
         return shape
+
+    def centerPosition(self) -> QPointF:
+        return QPointF(0.0, 0.0)
 
     def isValid(self) -> bool:
         return (self._rect.width() != 0 and self._rect.height() != 0 and not self._path.isEmpty() and
@@ -314,14 +317,22 @@ class DrawingPathItem(DrawingItem):
     # ==================================================================================================================
 
     def _updatePathTransforms(self):
-        self._pathTransform = QTransform()
-        self._pathTransformInverse = QTransform()
-        if (self.isValid()):
-            self._pathTransform.translate(-self._pathRect.left(), -self._pathRect.top())
-            self._pathTransform.scale(self._pathRect.width() / self._rect.width(),
-                                      self._pathRect.height() / self._rect.height())
-            self._pathTransform.translate(self._rect.left(), self._rect.top())
+        self._transformedPath.clear()
 
-            self._pathTransformInverse = self._pathTransform.inverted()[0]
-
-        self._transformedPath = self._pathTransformInverse.map(self._path)
+        curveDataPoints = []
+        for index in range(self._path.elementCount()):
+            element = self._path.elementAt(index)
+            match (element.type):
+                case QPainterPath.ElementType.MoveToElement:
+                    self._transformedPath.moveTo(self.mapFromPath(QPointF(element.x, element.y)))
+                case QPainterPath.ElementType.LineToElement:
+                    self._transformedPath.lineTo(self.mapFromPath(QPointF(element.x, element.y)))
+                case QPainterPath.ElementType.CurveToElement:
+                    curveDataPoints.append(self.mapFromPath(QPointF(element.x, element.y)))
+                case QPainterPath.ElementType.CurveToDataElement:
+                    if (len(curveDataPoints) < 2):
+                        curveDataPoints.append(self.mapFromPath(QPointF(element.x, element.y)))
+                    else:
+                        self._transformedPath.cubicTo(curveDataPoints[0], curveDataPoints[1],
+                                                      self.mapFromPath(QPointF(element.x, element.y)))
+                        curveDataPoints = []

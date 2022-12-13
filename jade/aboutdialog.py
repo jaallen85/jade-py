@@ -20,8 +20,8 @@ from PySide6.QtWidgets import QDialog, QDialogButtonBox, QGridLayout, QLabel, QT
 
 
 class AboutDialog(QDialog):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
 
         imageLabel = QLabel()
         imageLabel.setPixmap(QPixmap('icons:jade.png'))

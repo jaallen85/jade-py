@@ -525,7 +525,7 @@ class DrawingPageWidget(DrawingPageView):
     def _placeModeNoButtonMouseMoveEvent(self, event: QMouseEvent) -> None:
         # Move the place items within the scene relative to the center of those items.
         centerPosition = self.roundPointToGrid(self._itemsCenter(self._placeModeItems))
-        deltaPosition = self.roundPointToGrid(self.mapToScene(event.pos()) - centerPosition)
+        deltaPosition = self.roundPointToGrid(self.mapToScene(event.pos())) - centerPosition
 
         if (deltaPosition.x() != 0 or deltaPosition.y() != 0):
             newPositions = {}
