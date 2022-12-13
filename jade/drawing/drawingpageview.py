@@ -433,21 +433,22 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
     # ==================================================================================================================
 
     def setSelectMode(self) -> None:
-        self._setMode(DrawingPageView.Mode.SelectMode, [])
+        self._setMode(DrawingPageView.Mode.SelectMode, [], False)
 
     def setScrollMode(self) -> None:
-        self._setMode(DrawingPageView.Mode.ScrollMode, [])
+        self._setMode(DrawingPageView.Mode.ScrollMode, [], False)
 
     def setZoomMode(self) -> None:
-        self._setMode(DrawingPageView.Mode.ZoomMode, [])
+        self._setMode(DrawingPageView.Mode.ZoomMode, [], False)
 
-    def setPlaceMode(self, items: list[DrawingItem]) -> None:
+    def setPlaceMode(self, items: list[DrawingItem], placeByMousePressAndRelease: bool) -> None:
         if (len(items) > 0):
-            self._setMode(DrawingPageView.Mode.PlaceMode, items)
+            self._setMode(DrawingPageView.Mode.PlaceMode, items, placeByMousePressAndRelease)
         else:
-            self._setMode(DrawingPageView.Mode.SelectMode, [])
+            self._setMode(DrawingPageView.Mode.SelectMode, [], False)
 
-    def _setMode(self, mode: 'DrawingPageView.Mode', placeItems: list[DrawingItem]) -> None:
+    def _setMode(self, mode: 'DrawingPageView.Mode', placeItems: list[DrawingItem],
+                 placeByMousePressAndRelease: bool) -> None:
         previousMode = self._mode
         if (previousMode != mode or mode == DrawingPageView.Mode.PlaceMode):
 
@@ -484,14 +485,7 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
 
             # Update the place items, if applicable
             self._placeModeItems = placeItems
-
-            # Send each item a placeStartEvent so it can set its initial geometry as needed
-            for item in self._placeModeItems:
-                item.placeStartEvent(self._sceneRect, self._grid)
-
-            self._placeByMousePressAndRelease = (len(placeItems) == 1 and not placeItems[0].isValid() and
-                                                 placeItems[0].resizeStartPoint() is not None and
-                                                 placeItems[0].resizeEndPoint() is not None)
+            self._placeByMousePressAndRelease = placeByMousePressAndRelease
 
             # Center the items under the mouse cursor
             centerPosition = self.roundPointToGrid(self._itemsCenter(self._placeModeItems))

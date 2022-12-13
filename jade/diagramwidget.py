@@ -366,7 +366,13 @@ class DiagramWidget(DrawingWidget):
                 item = DrawingItem.createItemFromFactory(key)
                 if (item is not None):
                     self._setDefaultItemProperties(item)
-                    self.setPlaceMode([item])
+
+                    # Send the item a placeStartEvent so it can set its initial geometry as needed
+                    item.placeStartEvent(self._currentPage.sceneRect(), self._currentPage.grid())
+                    placeByMousePressAndRelease = (not item.isValid() and item.resizeStartPoint() is not None and
+                                                   item.resizeEndPoint() is not None)
+
+                    self.setPlaceMode([item], placeByMousePressAndRelease)
                 else:
                     self.setSelectMode()
 

@@ -230,7 +230,7 @@ class DrawingPageWidget(DrawingPageView):
             if (rootElement.tag == 'items'):
                 newItems = DrawingItem.readItemsFromXml(rootElement)
             if (len(newItems) > 0):
-                self.setPlaceMode(newItems)
+                self.setPlaceMode(newItems, False)
 
     def delete(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode):
@@ -563,13 +563,18 @@ class DrawingPageWidget(DrawingPageView):
         if (len(self._placeModeItems) > 0 or (len(self._placeModeItems) == 1 and self._placeModeItems[0].isValid())):
             # Place the items within the scene.
             self._pushUndoCommand(self._addItemsCommand(self._placeModeItems, place=(len(self._placeModeItems) == 1)))
-            for item in self._placeModeItems:
-                item.placeEndEvent()
+            if (self._placeByMousePressAndRelease):
+                for item in self._placeModeItems:
+                    item.placeEndEvent()
 
             # Create a new set of place items
             newItems = DrawingItem.copyItems(self._placeModeItems)
+            if (self._placeByMousePressAndRelease):
+                for item in newItems:
+                    item.placeStartEvent(self._sceneRect, self._grid)
+
             self._placeModeItems = []
-            self.setPlaceMode(newItems)
+            self.setPlaceMode(newItems, self._placeByMousePressAndRelease)
 
     # ==================================================================================================================
 

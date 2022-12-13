@@ -581,9 +581,9 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         if (self._currentPage is not None):
             self._currentPage.setZoomMode()
 
-    def setPlaceMode(self, items: list[DrawingItem]) -> None:
+    def setPlaceMode(self, items: list[DrawingItem], placeByMousePressAndRelease: bool) -> None:
         if (self._currentPage is not None):
-            self._currentPage.setPlaceMode(items)
+            self._currentPage.setPlaceMode(items, placeByMousePressAndRelease)
 
     def mode(self) -> DrawingPageWidget.Mode:
         if (self._currentPage is not None):
