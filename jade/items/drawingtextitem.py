@@ -41,7 +41,7 @@ class DrawingTextItem(DrawingItem):
         copiedItem.setCaption(self.caption())
         copiedItem.setFont(self.font())
         copiedItem.setAlignment(self.alignment())
-        copiedItem.setPen(self.pen())
+        copiedItem.setBrush(self.brush())
         return copiedItem
 
     # ==================================================================================================================
@@ -68,8 +68,8 @@ class DrawingTextItem(DrawingItem):
     def setAlignment(self, alignment: Qt.AlignmentFlag) -> None:
         self._alignment = alignment
 
-    def setPen(self, pen: QPen) -> None:
-        self._pen = QPen(pen)
+    def setBrush(self, brush: QBrush) -> None:
+        self._pen.setBrush(brush)
 
     def font(self) -> QFont:
         return self._font
@@ -77,8 +77,8 @@ class DrawingTextItem(DrawingItem):
     def alignment(self) -> Qt.AlignmentFlag:
         return self._alignment
 
-    def pen(self) -> QPen:
-        return self._pen
+    def brush(self) -> QBrush:
+        return self._pen.brush()
 
     # ==================================================================================================================
 
@@ -120,10 +120,10 @@ class DrawingTextItem(DrawingItem):
             self.setFont(font)
         elif (name == 'textAlignment' and isinstance(value, Qt.AlignmentFlag)):
             self.setAlignment(value)
+        elif (name == 'textBrush' and isinstance(value, QBrush)):
+            self.setBrush(value)
         elif (name == 'textColor' and isinstance(value, QColor)):
-            pen = self.pen()
-            pen.setBrush(QBrush(QColor(value)))
-            self.setPen(pen)
+            self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
         if (name == 'position'):
@@ -153,8 +153,10 @@ class DrawingTextItem(DrawingItem):
             return styles
         if (name == 'textAlignment'):
             return self.alignment()
+        if (name == 'textBrush'):
+            return self.brush()
         if (name == 'textColor'):
-            return self.pen().brush().color()
+            return self.brush().color()
         return None
 
     # ==================================================================================================================
@@ -207,10 +209,7 @@ class DrawingTextItem(DrawingItem):
 
         self.setFont(self.readFont(element, 'font'))
         self.setAlignment(self.readAlignment(element, 'textAlignment'))
-
-        pen = self.pen()
-        pen.setBrush(self.readBrush(element, 'text'))
-        self.setPen(pen)
+        self.setBrush(self.readBrush(element, 'text'))
 
         if (isinstance(element.text, str)):
             self.setCaption(element.text)

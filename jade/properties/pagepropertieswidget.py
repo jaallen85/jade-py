@@ -20,7 +20,6 @@ from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIntValidator
 from PySide6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
 from ..drawing.drawingpagewidget import DrawingPageWidget
 from .helperwidgets import ColorWidget, PositionWidget, SizeEdit, SizeWidget
-from .units import Units
 
 
 class PagePropertiesWidget(QWidget):
@@ -97,17 +96,6 @@ class PagePropertiesWidget(QWidget):
         gridGroup.setLayout(gridLayout)
 
         return gridGroup
-
-    # ==================================================================================================================
-
-    def setUnits(self, units: Units) -> None:
-        self.blockSignals(True)
-
-        self._sceneRectTopLeftWidget.setUnits(units)
-        self._sceneRectSizeWidget.setUnits(units)
-        self._gridEdit.setUnits(units)
-
-        self.blockSignals(False)
 
     # ==================================================================================================================
 

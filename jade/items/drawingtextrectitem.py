@@ -40,7 +40,7 @@ class DrawingTextRectItem(DrawingRectItem):
         copiedItem.setPen(self.pen())
         copiedItem.setCaption(self.caption())
         copiedItem.setFont(self.font())
-        copiedItem.setTextPen(self.textPen())
+        copiedItem.setTextBrush(self.textBrush())
         return copiedItem
 
     # ==================================================================================================================
@@ -64,14 +64,14 @@ class DrawingTextRectItem(DrawingRectItem):
     def setFont(self, font: QFont) -> None:
         self._font = QFont(font)
 
-    def setTextPen(self, pen: QPen) -> None:
-        self._textPen = QPen(pen)
+    def setTextBrush(self, brush: QBrush) -> None:
+        self._textPen.setBrush(brush)
 
     def font(self) -> QFont:
         return self._font
 
-    def textPen(self) -> QPen:
-        return self._textPen
+    def textBrush(self) -> QBrush:
+        return self._textPen.brush()
 
     # ==================================================================================================================
 
@@ -129,10 +129,10 @@ class DrawingTextRectItem(DrawingRectItem):
             font.setUnderline(value[2])
             font.setStrikeOut(value[3])
             self.setFont(font)
+        elif (name == 'textBrush' and isinstance(value, QBrush)):
+            self.setTextBrush(value)
         elif (name == 'textColor' and isinstance(value, QColor)):
-            pen = self.textPen()
-            pen.setBrush(QBrush(QColor(value)))
-            self.setTextPen(pen)
+            self.setTextBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
         if (name == 'rect'):
@@ -174,8 +174,10 @@ class DrawingTextRectItem(DrawingRectItem):
             styles.append(self.font().underline())
             styles.append(self.font().strikeOut())
             return styles
+        if (name == 'textBrush'):
+            return self.textBrush()
         if (name == 'textColor'):
-            return self.textPen().brush().color()
+            return self.textBrush().color()
         return None
 
     # ==================================================================================================================
@@ -236,10 +238,7 @@ class DrawingTextRectItem(DrawingRectItem):
         super().readFromXml(element)
 
         self.setFont(self.readFont(element, 'font'))
-
-        pen = self.textPen()
-        pen.setBrush(self.readBrush(element, 'text'))
-        self.setTextPen(pen)
+        self.setTextBrush(self.readBrush(element, 'text'))
 
         if (isinstance(element.text, str)):
             self.setCaption(element.text)

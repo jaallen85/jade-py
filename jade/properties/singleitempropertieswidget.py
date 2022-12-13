@@ -22,7 +22,6 @@ from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitempoint import DrawingItemPoint
 from .helperwidgets import ColorWidget, PositionWidget, SizeWidget, SizeEdit
-from .units import Units
 
 
 class SingleItemPropertiesWidget(QWidget):
@@ -258,7 +257,7 @@ class SingleItemPropertiesWidget(QWidget):
 
     def _createTextGroup(self) -> QGroupBox:
         self._fontFamilyCombo: QFontComboBox = QFontComboBox()
-        self._fontFamilyCombo.setMaximumWidth(182)
+        self._fontFamilyCombo.setMaximumWidth(162)
         self._fontFamilyCombo.activated.connect(self._handleFontFamilyChange)       # type: ignore
 
         self._fontSizeEdit: SizeEdit = SizeEdit()
@@ -394,40 +393,6 @@ class SingleItemPropertiesWidget(QWidget):
         self._textGroup.setLayout(self._textLayout)
 
         return self._textGroup
-
-    # ==================================================================================================================
-
-    def setUnits(self, units: Units) -> None:
-        self.blockSignals(True)
-
-        self._positionWidget.setUnits(units)
-
-        self._lineStartWidget.setUnits(units)
-        self._lineEndWidget.setUnits(units)
-        self._lineSizeWidget.setUnits(units)
-
-        self._curveStartWidget.setUnits(units)
-        self._curveStartControlWidget.setUnits(units)
-        self._curveEndControlWidget.setUnits(units)
-        self._curveEndWidget.setUnits(units)
-
-        self._rectTopLeftWidget.setUnits(units)
-        self._rectBottomRightWidget.setUnits(units)
-        self._rectSizeWidget.setUnits(units)
-        self._rectCornerRadiusEdit.setUnits(units)
-
-        self._ellipseTopLeftWidget.setUnits(units)
-        self._ellipseBottomRightWidget.setUnits(units)
-        self._ellipseSizeWidget.setUnits(units)
-
-        self._penWidthEdit.setUnits(units)
-
-        self._startArrowSizeEdit.setUnits(units)
-        self._endArrowSizeEdit.setUnits(units)
-
-        self._fontSizeEdit.setUnits(units)
-
-        self.blockSignals(False)
 
     # ==================================================================================================================
 

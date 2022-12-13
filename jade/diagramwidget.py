@@ -16,8 +16,8 @@
 
 import typing
 from xml.etree import ElementTree
-from PySide6.QtCore import Qt, QPoint
-from PySide6.QtGui import QAction, QActionGroup, QBrush, QFont, QIcon, QKeySequence, QPen
+from PySide6.QtCore import Qt, QPoint, QRectF, Signal
+from PySide6.QtGui import QAction, QActionGroup, QBrush, QColor, QFont, QIcon, QKeySequence, QPen
 from PySide6.QtWidgets import QMenu
 from .drawing.drawingarrow import DrawingArrow
 from .drawing.drawingitem import DrawingItem
@@ -36,23 +36,36 @@ from .items.drawingtextitem import DrawingTextItem
 from .items.drawingtextrectitem import DrawingTextRectItem
 from .items.electricitems import ElectricItems
 from .items.logicitems import LogicItems
-from .properties.units import Units
-from .diagramtemplate import DiagramTemplate
 
 
 class DiagramWidget(DrawingWidget):
+    defaultItemPropertyChanged = Signal(str, object)
+
     def __init__(self) -> None:
         super().__init__()
 
-        self._units: Units = Units.Millimeters
+        # Default drawing properties
+        self.setDefaultSceneRect(QRectF(-20, -20, 800, 600))
+        self.setDefaultBackgroundBrush(QBrush(Qt.GlobalColor.white))
+        self._defaultGrid: float = 5.0
+        self._defaultGridVisible: bool = True
+        self._defaultGridBrush: QBrush = QBrush(QColor(0, 128, 128))
+        self._defaultGridSpacingMajor: int = 8
+        self._defaultGridSpacingMinor: int = 2
+        self.setGrid(self._defaultGrid)
+        self.setGridVisible(self._defaultGridVisible)
+        self.setGridBrush(self._defaultGridBrush)
+        self.setGridSpacingMajor(self._defaultGridSpacingMajor)
+        self.setGridSpacingMinor(self._defaultGridSpacingMinor)
 
-        self._defaultPen: QPen = QPen(QBrush(Qt.GlobalColor.black), 0.4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+        # Default item properties
+        self._defaultPen: QPen = QPen(QBrush(Qt.GlobalColor.black), 1.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
                                       Qt.PenJoinStyle.RoundJoin)
         self._defaultBrush: QBrush = QBrush(Qt.GlobalColor.white)
-        self._defaultStartArrow: DrawingArrow = DrawingArrow(DrawingArrow.Style.NoStyle, 4.0)
-        self._defaultEndArrow: DrawingArrow = DrawingArrow(DrawingArrow.Style.NoStyle, 4.0)
+        self._defaultStartArrow: DrawingArrow = DrawingArrow(DrawingArrow.Style.NoStyle, 10.0)
+        self._defaultEndArrow: DrawingArrow = DrawingArrow(DrawingArrow.Style.NoStyle, 10.0)
         self._defaultFont: QFont = QFont('Arial')
-        self._defaultFont.setPointSizeF(4)
+        self._defaultFont.setPointSizeF(10)
         self._defaultTextAlignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
         self._defaultTextBrush: QBrush = QBrush(Qt.GlobalColor.black)
 
@@ -64,41 +77,72 @@ class DiagramWidget(DrawingWidget):
 
     # ==================================================================================================================
 
-    def setUnits(self, units: Units) -> None:
-        scale = Units.convertSimple(1.0, self._units, units)
+    def setDefaultGrid(self, grid: float) -> None:
+        self._defaultGrid = grid
 
-        self._units = units
+    def setDefaultGridVisible(self, visible: bool) -> None:
+        self._defaultGridVisible = visible
 
-        self._defaultPen.setWidthF(self._defaultPen.widthF() * scale)
-        self._defaultStartArrow.setSize(self._defaultStartArrow.size() * scale)
-        self._defaultEndArrow.setSize(self._defaultEndArrow.size() * scale)
-        self._defaultFont.setPointSizeF(self._defaultFont.pointSizeF() * scale)
+    def setDefaultGridBrush(self, brush: QBrush) -> None:
+        self._defaultGridBrush = QBrush(brush)
 
-    def units(self) -> Units:
-        return self._units
+    def setDefaultGridSpacingMajor(self, spacing: int) -> None:
+        self._defaultGridSpacingMajor = spacing
+
+    def setDefaultGridSpacingMinor(self, spacing: int) -> None:
+        self._defaultGridSpacingMinor = spacing
+
+    def defaultGrid(self) -> float:
+        return self._defaultGrid
+
+    def isDefaultGridVisible(self) -> bool:
+        return self._defaultGridVisible
+
+    def defaultGridBrush(self) -> QBrush:
+        return self._defaultGridBrush
+
+    def defaultGridSpacingMajor(self) -> int:
+        return self._defaultGridSpacingMajor
+
+    def defaultGridSpacingMinor(self) -> int:
+        return self._defaultGridSpacingMinor
 
     # ==================================================================================================================
 
     def setDefaultPen(self, pen: QPen) -> None:
-        self._defaultPen = QPen(pen)
+        if (self._defaultPen != pen):
+            self._defaultPen = QPen(pen)
+            self.defaultItemPropertyChanged.emit('pen', self._defaultPen)
 
     def setDefaultBrush(self, brush: QBrush) -> None:
-        self._defaultBrush = QBrush(brush)
+        if (self._defaultBrush != brush):
+            self._defaultBrush = QBrush(brush)
+            self.defaultItemPropertyChanged.emit('brush', self._defaultBrush)
 
     def setDefaultStartArrow(self, arrow: DrawingArrow) -> None:
-        self._defaultStartArrow = DrawingArrow(arrow.style(), arrow.size())
+        if (self._defaultStartArrow != arrow):
+            self._defaultStartArrow = DrawingArrow(arrow.style(), arrow.size())
+            self.defaultItemPropertyChanged.emit('startArrow', self._defaultStartArrow)
 
     def setDefaultEndArrow(self, arrow: DrawingArrow) -> None:
-        self._defaultEndArrow = DrawingArrow(arrow.style(), arrow.size())
+        if (self._defaultEndArrow != arrow):
+            self._defaultEndArrow = DrawingArrow(arrow.style(), arrow.size())
+            self.defaultItemPropertyChanged.emit('endArrow', self._defaultEndArrow)
 
     def setDefaultFont(self, font: QFont) -> None:
-        self._defaultFont = QFont(font)
+        if (self._defaultFont != font):
+            self._defaultFont = QFont(font)
+            self.defaultItemPropertyChanged.emit('font', self._defaultFont)
 
     def setDefaultTextAlignment(self, alignment: Qt.AlignmentFlag) -> None:
-        self._defaultTextAlignment = alignment
+        if (self._defaultTextAlignment != alignment):
+            self._defaultTextAlignment = alignment
+            self.defaultItemPropertyChanged.emit('textAlignment', self._defaultTextAlignment)
 
     def setDefaultTextBrush(self, brush: QBrush) -> None:
-        self._defaultTextBrush = QBrush(brush)
+        if (self._defaultTextBrush != brush):
+            self._defaultTextBrush = QBrush(brush)
+            self.defaultItemPropertyChanged.emit('textBrush', self._defaultTextBrush)
 
     def defaultPen(self) -> QPen:
         return self._defaultPen
@@ -398,22 +442,12 @@ class DiagramWidget(DrawingWidget):
 
     # ==================================================================================================================
 
-    def createFromTemplate(self, template: DiagramTemplate) -> None:
-        self.setUnits(template.units())
-        self.setDefaultSceneRect(template.sceneRect())
-        self.setDefaultBackgroundBrush(template.backgroundBrush())
-        self.setGrid(template.grid())
-        self.setGridVisible(template.isGridVisible())
-        self.setGridBrush(template.gridBrush())
-        self.setGridSpacingMajor(template.gridSpacingMajor())
-        self.setGridSpacingMinor(template.gridSpacingMinor())
-
+    def createNew(self) -> None:
         self.insertNewPage()
         self._undoStack.clear()
 
     def saveToFile(self, path: str) -> bool:
         diagramElement = ElementTree.Element('jade-diagram')
-        self.writeStr(diagramElement, 'units', self._units.toString())
         self.writeToXml(diagramElement)
 
         with open(path, 'w', encoding='utf-8') as file:
@@ -428,7 +462,6 @@ class DiagramWidget(DrawingWidget):
         xml = ElementTree.parse(path)
         diagramElement = xml.getroot()
         if (diagramElement.tag == 'jade-diagram'):
-            self.setUnits(Units.fromString(self.readStr(diagramElement, 'units')))
             self.readFromXml(diagramElement)
 
             self._undoStack.setClean()
@@ -441,3 +474,9 @@ class DiagramWidget(DrawingWidget):
 
         self.clearPages()
         self._newPageCount = 0
+
+        self.setGrid(self._defaultGrid)
+        self.setGridVisible(self._defaultGridVisible)
+        self.setGridBrush(self._defaultGridBrush)
+        self.setGridSpacingMajor(self._defaultGridSpacingMajor)
+        self.setGridSpacingMinor(self._defaultGridSpacingMinor)

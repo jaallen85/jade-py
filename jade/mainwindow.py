@@ -20,8 +20,6 @@ from PySide6.QtCore import Qt, QSize, SignalInstance
 from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMenu, QMessageBox, QToolBar, QWidget)
-from .properties.units import Units
-from .diagramtemplate import DiagramTemplate
 from .diagramwidget import DiagramWidget
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
@@ -78,7 +76,7 @@ class MainWindow(QMainWindow):
         # Final window setup
         self.setWindowTitle('Jade')
         self.setWindowIcon(QIcon('icons:jade.png'))
-        self.resize(1776, 900)
+        self.resize(1624, 900)
 
         self._loadSettings()
 
@@ -280,10 +278,7 @@ class MainWindow(QMainWindow):
 
         # Create a new drawing only if there is no open drawing (i.e. close was successful or unneeded)
         if (not self.isDrawingVisible()):
-            selectedTemplate = DiagramTemplate.createDefaultTemplates()[0]
-            self._propertiesBrowser.setUnits(selectedTemplate.units())
-
-            self._diagram.createFromTemplate(selectedTemplate)
+            self._diagram.createNew()
             self._newDrawingCount = self._newDrawingCount + 1
             self._setFilePath(f'Untitled {self._newDrawingCount}')
             self._setDrawingVisible(True)
@@ -459,8 +454,7 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def _setZoomComboText(self, scale: float) -> None:
-        zoomLevel = Units.convert(scale, Units.Inches, self._diagram.units())
-        self._zoomCombo.setCurrentText(f'{zoomLevel:.2f}%')
+        self._zoomCombo.setCurrentText(f'{scale * 100:.2f}%')
 
     def _setZoomLevel(self, text: str) -> None:
         if (text == 'Fit to Page'):
@@ -468,11 +462,10 @@ class MainWindow(QMainWindow):
         else:
             try:
                 if (text.endswith('%')):
-                    zoomLevel = float(text[:-1])
+                    scale = float(text[:-1])
                 else:
-                    zoomLevel = float(text)
-                scale = Units.convert(zoomLevel, self._diagram.units(), Units.Inches)
-                self._diagram.setScale(scale)
+                    scale = float(text)
+                self._diagram.setScale(scale / 100)
                 self._zoomCombo.clearFocus()
             except ValueError:
                 pass

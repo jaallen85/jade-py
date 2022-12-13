@@ -22,7 +22,6 @@ from .drawing.drawingpagewidget import DrawingPageWidget
 from .properties.multipleitempropertieswidget import MultipleItemPropertiesWidget
 from .properties.pagepropertieswidget import PagePropertiesWidget
 from .properties.singleitempropertieswidget import SingleItemPropertiesWidget
-from .properties.units import Units
 from .diagramwidget import DiagramWidget
 
 
@@ -75,7 +74,7 @@ class PropertiesBrowser(QStackedWidget):
     # ==================================================================================================================
 
     def sizeHint(self) -> QSize:
-        return QSize(340, -1)
+        return QSize(320, -1)
 
     # ==================================================================================================================
 
@@ -100,10 +99,3 @@ class PropertiesBrowser(QStackedWidget):
             self.setCurrentIndex(2)
         else:
             self.setCurrentIndex(0)
-
-    # ==================================================================================================================
-
-    def setUnits(self, units: Units) -> None:
-        self._pagePropertiesWidget.setUnits(units)
-        self._multipleItemsPropertiesWidget.setUnits(units)
-        self._singleItemsPropertiesWidget.setUnits(units)

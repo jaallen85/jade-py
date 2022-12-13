@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QFontComboBox, QFormLayout,
                                QToolButton, QVBoxLayout, QWidget)
 from ..drawing.drawingitem import DrawingItem
 from .helperwidgets import ColorWidget, SizeEdit
-from .units import Units
 
 
 class MultipleItemPropertiesWidget(QWidget):
@@ -146,7 +145,7 @@ class MultipleItemPropertiesWidget(QWidget):
 
     def _createTextGroup(self) -> QGroupBox:
         self._fontFamilyCombo: QFontComboBox = QFontComboBox()
-        self._fontFamilyCombo.setMaximumWidth(182)
+        self._fontFamilyCombo.setMaximumWidth(162)
         self._fontFamilyCombo.activated.connect(self._handleFontFamilyChange)       # type: ignore
         self._fontFamilyCheck: QCheckBox = QCheckBox('Font:')
         self._fontFamilyCheck.clicked.connect(self._handleFontFamilyCheckClicked)   # type: ignore
@@ -289,17 +288,6 @@ class MultipleItemPropertiesWidget(QWidget):
         self._textGroup.setLayout(self._textLayout)
 
         return self._textGroup
-
-    # ==================================================================================================================
-
-    def setUnits(self, units: Units) -> None:
-        self.blockSignals(True)
-        self._rectCornerRadiusEdit.setUnits(units)
-        self._penWidthEdit.setUnits(units)
-        self._startArrowSizeEdit.setUnits(units)
-        self._endArrowSizeEdit.setUnits(units)
-        self._fontSizeEdit.setUnits(units)
-        self.blockSignals(False)
 
     # ==================================================================================================================
 
