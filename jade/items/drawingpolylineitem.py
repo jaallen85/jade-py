@@ -322,7 +322,7 @@ class DrawingPolylineItem(DrawingItem):
         return QLineF(self._polyline.at(self._polyline.size() - 1), self._polyline.at(self._polyline.size() - 2)).length()  # noqa
 
     def _startArrowAngle(self) -> float:
-        return QLineF(self._polyline.at(0), self._polyline.at(1)).angle()
+        return QLineF(self._polyline.at(1), self._polyline.at(0)).angle()
 
     def _endArrowAngle(self) -> float:
-        return QLineF(self._polyline.at(self._polyline.size() - 1), self._polyline.at(self._polyline.size() - 2)).angle()   # noqa
+        return QLineF(self._polyline.at(self._polyline.size() - 2), self._polyline.at(self._polyline.size() - 1)).angle()   # noqa

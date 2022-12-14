@@ -56,6 +56,9 @@ class DrawingArrow:
     def size(self) -> float:
         return self._size
 
+    def path(self) -> QPainterPath:
+        return self._path
+
     # ==================================================================================================================
 
     def shape(self, pen: QPen, position: QPointF, angle: float) -> QPainterPath:
@@ -117,9 +120,9 @@ class DrawingArrow:
             y = self._size / sqrt2 * math.sin(angle)
 
             self._path.moveTo(QPointF(0, 0))
-            self._path.lineTo(QPointF(x, -y))
+            self._path.lineTo(QPointF(-x, -y))
             self._path.moveTo(QPointF(0, 0))
-            self._path.lineTo(QPointF(x, y))
+            self._path.lineTo(QPointF(-x, y))
 
         elif (self._style in (DrawingArrow.Style.Triangle, DrawingArrow.Style.TriangleFilled)):
             angle = math.pi / 6     # Makes the arrowhead a 60 degree angle
@@ -128,8 +131,8 @@ class DrawingArrow:
             y = self._size / sqrt2 * math.sin(angle)
 
             self._path.moveTo(QPointF(0, 0))
-            self._path.lineTo(QPointF(x, -y))
-            self._path.lineTo(QPointF(x, y))
+            self._path.lineTo(QPointF(-x, -y))
+            self._path.lineTo(QPointF(-x, y))
             self._path.closeSubpath()
 
         elif (self._style in (DrawingArrow.Style.Concave, DrawingArrow.Style.ConcaveFilled)):
@@ -140,9 +143,9 @@ class DrawingArrow:
             y = self._size / sqrt2 * math.sin(angle)
 
             self._path.moveTo(QPointF(0, 0))
-            self._path.lineTo(QPointF(x, -y))
-            self._path.lineTo(QPointF(x2, 0))
-            self._path.lineTo(QPointF(x, y))
+            self._path.lineTo(QPointF(-x, -y))
+            self._path.lineTo(QPointF(-x2, 0))
+            self._path.lineTo(QPointF(-x, y))
             self._path.closeSubpath()
 
         elif (self._style in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):

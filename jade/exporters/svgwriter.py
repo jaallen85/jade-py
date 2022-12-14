@@ -14,10 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import math
 from xml.etree import ElementTree
-from PySide6.QtCore import Qt, QLineF, QPointF
-from PySide6.QtGui import QBrush, QColor, QPainterPath, QPen
+from PySide6.QtCore import Qt, QLineF, QRectF
+from PySide6.QtGui import QBrush, QColor, QPen
 from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitemgroup import DrawingItemGroup
@@ -57,12 +56,115 @@ class SvgWriter(DrawingXmlInterface):
 
         self.writeStr(svgElement, 'xmlns', 'http://www.w3.org/2000/svg')
 
+        defElement = ElementTree.SubElement(svgElement, 'defs')
+        self._writeArrows(defElement, self._page.items())
+
         self._writeItems(svgElement, self._page.items())
 
         ElementTree.indent(svgElement, space='  ')
         with open(path, 'w', encoding='utf-8') as file:
             file.write(ElementTree.tostring(svgElement, encoding='unicode', xml_declaration=True))
             file.write('\n')
+
+    # ==================================================================================================================
+
+    def _writeArrows(self, element: ElementTree.Element, items: list[DrawingItem]) -> None:
+        for item in items:
+            if (isinstance(item, DrawingLineItem)):
+                self._writeArrow(element, item.startArrow(), item.pen())
+                self._writeArrow(element, item.endArrow(), item.pen())
+            elif (isinstance(item, DrawingCurveItem)):
+                self._writeArrow(element, item.startArrow(), item.pen())
+                self._writeArrow(element, item.endArrow(), item.pen())
+            elif (isinstance(item, DrawingPolylineItem)):
+                self._writeArrow(element, item.startArrow(), item.pen())
+                self._writeArrow(element, item.endArrow(), item.pen())
+            elif (isinstance(item, DrawingItemGroup)):
+                self._writeArrows(element, item.items())
+
+    def _writeArrow(self, element: ElementTree.Element, arrow: DrawingArrow, pen: QPen) -> None:
+        if (arrow.style() != DrawingArrow.Style.NoStyle):
+            markerName = self._arrowMarkerName(arrow, pen)
+            markerElement = element.find(f'marker[@id="{markerName}"]')
+            if (markerElement is None):
+                markerElement = ElementTree.SubElement(element, 'marker')
+                self.writeStr(markerElement, 'id', markerName)
+
+                originalPenStyle = pen.style()
+                pen.setStyle(Qt.PenStyle.SolidLine)
+
+                if (arrow.style() in (DrawingArrow.Style.Normal,
+                                      DrawingArrow.Style.Triangle, DrawingArrow.Style.TriangleFilled,
+                                      DrawingArrow.Style.Concave, DrawingArrow.Style.ConcaveFilled)):
+                    path = arrow.path()
+                    rect = path.boundingRect().normalized()
+                    rect.adjust(-pen.widthF(), -pen.widthF(), pen.widthF(), pen.widthF())
+
+                    self.writeStr(markerElement, 'viewBox',
+                                  f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')
+                    self.writeFloat(markerElement, 'markerWidth', rect.width())
+                    self.writeFloat(markerElement, 'markerHeight', rect.height())
+                    self.writeStr(markerElement, 'orient', 'auto-start-reverse')
+
+                    pathElement = ElementTree.SubElement(markerElement, 'path')
+
+                    self.writePath(pathElement, 'd', path)
+
+                    if (arrow.style() in (DrawingArrow.Style.TriangleFilled, DrawingArrow.Style.ConcaveFilled)):
+                        self._writeBrushToSvg(pathElement, pen.brush())
+                    elif (arrow.style() in (DrawingArrow.Style.Triangle, DrawingArrow.Style.Concave)):
+                        self._writeBrushToSvg(pathElement, self._page.backgroundBrush())
+                    else:
+                        self._writeBrushToSvg(pathElement, QBrush(Qt.GlobalColor.transparent))
+
+                    self._writePenToSvg(pathElement, pen)
+
+                elif (arrow.style() in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
+                    radius = arrow.size() / 2
+                    rect = QRectF(-radius, -radius, 2 * radius, 2 * radius)
+                    rect.adjust(-pen.widthF(), -pen.widthF(), pen.widthF(), pen.widthF())
+
+                    self.writeStr(markerElement, 'viewBox',
+                                  f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')
+                    self.writeFloat(markerElement, 'markerWidth', rect.width())
+                    self.writeFloat(markerElement, 'markerHeight', rect.height())
+
+                    circleElement = ElementTree.SubElement(markerElement, 'circle')
+                    self.writeFloat(circleElement, 'r', radius, writeIfDefault=True)
+
+                    if (arrow.style() == DrawingArrow.Style.CircleFilled):
+                        self._writeBrushToSvg(circleElement, pen.brush())
+                    else:
+                        self._writeBrushToSvg(circleElement, self._page.backgroundBrush())
+
+                    self._writePenToSvg(circleElement, pen)
+
+                pen.setStyle(originalPenStyle)
+
+    def _arrowMarkerName(self, arrow: DrawingArrow, pen: QPen) -> str:
+        styleStr = 'none'
+        match (arrow.style()):
+            case DrawingArrow.Style.Normal:
+                styleStr = 'normal'
+            case DrawingArrow.Style.Triangle:
+                styleStr = 'triangle'
+            case DrawingArrow.Style.TriangleFilled:
+                styleStr = 'triangleFilled'
+            case DrawingArrow.Style.Concave:
+                styleStr = 'concave'
+            case DrawingArrow.Style.ConcaveFilled:
+                styleStr = 'concaveFilled'
+            case DrawingArrow.Style.Circle:
+                styleStr = 'circle'
+            case DrawingArrow.Style.CircleFilled:
+                styleStr = 'circleFilled'
+
+        alpha = pen.brush().color().alpha()
+        color = QColor(pen.brush().color())
+        color.setAlpha(255)
+
+        return (f'{styleStr}_{arrow.size()}_'
+                f'{color.name(QColor.NameFormat.HexRgb)}_{alpha / 255 * 100:.1f}_{pen.widthF()}')
 
     # ==================================================================================================================
 
@@ -92,12 +194,7 @@ class SvgWriter(DrawingXmlInterface):
                 self._writeGroupItem(element, item)
 
     def _writeLineItem(self, element: ElementTree.Element, item: DrawingLineItem) -> None:
-        if (item.startArrow().style() != DrawingArrow.Style.NoStyle or
-                item.endArrow().style() != DrawingArrow.Style.NoStyle):
-            groupElement = ElementTree.SubElement(element, 'g')
-            lineElement = ElementTree.SubElement(groupElement, 'line')
-        else:
-            lineElement = ElementTree.SubElement(element, 'line')
+        lineElement = ElementTree.SubElement(element, 'line')
 
         # Write line
         p1 = item.mapToScene(item.line().p1())
@@ -110,14 +207,11 @@ class SvgWriter(DrawingXmlInterface):
         self._writePenToSvg(lineElement, item.pen())
 
         # Write arrows
-        line = QLineF(p1, p2)
-        lineLength = line.length()
-        startArrowAngle = math.atan2(p2.y() - p1.y(), p2.x() - p1.x()) * 180 / math.pi
-        endArrowAngle = 180 + startArrowAngle
-        if (lineLength >= item.startArrow().size()):
-            self._writeArrowToSvg(groupElement, item.startArrow(), item.pen(), p1, startArrowAngle)
-        if (lineLength >= item.endArrow().size()):
-            self._writeArrowToSvg(groupElement, item.endArrow(), item.pen(), p2, endArrowAngle)
+        lineLength = QLineF(p1, p2).length()
+        if (item.startArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.startArrow().size()):
+            self.writeStr(lineElement, 'marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')
+        if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.endArrow().size()):
+            self.writeStr(lineElement, 'marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')
 
     def _writeCurveItem(self, element: ElementTree.Element, item: DrawingCurveItem) -> None:
         pass
@@ -227,44 +321,3 @@ class SvgWriter(DrawingXmlInterface):
                 self.writeStr(element, 'fill-opacity', f'{alpha / 255 * 100:.1f}%')
         else:
             self.writeStr(element, 'fill', 'none')
-
-    def _writeArrowToSvg(self, element: ElementTree.Element, arrow: DrawingArrow, pen: QPen, position: QPointF,
-                         angle: float) -> None:
-        originalPenStyle = pen.style()
-        pen.setStyle(Qt.PenStyle.SolidLine)
-
-        if (arrow.style() in (DrawingArrow.Style.Normal, DrawingArrow.Style.Triangle, DrawingArrow.Style.TriangleFilled,
-                              DrawingArrow.Style.Concave, DrawingArrow.Style.ConcaveFilled)):
-            pathElement = ElementTree.SubElement(element, 'path')
-
-            path = QPainterPath(arrow._path)
-
-            self.writeStr(pathElement, 'transform', f'translate({position.x()},{position.y()}) rotate({angle})')
-
-            self.writePath(pathElement, 'd', path)
-
-            if (arrow.style() in (DrawingArrow.Style.TriangleFilled, DrawingArrow.Style.ConcaveFilled)):
-                self._writeBrushToSvg(pathElement, pen.brush())
-            elif (arrow.style() in (DrawingArrow.Style.Triangle, DrawingArrow.Style.Concave)):
-                self._writeBrushToSvg(pathElement, self._page.backgroundBrush())
-            else:
-                self._writeBrushToSvg(pathElement, QBrush(Qt.GlobalColor.transparent))
-
-            self._writePenToSvg(pathElement, pen)
-
-        elif (arrow.style() in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
-            ellipseElement = ElementTree.SubElement(element, 'ellipse')
-
-            self.writeFloat(ellipseElement, 'cx', position.x(), writeIfDefault=True)
-            self.writeFloat(ellipseElement, 'cy', position.y(), writeIfDefault=True)
-            self.writeFloat(ellipseElement, 'rx', arrow.size() / 2, writeIfDefault=True)
-            self.writeFloat(ellipseElement, 'ry', arrow.size() / 2, writeIfDefault=True)
-
-            if (arrow.style() == DrawingArrow.Style.CircleFilled):
-                self._writeBrushToSvg(ellipseElement, pen.brush())
-            else:
-                self._writeBrushToSvg(ellipseElement, self._page.backgroundBrush())
-
-            self._writePenToSvg(ellipseElement, pen)
-
-        pen.setStyle(originalPenStyle)

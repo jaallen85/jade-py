@@ -322,10 +322,10 @@ class DrawingCurveItem(DrawingItem):
                       self._curve.at(DrawingCurveItem.PointIndex.EndPoint)).length()
 
     def _startArrowAngle(self) -> float:
-        return QLineF(self._curve.at(DrawingCurveItem.PointIndex.StartPoint), self._pointFromRatio(0.05)).angle()
+        return QLineF(self._pointFromRatio(0.05), self._curve.at(DrawingCurveItem.PointIndex.StartPoint)).angle()
 
     def _endArrowAngle(self) -> float:
-        return QLineF(self._curve.at(DrawingCurveItem.PointIndex.EndPoint), self._pointFromRatio(0.95)).angle()
+        return QLineF(self._pointFromRatio(0.95), self._curve.at(DrawingCurveItem.PointIndex.EndPoint)).angle()
 
     def _pointFromRatio(self, ratio: float) -> QPointF:
         curveStartPosition = self._curve.at(DrawingCurveItem.PointIndex.StartPoint)
