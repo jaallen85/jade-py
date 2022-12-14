@@ -22,16 +22,15 @@ from PySide6.QtGui import QAction, QBrush, QCloseEvent, QFontMetrics, QIcon, QIm
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMenu, QMessageBox, QToolBar, QWidget)
 from .drawing.drawingxmlinterface import DrawingXmlInterface
+from .exporters.odgwriter import OdgWriter
+from .exporters.svgwriter import SvgWriter
+from .exporters.vsdxwriter import VsdxWriter
 from .aboutdialog import AboutDialog
 from .diagramwidget import DiagramWidget
 from .exportoptionsdialog import ExportOptionsDialog
 from .pagesbrowser import PagesBrowser
 from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
-
-# Todo:
-#   - Export to SVG
-#   - Export to ODG and/or VSDX
 
 
 class MainWindow(QMainWindow, DrawingXmlInterface):
@@ -93,6 +92,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                                                                'icons:image-x-generic.png')
         self._exportSvgAction: QAction = self._addNormalAction('Export SVG...', self.exportSvg,
                                                                'icons:image-svg+xml.png')
+        self._exportOdgAction: QAction = self._addNormalAction('Export ODG...', self.exportOdg, '')
         self._exportVsdxAction: QAction = self._addNormalAction('Export VSDX...', self.exportVsdx, '')
         self._preferencesAction: QAction = self._addNormalAction('Preferences...', self.preferences,
                                                                  'icons:configure.png')
@@ -117,6 +117,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         fileMenu.addSeparator()
         fileMenu.addAction(self._exportPngAction)
         fileMenu.addAction(self._exportSvgAction)
+        fileMenu.addAction(self._exportOdgAction)
         fileMenu.addAction(self._exportVsdxAction)
         fileMenu.addSeparator()
         fileMenu.addAction(self._preferencesAction)
@@ -384,7 +385,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
 
                 fileFilter = 'Portable Network Graphics (*.png);;All Files (*)'
                 options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
-                (path, _) = QFileDialog.getSaveFileName(self, 'Save File', path, fileFilter, '', options)
+                (path, _) = QFileDialog.getSaveFileName(self, 'Export PNG', path, fileFilter, '', options)
 
                 # If a valid path was selected, proceed with the save operation
                 if (path != ''):
@@ -410,10 +411,80 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                         pngImage.save(path)
 
     def exportSvg(self) -> None:
-        pass
+        if (self.isDrawingVisible()):
+            page = self._diagram.currentPage()
+            if (page):
+                # Prompt the user for a new file path
+                if (self._filePath.startswith('Untitled')):
+                    path = os.path.join(self._workingDir, f'{page.name()}.svg')
+                else:
+                    path = os.path.join(os.path.dirname(self._filePath), f'{page.name()}.svg')
+
+                fileFilter = 'Scalable Vector Graphics (*.svg);;All Files (*)'
+                options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
+                (path, _) = QFileDialog.getSaveFileName(self, 'Export SVG', path, fileFilter, '', options)
+
+                # If a valid path was selected, proceed with the save operation
+                if (path != ''):
+                    # Ensure that the selected path ends with the proper file suffix
+                    if (not path.endswith('.svg')):
+                        path = f'{path}.svg'
+
+                    # Use the selected path to export the drawing to an SVG image
+                    exportOptionsDialog = ExportOptionsDialog(self._pngSvgExportScale, page.sceneRect().size(), self)
+                    if (exportOptionsDialog.exec() == ExportOptionsDialog.DialogCode.Accepted):
+                        self._pngSvgExportScale = exportOptionsDialog.scale()
+
+                        svgWriter = SvgWriter(page, self._pngSvgExportScale)
+                        svgWriter.write(path)
+
+    def exportOdg(self) -> None:
+        if (self.isDrawingVisible()):
+            # Prompt the user for a new file path
+            if (self._filePath.startswith('Untitled')):
+                path = os.path.join(self._workingDir, f'{self._filePath}.odg')
+            elif (self._filePath.lower().endswith('.jdm')):
+                path = f'{self._filePath[:-4]}.odg'
+            else:
+                path = f'{self._filePath}.odg'
+
+            fileFilter = 'OpenDocument Graphics (*.odg);;All Files (*)'
+            options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
+            (path, _) = QFileDialog.getSaveFileName(self, 'Export ODG', path, fileFilter, '', options)
+
+            # If a valid path was selected, proceed with the save operation
+            if (path != ''):
+                # Ensure that the selected path ends with the proper file suffix
+                if (not path.endswith('.odg')):
+                    path = f'{path}.odg'
+
+                # Use the selected path to export the drawing to an ODG document
+                odgWriter = OdgWriter(self._diagram)
+                odgWriter.write(path)
 
     def exportVsdx(self) -> None:
-        pass
+        if (self.isDrawingVisible()):
+            # Prompt the user for a new file path
+            if (self._filePath.startswith('Untitled')):
+                path = os.path.join(self._workingDir, f'{self._filePath}.vsdx')
+            elif (self._filePath.lower().endswith('.jdm')):
+                path = f'{self._filePath[:-4]}.vsdx'
+            else:
+                path = f'{self._filePath}.vsdx'
+
+            fileFilter = 'Visio Drawing (*.vsdx);;All Files (*)'
+            options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
+            (path, _) = QFileDialog.getSaveFileName(self, 'Export VSDX', path, fileFilter, '', options)
+
+            # If a valid path was selected, proceed with the save operation
+            if (path != ''):
+                # Ensure that the selected path ends with the proper file suffix
+                if (not path.endswith('.vsdx')):
+                    path = f'{path}.vsdx'
+
+                # Use the selected path to export the drawing to a Visio document
+                vsdxWriter = VsdxWriter(self._diagram)
+                vsdxWriter.write(path)
 
     # ==================================================================================================================
 
@@ -511,6 +582,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         self._closeAction.setEnabled(visible)
         self._exportPngAction.setEnabled(visible)
         self._exportSvgAction.setEnabled(visible)
+        self._exportOdgAction.setEnabled(visible)
         self._exportVsdxAction.setEnabled(visible)
 
         self._diagram.setActionsEnabled(visible)
