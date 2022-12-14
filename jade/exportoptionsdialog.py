@@ -14,75 +14,53 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from PySide6.QtCore import Qt, QRectF, QSize
-from PySide6.QtGui import QFontMetrics, QIcon, QIntValidator
-from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout,
-                               QWidget)
+from PySide6.QtCore import Qt, QSizeF
+from PySide6.QtGui import QDoubleValidator, QFontMetrics, QIcon, QIntValidator
+from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
 
 
 class ExportOptionsDialog(QDialog):
-    def __init__(self, sceneRect: QRectF, exportSize: QSize, maintainAspectRatio: bool, parent: QWidget) -> None:
-        super().__init__()
+    def __init__(self, scale: float, pageSize: QSizeF, parent: QWidget) -> None:
+        super().__init__(parent)
 
-        self._sceneRect: QRectF = QRectF(sceneRect)
+        self._pageSize: QSizeF = QSizeF(pageSize)
 
         layout = QVBoxLayout()
-        layout.addWidget(self._createSizeGroup(exportSize, maintainAspectRatio))
+        layout.addWidget(self._createSizeGroup())
         layout.addWidget(self._createButtonBox())
         self.setLayout(layout)
 
         self.setWindowTitle('Export Options')
         self.setWindowIcon(QIcon('icons:jade.png'))
-        self.resize(240, 10)
+        self.resize(200, 10)
 
-    def _createSizeGroup(self, exportSize: QSize, maintainAspectRatio: bool) -> QWidget:
+        self._scaleEdit.setText(f'{scale}')
+        self._updateWidthAndHeightFromScale(self._scaleEdit.text())
+
+    def _createSizeGroup(self) -> QGroupBox:
         self._widthEdit: QLineEdit = QLineEdit()
-        self._heightEdit: QLineEdit = QLineEdit()
         self._widthEdit.setValidator(QIntValidator(0, 10000000))
+        self._widthEdit.textEdited.connect(self._updateHeightAndScaleFromWidth)     # type: ignore
+
+        self._heightEdit: QLineEdit = QLineEdit()
         self._heightEdit.setValidator(QIntValidator(0, 10000000))
-        self._widthEdit.textEdited.connect(self._updateHeightFromWidth)      # type: ignore
-        self._heightEdit.textEdited.connect(self._updateWidthFromHeight)     # type: ignore
+        self._heightEdit.textEdited.connect(self._updateWidthAndScaleFromHeight)    # type: ignore
 
-        self._maintainAspectRatioCheck = QCheckBox('Maintain Aspect Ratio')
-        self._maintainAspectRatioCheck.setChecked(maintainAspectRatio)
-
-        widthHeightWidget: QWidget = QWidget()
-        widthHeightLayout: QFormLayout = QFormLayout()
-        widthHeightLayout.addRow('Width:', self._widthEdit)
-        widthHeightLayout.addRow('Height:', self._heightEdit)
-        widthHeightLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
-        widthHeightLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        widthHeightLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        labelWidth = QFontMetrics(widthHeightWidget.font()).boundingRect('Height:').width() + 24
-        widthHeightLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(labelWidth)
-        widthHeightWidget.setLayout(widthHeightLayout)
-
-        maintainWidget = QWidget()
-        maintainLayout = QVBoxLayout()
-        maintainLayout.addWidget(self._maintainAspectRatioCheck)
-        maintainLayout.setContentsMargins(0, 0, 0, 0)
-        maintainWidget.setLayout(maintainLayout)
+        self._scaleEdit: QLineEdit = QLineEdit()
+        self._scaleEdit.setValidator(QDoubleValidator(1E-9, 1E9, -1))
+        self._scaleEdit.textEdited.connect(self._updateWidthAndHeightFromScale)     # type: ignore
 
         sizeGroup = QGroupBox('Size')
-        sizeLayout = QVBoxLayout()
-        sizeLayout.addWidget(widthHeightWidget)
-        sizeLayout.addWidget(maintainWidget)
-        sizeLayout.setSpacing(8)
+        labelWidth = QFontMetrics(sizeGroup.font()).boundingRect('Height:').width() + 24
+        sizeLayout = QFormLayout()
+        sizeLayout.addRow('Width:', self._widthEdit)
+        sizeLayout.addRow('Height:', self._heightEdit)
+        sizeLayout.addRow('Scale:', self._scaleEdit)
+        sizeLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        sizeLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        sizeLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        sizeLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(labelWidth)
         sizeGroup.setLayout(sizeLayout)
-
-        if (maintainAspectRatio):
-            if (exportSize.height() > 0):
-                self._heightEdit.setText(f'{exportSize.height()}')
-                self._updateWidthFromHeight()
-            elif (exportSize.width() > 0):
-                self._widthEdit.setText(f'{exportSize.width()}')
-                self._updateHeightFromWidth()
-            else:
-                self._widthEdit.setText(f'{exportSize.width()}')
-                self._heightEdit.setText(f'{exportSize.height()}')
-        else:
-            self._widthEdit.setText(f'{exportSize.width()}')
-            self._heightEdit.setText(f'{exportSize.height()}')
 
         return sizeGroup
 
@@ -104,8 +82,39 @@ class ExportOptionsDialog(QDialog):
 
     # ==================================================================================================================
 
-    def _updateWidthFromHeight(self) -> None:
-        pass
+    def scale(self) -> float:
+        try:
+            return float(self._scaleEdit.text())
+        except ValueError:
+            pass
+        return 1.0
 
-    def _updateHeightFromWidth(self) -> None:
-        pass
+    # ==================================================================================================================
+
+    def _updateHeightAndScaleFromWidth(self, text: str) -> None:
+        try:
+            width = int(text)
+            scale = width / self._pageSize.width()
+            height = round(scale * self._pageSize.height())
+            self._heightEdit.setText(f'{height}')
+            self._scaleEdit.setText(f'{scale}')
+        except ValueError:
+            pass
+
+    def _updateWidthAndScaleFromHeight(self, text: str) -> None:
+        try:
+            height = int(text)
+            scale = height / self._pageSize.height()
+            width = round(scale * self._pageSize.width())
+            self._widthEdit.setText(f'{width}')
+            self._scaleEdit.setText(f'{scale}')
+        except ValueError:
+            pass
+
+    def _updateWidthAndHeightFromScale(self, text: str) -> None:
+        try:
+            scale = float(text)
+            self._widthEdit.setText(f'{round(self._pageSize.width() * scale)}')
+            self._heightEdit.setText(f'{round(self._pageSize.height() * scale)}')
+        except ValueError:
+            pass

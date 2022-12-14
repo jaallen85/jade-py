@@ -18,18 +18,18 @@ import os
 import typing
 from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QRectF, QSize, SignalInstance
-from PySide6.QtGui import QAction, QBrush, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
+from PySide6.QtGui import QAction, QBrush, QCloseEvent, QFontMetrics, QIcon, QImage, QKeySequence, QPainter, QShowEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMenu, QMessageBox, QToolBar, QWidget)
 from .drawing.drawingxmlinterface import DrawingXmlInterface
 from .aboutdialog import AboutDialog
 from .diagramwidget import DiagramWidget
+from .exportoptionsdialog import ExportOptionsDialog
 from .pagesbrowser import PagesBrowser
 from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo:
-#   - Export to PNG
 #   - Export to SVG
 #   - Export to ODG and/or VSDX
 
@@ -45,6 +45,8 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         self._promptCloseUnsaved: bool = True
         self._pagesDockVisibleOnClose: bool = True
         self._propertiesDockVisibleOnClose: bool = True
+
+        self._pngSvgExportScale: float = 1.0
 
         # Main widget
         self._diagram: DiagramWidget = DiagramWidget()
@@ -371,7 +373,41 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
     # ==================================================================================================================
 
     def exportPng(self) -> None:
-        pass
+        if (self.isDrawingVisible()):
+            page = self._diagram.currentPage()
+            if (page):
+                # Prompt the user for a new file path
+                if (self._filePath.startswith('Untitled')):
+                    path = os.path.join(self._workingDir, f'{page.name()}.png')
+                else:
+                    path = os.path.join(os.path.dirname(self._filePath), f'{page.name()}.png')
+
+                fileFilter = 'Portable Network Graphics (*.png);;All Files (*)'
+                options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
+                (path, _) = QFileDialog.getSaveFileName(self, 'Save File', path, fileFilter, '', options)
+
+                # If a valid path was selected, proceed with the save operation
+                if (path != ''):
+                    # Ensure that the selected path ends with the proper file suffix
+                    if (not path.endswith('.png')):
+                        path = f'{path}.png'
+
+                    # Use the selected path to export the drawing to a PNG image
+                    exportOptionsDialog = ExportOptionsDialog(self._pngSvgExportScale, page.sceneRect().size(), self)
+                    if (exportOptionsDialog.exec() == ExportOptionsDialog.DialogCode.Accepted):
+                        self._pngSvgExportScale = exportOptionsDialog.scale()
+
+                        pngImage = QImage(round(page.sceneRect().width() * self._pngSvgExportScale),
+                                          round(page.sceneRect().height() * self._pngSvgExportScale),
+                                          QImage.Format.Format_ARGB32)
+                        with QPainter(pngImage) as painter:
+                            painter.scale(self._pngSvgExportScale, self._pngSvgExportScale)
+                            painter.translate(-page.sceneRect().left(), -page.sceneRect().top())
+                            painter.setRenderHints((QPainter.RenderHint.Antialiasing |
+                                                    QPainter.RenderHint.TextAntialiasing), True)
+                            page.paint(painter, export=True)
+
+                        pngImage.save(path)
 
     def exportSvg(self) -> None:
         pass
@@ -478,6 +514,9 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         self._exportVsdxAction.setEnabled(visible)
 
         self._diagram.setActionsEnabled(visible)
+
+        # Reset export scales
+        self._pngSvgExportScale = 1.0
 
     def _setFilePath(self, path: str) -> None:
         self._filePath = path
