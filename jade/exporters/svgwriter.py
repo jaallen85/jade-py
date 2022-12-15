@@ -16,7 +16,7 @@
 
 from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QLineF, QRectF
-from PySide6.QtGui import QBrush, QColor, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QPen
 from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitemgroup import DrawingItemGroup
@@ -111,13 +111,13 @@ class SvgWriter(DrawingXmlInterface):
                     self.writePath(pathElement, 'd', path)
 
                     if (arrow.style() in (DrawingArrow.Style.TriangleFilled, DrawingArrow.Style.ConcaveFilled)):
-                        self._writeBrushToSvg(pathElement, pen.brush())
+                        brush = pen.brush()
                     elif (arrow.style() in (DrawingArrow.Style.Triangle, DrawingArrow.Style.Concave)):
-                        self._writeBrushToSvg(pathElement, self._page.backgroundBrush())
+                        brush = self._page.backgroundBrush()
                     else:
-                        self._writeBrushToSvg(pathElement, QBrush(Qt.GlobalColor.transparent))
+                        brush = QBrush(Qt.GlobalColor.transparent)
 
-                    self._writePenToSvg(pathElement, pen)
+                    self._writePenAndBrush(pathElement, brush, pen)
 
                 elif (arrow.style() in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
                     radius = arrow.size() / 2
@@ -133,11 +133,11 @@ class SvgWriter(DrawingXmlInterface):
                     self.writeFloat(circleElement, 'r', radius, writeIfDefault=True)
 
                     if (arrow.style() == DrawingArrow.Style.CircleFilled):
-                        self._writeBrushToSvg(circleElement, pen.brush())
+                        brush = pen.brush()
                     else:
-                        self._writeBrushToSvg(circleElement, self._page.backgroundBrush())
+                        brush = self._page.backgroundBrush()
 
-                    self._writePenToSvg(circleElement, pen)
+                    self._writePenAndBrush(circleElement, brush, pen)
 
                 pen.setStyle(originalPenStyle)
 
@@ -204,8 +204,7 @@ class SvgWriter(DrawingXmlInterface):
         self.writeFloat(lineElement, 'x2', p2.x(), writeIfDefault=True)
         self.writeFloat(lineElement, 'y2', p2.y(), writeIfDefault=True)
 
-        self._writeBrushToSvg(lineElement, QBrush(Qt.GlobalColor.transparent))
-        self._writePenToSvg(lineElement, item.pen())
+        self._writePenAndBrush(lineElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
         # Write arrows
         lineLength = QLineF(p1, p2).length()
@@ -227,8 +226,7 @@ class SvgWriter(DrawingXmlInterface):
             pathStr = f'M {p1.x()},{p1.y()} C {cp1.x()},{cp1.y()} {cp2.x()},{cp2.y()} {p2.x()},{p2.y()}'
             self.writeStr(pathElement, 'd', pathStr)
 
-            self._writeBrushToSvg(pathElement, QBrush(Qt.GlobalColor.transparent))
-            self._writePenToSvg(pathElement, item.pen())
+            self._writePenAndBrush(pathElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
             # Write arrows
             lineLength = QLineF(curve.at(0), curve.at(curve.size() - 1)).length()
@@ -244,8 +242,7 @@ class SvgWriter(DrawingXmlInterface):
         polyline = item.mapPolygonToScene(item.polyline())
         self.writePoints(polylineElement, 'points', polyline)
 
-        self._writeBrushToSvg(polylineElement, QBrush(Qt.GlobalColor.transparent))
-        self._writePenToSvg(polylineElement, item.pen())
+        self._writePenAndBrush(polylineElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
         # Write arrows
         if (polyline.size() >= 2):
@@ -268,8 +265,7 @@ class SvgWriter(DrawingXmlInterface):
         self.writeFloat(rectElement, 'rx', item.cornerRadius())
         self.writeFloat(rectElement, 'ry', item.cornerRadius())
 
-        self._writeBrushToSvg(rectElement, item.brush())
-        self._writePenToSvg(rectElement, item.pen())
+        self._writePenAndBrush(rectElement, item.brush(), item.pen())
 
     def _writeEllipseItem(self, element: ElementTree.Element, item: DrawingEllipseItem) -> None:
         ellipseElement = ElementTree.SubElement(element, 'ellipse')
@@ -281,35 +277,106 @@ class SvgWriter(DrawingXmlInterface):
         self.writeFloat(ellipseElement, 'rx', ellipse.width() / 2, writeIfDefault=True)
         self.writeFloat(ellipseElement, 'ry', ellipse.height() / 2, writeIfDefault=True)
 
-        self._writeBrushToSvg(ellipseElement, item.brush())
-        self._writePenToSvg(ellipseElement, item.pen())
+        self._writePenAndBrush(ellipseElement, item.brush(), item.pen())
 
     def _writePolygonItem(self, element: ElementTree.Element, item: DrawingPolygonItem) -> None:
         polygonElement = ElementTree.SubElement(element, 'polygon')
 
         self.writePoints(polygonElement, 'points', item.mapPolygonToScene(item.polygon()))
 
-        self._writeBrushToSvg(polygonElement, item.brush())
-        self._writePenToSvg(polygonElement, item.pen())
+        self._writePenAndBrush(polygonElement, item.brush(), item.pen())
 
     def _writeTextItem(self, element: ElementTree.Element, item: DrawingTextItem) -> None:
-        pass
+        textElement = ElementTree.SubElement(element, 'text')
+
+        self._writeTransform(textElement, item)
+        self._writePenAndBrush(textElement, item.brush(), QPen(Qt.PenStyle.NoPen))
+        self._writeText(textElement, item.caption(), item.font(), item.alignment())
 
     def _writeTextRectItem(self, element: ElementTree.Element, item: DrawingTextRectItem) -> None:
-        pass
+        groupElement = ElementTree.SubElement(element, 'g')
+
+        self._writeTransform(groupElement, item)
+
+        # Rect
+        rectElement = ElementTree.SubElement(groupElement, 'rect')
+
+        rect = item.rect().normalized()
+        self.writeFloat(rectElement, 'x', rect.left(), writeIfDefault=True)
+        self.writeFloat(rectElement, 'y', rect.top(), writeIfDefault=True)
+        self.writeFloat(rectElement, 'width', rect.width(), writeIfDefault=True)
+        self.writeFloat(rectElement, 'height', rect.height(), writeIfDefault=True)
+
+        self.writeFloat(rectElement, 'rx', item.cornerRadius())
+        self.writeFloat(rectElement, 'ry', item.cornerRadius())
+
+        self._writePenAndBrush(rectElement, item.brush(), item.pen())
+
+        # Text
+        textElement = ElementTree.SubElement(groupElement, 'text')
+
+        self._writePenAndBrush(textElement, item.textBrush(), QPen(Qt.PenStyle.NoPen))
+        self._writeText(textElement, item.caption(), item.font(), Qt.AlignmentFlag.AlignCenter)
 
     def _writeTextEllipseItem(self, element: ElementTree.Element, item: DrawingTextEllipseItem) -> None:
-        pass
+        groupElement = ElementTree.SubElement(element, 'g')
+
+        self._writeTransform(groupElement, item)
+
+        # Ellipse
+        ellipseElement = ElementTree.SubElement(groupElement, 'ellipse')
+
+        ellipse = item.ellipse().normalized()
+        center = ellipse.center()
+        self.writeFloat(ellipseElement, 'cx', center.x(), writeIfDefault=True)
+        self.writeFloat(ellipseElement, 'cy', center.y(), writeIfDefault=True)
+        self.writeFloat(ellipseElement, 'rx', ellipse.width() / 2, writeIfDefault=True)
+        self.writeFloat(ellipseElement, 'ry', ellipse.height() / 2, writeIfDefault=True)
+
+        self._writePenAndBrush(ellipseElement, item.brush(), item.pen())
+
+        # Text
+        textElement = ElementTree.SubElement(groupElement, 'text')
+
+        self._writePenAndBrush(textElement, item.textBrush(), QPen(Qt.PenStyle.NoPen))
+        self._writeText(textElement, item.caption(), item.font(), Qt.AlignmentFlag.AlignCenter)
 
     def _writePathItem(self, element: ElementTree.Element, item: DrawingPathItem) -> None:
-        pass
+        pathElement = ElementTree.SubElement(element, 'path')
+
+        self.writePath(pathElement, 'd', item.mapPathToScene(item.transformedPath()))
+
+        self._writePenAndBrush(pathElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
     def _writeGroupItem(self, element: ElementTree.Element, item: DrawingItemGroup) -> None:
-        pass
+        groupElement = ElementTree.SubElement(element, 'g')
+        self._writeTransform(groupElement, item)
+        self._writeItems(groupElement, item.items())
 
     # ==================================================================================================================
 
-    def _writePenToSvg(self, element: ElementTree.Element, pen: QPen) -> None:
+    def _writeTransform(self, element: ElementTree.Element, item: DrawingItem) -> None:
+        transformStr = f'translate({item.position().x()},{item.position().y()})'
+        if (item.isFlipped()):
+            transformStr = f'{transformStr} scale(-1,1)'
+        if (item.rotation() != 0):
+            transformStr = f'{transformStr} rotate({item.rotation() * 90})'
+
+        self.writeStr(element, 'transform', transformStr)
+
+    def _writePenAndBrush(self, element: ElementTree.Element, brush: QBrush, pen: QPen) -> None:
+        # Brush
+        alpha = brush.color().alpha()
+        if (alpha != 0):
+            color = QColor(brush.color())
+            color.setAlpha(255)
+            self.writeColor(element, 'fill', color, writeIfDefault=True)
+            if (alpha != 255):
+                self.writeStr(element, 'fill-opacity', f'{alpha / 255 * 100:.1f}%')
+        else:
+            self.writeStr(element, 'fill', 'none')
+
+        # Pen
         alpha = pen.brush().color().alpha()
         if (alpha != 0 and pen.style() != Qt.PenStyle.NoPen):
             color = QColor(pen.brush().color())
@@ -348,13 +415,42 @@ class SvgWriter(DrawingXmlInterface):
         else:
             self.writeStr(element, 'stroke', 'none')
 
-    def _writeBrushToSvg(self, element: ElementTree.Element, brush: QBrush) -> None:
-        alpha = brush.color().alpha()
-        if (alpha != 0):
-            color = QColor(brush.color())
-            color.setAlpha(255)
-            self.writeColor(element, 'fill', color, writeIfDefault=True)
-            if (alpha != 255):
-                self.writeStr(element, 'fill-opacity', f'{alpha / 255 * 100:.1f}%')
+    def _writeText(self, element: ElementTree.Element, text: str, font: QFont, alignment: Qt.AlignmentFlag) -> None:
+        # Font
+        self.writeStr(element, 'font-family', font.family())
+        self.writeFloat(element, 'font-size', font.pointSizeF(), writeIfDefault=True)
+
+        if (font.bold()):
+            self.writeStr(element, 'font-weight', 'bold')
+        if (font.italic()):
+            self.writeStr(element, 'font-style', 'italic')
+        if (font.underline()):
+            self.writeStr(element, 'text-decoration', 'underline')
+        if (font.strikeOut()):
+            self.writeStr(element, 'text-decoration', 'line-through')
+
+        # Horizontal alignment
+        if (alignment & Qt.AlignmentFlag.AlignHCenter):
+            self.writeStr(element, 'text-anchor', 'middle')
+        elif (alignment & Qt.AlignmentFlag.AlignRight):
+            self.writeStr(element, 'text-anchor', 'end')
+
+        # Vertical alignment
+        self.writeStr(element, 'dominant-baseline', 'central')
+
+        if (alignment & Qt.AlignmentFlag.AlignTop):
+            self.writeFloat(element, 'y', font.pointSizeF() * 3 / 4)
+        elif (alignment & Qt.AlignmentFlag.AlignBottom):
+            self.writeFloat(element, 'y', -font.pointSizeF() * 3 / 4)
+
+        # Text
+        lines = text.split('\n')
+        if (len(lines) > 1):
+            for index, line in enumerate(lines):
+                tspanElement = ElementTree.SubElement(element, 'tspan')
+                self.writeStr(tspanElement, 'x', '0', writeIfDefault=True)
+                if (index > 0):
+                    self.writeStr(tspanElement, 'dy', '1.0em')
+                tspanElement.text = line
         else:
-            self.writeStr(element, 'fill', 'none')
+            element.text = str(text)

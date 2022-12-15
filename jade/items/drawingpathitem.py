@@ -95,6 +95,9 @@ class DrawingPathItem(DrawingItem):
     def pathRect(self) -> QRectF:
         return self._pathRect
 
+    def transformedPath(self) -> QPainterPath:
+        return self._transformedPath
+
     # ==================================================================================================================
 
     def addConnectionPoint(self, position: QPointF) -> None:

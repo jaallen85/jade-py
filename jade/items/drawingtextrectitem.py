@@ -183,12 +183,16 @@ class DrawingTextRectItem(DrawingRectItem):
     # ==================================================================================================================
 
     def boundingRect(self) -> QRectF:
+        if (self._textRect.isNull()):
+            self._textRect = self._calculateTextRect(self._font)
         return super().boundingRect().united(self._textRect)
 
     def shape(self) -> QPainterPath:
         shape = super().shape()
 
         textPath = QPainterPath()
+        if (self._textRect.isNull()):
+            self._textRect = self._calculateTextRect(self._font)
         textPath.addRect(self._textRect)
         shape = shape.united(textPath)
 
