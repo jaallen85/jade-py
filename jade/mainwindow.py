@@ -17,8 +17,9 @@
 import os
 import typing
 from xml.etree import ElementTree
-from PySide6.QtCore import Qt, QRectF, QSize, SignalInstance
-from PySide6.QtGui import QAction, QBrush, QCloseEvent, QFontMetrics, QIcon, QImage, QKeySequence, QPainter, QShowEvent
+from PySide6.QtCore import Qt, QMarginsF, QRectF, QSize, QSizeF, SignalInstance
+from PySide6.QtGui import (QAction, QBrush, QColor, QCloseEvent, QFontMetrics, QIcon, QImage, QKeySequence, QPainter,
+                           QShowEvent)
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMenu, QMessageBox, QToolBar, QWidget)
 from .drawing.drawingxmlinterface import DrawingXmlInterface
@@ -27,7 +28,7 @@ from .exporters.svgwriter import SvgWriter
 from .exporters.vsdxwriter import VsdxWriter
 from .aboutdialog import AboutDialog
 from .diagramwidget import DiagramWidget
-from .exportoptionsdialog import ExportOptionsDialog
+from .exportoptionsdialog import OdgVsdxExportOptionsDialog, PngSvgExportOptionsDialog
 from .pagesbrowser import PagesBrowser
 from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
@@ -46,6 +47,12 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         self._propertiesDockVisibleOnClose: bool = True
 
         self._pngSvgExportScale: float = 1.0
+
+        self._odgVsdxUnits: str = 'mm'
+        self._odgVsdxScale: float = 1.0
+        self._odgVsdxPageSize: QSizeF = QSizeF()
+        self._odgVsdxPageMargins: QMarginsF = QMarginsF(0, 0, 0, 0)
+        self._odgVsdxBackgroundColor: QColor = QColor(255, 255, 255)
 
         # Main widget
         self._diagram: DiagramWidget = DiagramWidget()
@@ -394,8 +401,9 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                         path = f'{path}.png'
 
                     # Use the selected path to export the drawing to a PNG image
-                    exportOptionsDialog = ExportOptionsDialog(self._pngSvgExportScale, page.sceneRect().size(), self)
-                    if (exportOptionsDialog.exec() == ExportOptionsDialog.DialogCode.Accepted):
+                    exportOptionsDialog = PngSvgExportOptionsDialog(self._pngSvgExportScale, page.sceneRect().size(),
+                                                                    self)
+                    if (exportOptionsDialog.exec() == PngSvgExportOptionsDialog.DialogCode.Accepted):
                         self._pngSvgExportScale = exportOptionsDialog.scale()
 
                         pngImage = QImage(round(page.sceneRect().width() * self._pngSvgExportScale),
@@ -431,8 +439,9 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                         path = f'{path}.svg'
 
                     # Use the selected path to export the drawing to an SVG image
-                    exportOptionsDialog = ExportOptionsDialog(self._pngSvgExportScale, page.sceneRect().size(), self)
-                    if (exportOptionsDialog.exec() == ExportOptionsDialog.DialogCode.Accepted):
+                    exportOptionsDialog = PngSvgExportOptionsDialog(self._pngSvgExportScale, page.sceneRect().size(),
+                                                                    self)
+                    if (exportOptionsDialog.exec() == PngSvgExportOptionsDialog.DialogCode.Accepted):
                         self._pngSvgExportScale = exportOptionsDialog.scale()
 
                         svgWriter = SvgWriter(page, self._pngSvgExportScale)
@@ -458,8 +467,23 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                 if (not path.endswith('.odg')):
                     path = f'{path}.odg'
 
+                # Allow user to change various ODG export options
+                dialog = OdgVsdxExportOptionsDialog(self._diagram, self._odgVsdxUnits, self._odgVsdxScale,
+                                                    self._odgVsdxPageSize, self._odgVsdxPageMargins,
+                                                    self._odgVsdxBackgroundColor, self)
+                if (dialog.exec() == OdgVsdxExportOptionsDialog.DialogCode.Accepted):
+                    self._odgVsdxUnits = dialog.units()
+                    self._odgVsdxScale = dialog.scale()
+                    if (dialog.pageSize() != dialog.autoPageSize()):
+                        self._odgVsdxPageSize = dialog.pageSize()
+                    if (dialog.pageMargins() != dialog.autoPageMargins()):
+                        self._odgVsdxPageMargins = dialog.pageMargins()
+                    if (dialog.backgroundColor() != dialog.autoBackgroundColor()):
+                        self._odgVsdxBackgroundColor = dialog.backgroundColor()
+
                 # Use the selected path to export the drawing to an ODG document
-                odgWriter = OdgWriter(self._diagram)
+                odgWriter = OdgWriter(self._diagram, self._odgVsdxUnits, self._odgVsdxScale,
+                                      self._odgVsdxPageSize, self._odgVsdxPageMargins, self._odgVsdxBackgroundColor)
                 odgWriter.write(path)
 
     def exportVsdx(self) -> None:
@@ -587,8 +611,10 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
 
         self._diagram.setActionsEnabled(visible)
 
-        # Reset export scales
-        self._pngSvgExportScale = 1.0
+        # Reset export settings
+        self._odgVsdxPageSize = QSizeF()
+        self._odgVsdxPageMargins = QMarginsF(0, 0, 0, 0)
+        self._odgVsdxBackgroundColor = QColor(255, 255, 255)
 
     def _setFilePath(self, path: str) -> None:
         self._filePath = path
@@ -650,6 +676,12 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         self.writeAlignment(itemElement, 'textAlignment', self._diagram.defaultTextAlignment())
         self.writeBrush(itemElement, 'text', self._diagram.defaultTextBrush())
 
+        # Export settings
+        exportElement = ElementTree.SubElement(configElement, 'exportSettings')
+        self.writeFloat(exportElement, 'pngSvgExportScale', self._pngSvgExportScale)
+        self.writeStr(exportElement, 'odgVsdxUnits', self._odgVsdxUnits)
+        self.writeFloat(exportElement, 'odgVsdxExportScale', self._odgVsdxScale)
+
         ElementTree.indent(configElement, space='  ')
         with open('./config.xml', 'w', encoding='utf-8') as file:
             file.write(ElementTree.tostring(configElement, encoding='unicode', xml_declaration=True))
@@ -687,6 +719,12 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                     self._diagram.setDefaultFont(self.readFont(itemElement, 'font'))
                     self._diagram.setDefaultTextAlignment(self.readAlignment(itemElement, 'textAlignment'))
                     self._diagram.setDefaultTextBrush(self.readBrush(itemElement, 'text'))
+
+                # Export settings
+                for exportElement in configElement.findall('exportSettings'):
+                    self._pngSvgExportScale = self.readFloat(exportElement, 'pngSvgExportScale')
+                    self._odgVsdxUnits = self.readStr(exportElement, 'odgVsdxUnits')
+                    self._odgVsdxScale = self.readFloat(exportElement, 'odgVsdxExportScale')
 
             self._diagram.clear()
         except FileNotFoundError:

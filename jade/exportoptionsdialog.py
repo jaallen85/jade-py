@@ -14,12 +14,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from PySide6.QtCore import Qt, QSizeF
-from PySide6.QtGui import QDoubleValidator, QFontMetrics, QIcon, QIntValidator
+from PySide6.QtCore import Qt, QMarginsF, QSizeF
+from PySide6.QtGui import QColor, QDoubleValidator, QFontMetrics, QIcon, QIntValidator
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
+from .diagramwidget import DiagramWidget
 
 
-class ExportOptionsDialog(QDialog):
+class PngSvgExportOptionsDialog(QDialog):
     def __init__(self, scale: float, pageSize: QSizeF, parent: QWidget) -> None:
         super().__init__(parent)
 
@@ -118,3 +119,71 @@ class ExportOptionsDialog(QDialog):
             self._heightEdit.setText(f'{round(self._pageSize.height() * scale)}')
         except ValueError:
             pass
+
+
+# ======================================================================================================================
+# ======================================================================================================================
+# ======================================================================================================================
+
+class OdgVsdxExportOptionsDialog(QDialog):
+    def __init__(self, drawing: DiagramWidget, units: str, scale: float, pageSize: QSizeF, pageMargins: QMarginsF,
+                 backgroundColor: QColor, parent: QWidget) -> None:
+        super().__init__(parent)
+
+        self._units: str = str(units)
+        self._scale: float = scale
+        self._pageSize: QSizeF = QSizeF(pageSize)
+        self._pageMargins: QMarginsF = QMarginsF(pageMargins)
+        self._backgroundColor: QColor = QColor(backgroundColor)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self._createButtonBox())
+        self.setLayout(layout)
+
+        self.setWindowTitle('Export Options')
+        self.setWindowIcon(QIcon('icons:jade.png'))
+        self.resize(200, 10)
+
+    def _createButtonBox(self) -> QWidget:
+        buttonBox = QDialogButtonBox(Qt.Orientation.Horizontal)
+        buttonBox.setCenterButtons(True)
+
+        okButton = buttonBox.addButton('OK', QDialogButtonBox.ButtonRole.AcceptRole)
+        cancelButton = buttonBox.addButton('Cancel', QDialogButtonBox.ButtonRole.RejectRole)
+
+        rect = QFontMetrics(cancelButton.font()).boundingRect('Cancel')
+        okButton.setMinimumSize(rect.width() + 24, rect.height() + 16)
+        cancelButton.setMinimumSize(rect.width() + 24, rect.height() + 16)
+
+        okButton.clicked.connect(self.accept)       # type: ignore
+        cancelButton.clicked.connect(self.reject)   # type: ignore
+
+        return buttonBox
+
+    # ==================================================================================================================
+
+    def units(self) -> str:
+        return self._units
+
+    def scale(self) -> float:
+        return self._scale
+
+    def pageSize(self) -> QSizeF:
+        return self._pageSize
+
+    def pageMargins(self) -> QMarginsF:
+        return self._pageMargins
+
+    def backgroundColor(self) -> QColor:
+        return self._backgroundColor
+
+    # ==================================================================================================================
+
+    def autoPageSize(self) -> QSizeF:
+        return self._pageSize
+
+    def autoPageMargins(self) -> QMarginsF:
+        return self._pageMargins
+
+    def autoBackgroundColor(self) -> QColor:
+        return self._backgroundColor

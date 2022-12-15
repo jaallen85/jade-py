@@ -16,12 +16,11 @@
 
 from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QLineF, QRectF
-from PySide6.QtGui import QBrush, QColor, QFont, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QPainterPath, QPen, QPolygonF
 from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitemgroup import DrawingItemGroup
 from ..drawing.drawingpagewidget import DrawingPageWidget
-from ..drawing.drawingxmlinterface import DrawingXmlInterface
 from ..items.drawingcurveitem import DrawingCurveItem
 from ..items.drawingellipseitem import DrawingEllipseItem
 from ..items.drawinglineitem import DrawingLineItem
@@ -34,7 +33,7 @@ from ..items.drawingtextitem import DrawingTextItem
 from ..items.drawingtextrectitem import DrawingTextRectItem
 
 
-class SvgWriter(DrawingXmlInterface):
+class SvgWriter:
     def __init__(self, page: DrawingPageWidget, scale: float) -> None:
         super().__init__()
 
@@ -47,14 +46,14 @@ class SvgWriter(DrawingXmlInterface):
         svgElement = ElementTree.Element('svg')
 
         rect = self._page.sceneRect()
-        self.writeInt(svgElement, 'width', round(rect.width() * self._scale), writeIfDefault=True)
-        self.writeInt(svgElement, 'height', round(rect.height() * self._scale), writeIfDefault=True)
-        self.writeStr(svgElement, 'viewBox', f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')
+        svgElement.set('width', f'{round(rect.width() * self._scale)}')
+        svgElement.set('height', f'{round(rect.height() * self._scale)}')
+        svgElement.set('viewBox', f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')
 
         backgroundColor = QColor(self._page.backgroundBrush().color())
-        self.writeStr(svgElement, 'style', f'background-color:{backgroundColor.name(QColor.NameFormat.HexRgb)}')
+        svgElement.set('style', f'background-color:{backgroundColor.name(QColor.NameFormat.HexRgb)}')
 
-        self.writeStr(svgElement, 'xmlns', 'http://www.w3.org/2000/svg')
+        svgElement.set('xmlns', 'http://www.w3.org/2000/svg')
 
         defElement = ElementTree.SubElement(svgElement, 'defs')
         self._writeArrows(defElement, self._page.items())
@@ -88,7 +87,7 @@ class SvgWriter(DrawingXmlInterface):
             markerElement = element.find(f'marker[@id="{markerName}"]')
             if (markerElement is None):
                 markerElement = ElementTree.SubElement(element, 'marker')
-                self.writeStr(markerElement, 'id', markerName)
+                markerElement.set('id', markerName)
 
                 originalPenStyle = pen.style()
                 pen.setStyle(Qt.PenStyle.SolidLine)
@@ -100,15 +99,14 @@ class SvgWriter(DrawingXmlInterface):
                     rect = path.boundingRect().normalized()
                     rect.adjust(-pen.widthF(), -pen.widthF(), pen.widthF(), pen.widthF())
 
-                    self.writeStr(markerElement, 'viewBox',
-                                  f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')
-                    self.writeFloat(markerElement, 'markerWidth', rect.width())
-                    self.writeFloat(markerElement, 'markerHeight', rect.height())
-                    self.writeStr(markerElement, 'orient', 'auto-start-reverse')
+                    markerElement.set('viewBox', f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')
+                    markerElement.set('markerWidth', f'{rect.width()}')
+                    markerElement.set('markerHeight', f'{rect.height()}')
+                    markerElement.set('orient', 'auto-start-reverse')
 
                     pathElement = ElementTree.SubElement(markerElement, 'path')
 
-                    self.writePath(pathElement, 'd', path)
+                    pathElement.set('d', self._pathToString(path))
 
                     if (arrow.style() in (DrawingArrow.Style.TriangleFilled, DrawingArrow.Style.ConcaveFilled)):
                         brush = pen.brush()
@@ -124,13 +122,12 @@ class SvgWriter(DrawingXmlInterface):
                     rect = QRectF(-radius, -radius, 2 * radius, 2 * radius)
                     rect.adjust(-pen.widthF(), -pen.widthF(), pen.widthF(), pen.widthF())
 
-                    self.writeStr(markerElement, 'viewBox',
-                                  f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')
-                    self.writeFloat(markerElement, 'markerWidth', rect.width())
-                    self.writeFloat(markerElement, 'markerHeight', rect.height())
+                    markerElement.set('viewBox', f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')
+                    markerElement.set('markerWidth', f'{rect.width()}')
+                    markerElement.set('markerHeight', f'{rect.height()}')
 
                     circleElement = ElementTree.SubElement(markerElement, 'circle')
-                    self.writeFloat(circleElement, 'r', radius, writeIfDefault=True)
+                    circleElement.set('r', f'{radius}')
 
                     if (arrow.style() == DrawingArrow.Style.CircleFilled):
                         brush = pen.brush()
@@ -199,19 +196,19 @@ class SvgWriter(DrawingXmlInterface):
         # Write line
         p1 = item.mapToScene(item.line().p1())
         p2 = item.mapToScene(item.line().p2())
-        self.writeFloat(lineElement, 'x1', p1.x(), writeIfDefault=True)
-        self.writeFloat(lineElement, 'y1', p1.y(), writeIfDefault=True)
-        self.writeFloat(lineElement, 'x2', p2.x(), writeIfDefault=True)
-        self.writeFloat(lineElement, 'y2', p2.y(), writeIfDefault=True)
+        lineElement.set('x1', f'{p1.x()}')
+        lineElement.set('y1', f'{p1.y()}')
+        lineElement.set('x2', f'{p2.x()}')
+        lineElement.set('y2', f'{p2.y()}')
 
         self._writePenAndBrush(lineElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
         # Write arrows
         lineLength = QLineF(p1, p2).length()
         if (item.startArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.startArrow().size()):
-            self.writeStr(lineElement, 'marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')
+            lineElement.set('marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')
         if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.endArrow().size()):
-            self.writeStr(lineElement, 'marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')
+            lineElement.set('marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')
 
     def _writeCurveItem(self, element: ElementTree.Element, item: DrawingCurveItem) -> None:
         curve = item.mapPolygonToScene(item.curve())
@@ -223,24 +220,23 @@ class SvgWriter(DrawingXmlInterface):
             cp1 = curve.at(1)
             cp2 = curve.at(2)
             p2 = curve.at(3)
-            pathStr = f'M {p1.x()},{p1.y()} C {cp1.x()},{cp1.y()} {cp2.x()},{cp2.y()} {p2.x()},{p2.y()}'
-            self.writeStr(pathElement, 'd', pathStr)
+            pathElement.set('d', f'M {p1.x()},{p1.y()} C {cp1.x()},{cp1.y()} {cp2.x()},{cp2.y()} {p2.x()},{p2.y()}')
 
             self._writePenAndBrush(pathElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
             # Write arrows
             lineLength = QLineF(curve.at(0), curve.at(curve.size() - 1)).length()
             if (item.startArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.startArrow().size()):
-                self.writeStr(pathElement, 'marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')     # noqa
+                pathElement.set('marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')     # noqa
             if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.endArrow().size()):
-                self.writeStr(pathElement, 'marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')         # noqa
+                pathElement.set('marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')         # noqa
 
     def _writePolylineItem(self, element: ElementTree.Element, item: DrawingPolylineItem) -> None:
         polylineElement = ElementTree.SubElement(element, 'polyline')
 
         # Write polyline
         polyline = item.mapPolygonToScene(item.polyline())
-        self.writePoints(polylineElement, 'points', polyline)
+        polylineElement.set('points', self._polygonToString(polyline))
 
         self._writePenAndBrush(polylineElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
@@ -249,21 +245,22 @@ class SvgWriter(DrawingXmlInterface):
             firstLength = QLineF(polyline.at(0), polyline.at(1)).length()
             lastLength = QLineF(polyline.at(polyline.size() - 1), polyline.at(polyline.size() - 2)).length()
             if (item.startArrow().style() != DrawingArrow.Style.NoStyle and firstLength >= item.startArrow().size()):
-                self.writeStr(polylineElement, 'marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')     # noqa
+                polylineElement.set('marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')     # noqa
             if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lastLength >= item.endArrow().size()):
-                self.writeStr(polylineElement, 'marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')         # noqa
+                polylineElement.set('marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')         # noqa
 
     def _writeRectItem(self, element: ElementTree.Element, item: DrawingRectItem) -> None:
         rectElement = ElementTree.SubElement(element, 'rect')
 
         rect = item.mapRectToScene(item.rect())
-        self.writeFloat(rectElement, 'x', rect.left(), writeIfDefault=True)
-        self.writeFloat(rectElement, 'y', rect.top(), writeIfDefault=True)
-        self.writeFloat(rectElement, 'width', rect.width(), writeIfDefault=True)
-        self.writeFloat(rectElement, 'height', rect.height(), writeIfDefault=True)
+        rectElement.set('x', f'{rect.left()}')
+        rectElement.set('y', f'{rect.top()}')
+        rectElement.set('width', f'{rect.width()}')
+        rectElement.set('height', f'{rect.height()}')
 
-        self.writeFloat(rectElement, 'rx', item.cornerRadius())
-        self.writeFloat(rectElement, 'ry', item.cornerRadius())
+        if (item.cornerRadius() != 0):
+            rectElement.set('rx', f'{item.cornerRadius()}')
+            rectElement.set('ry', f'{item.cornerRadius()}')
 
         self._writePenAndBrush(rectElement, item.brush(), item.pen())
 
@@ -272,17 +269,17 @@ class SvgWriter(DrawingXmlInterface):
 
         ellipse = item.mapRectToScene(item.ellipse())
         center = ellipse.center()
-        self.writeFloat(ellipseElement, 'cx', center.x(), writeIfDefault=True)
-        self.writeFloat(ellipseElement, 'cy', center.y(), writeIfDefault=True)
-        self.writeFloat(ellipseElement, 'rx', ellipse.width() / 2, writeIfDefault=True)
-        self.writeFloat(ellipseElement, 'ry', ellipse.height() / 2, writeIfDefault=True)
+        ellipseElement.set('cx', f'{center.x()}')
+        ellipseElement.set('cy', f'{center.y()}')
+        ellipseElement.set('rx', f'{ellipse.width() / 2}')
+        ellipseElement.set('ry', f'{ellipse.height() / 2}')
 
         self._writePenAndBrush(ellipseElement, item.brush(), item.pen())
 
     def _writePolygonItem(self, element: ElementTree.Element, item: DrawingPolygonItem) -> None:
         polygonElement = ElementTree.SubElement(element, 'polygon')
 
-        self.writePoints(polygonElement, 'points', item.mapPolygonToScene(item.polygon()))
+        polygonElement.set('points', self._polygonToString(item.mapPolygonToScene(item.polygon())))
 
         self._writePenAndBrush(polygonElement, item.brush(), item.pen())
 
@@ -302,14 +299,14 @@ class SvgWriter(DrawingXmlInterface):
         rectElement = ElementTree.SubElement(groupElement, 'rect')
 
         rect = item.rect().normalized()
-        self.writeFloat(rectElement, 'x', rect.left(), writeIfDefault=True)
-        self.writeFloat(rectElement, 'y', rect.top(), writeIfDefault=True)
-        self.writeFloat(rectElement, 'width', rect.width(), writeIfDefault=True)
-        self.writeFloat(rectElement, 'height', rect.height(), writeIfDefault=True)
+        rectElement.set('x', f'{rect.left()}')
+        rectElement.set('y', f'{rect.top()}')
+        rectElement.set('width', f'{rect.width()}')
+        rectElement.set('height', f'{rect.height()}')
 
-        self.writeFloat(rectElement, 'rx', item.cornerRadius())
-        self.writeFloat(rectElement, 'ry', item.cornerRadius())
-
+        if (item.cornerRadius() != 0):
+            rectElement.set('rx', f'{item.cornerRadius()}')
+            rectElement.set('ry', f'{item.cornerRadius()}')
         self._writePenAndBrush(rectElement, item.brush(), item.pen())
 
         # Text
@@ -328,10 +325,10 @@ class SvgWriter(DrawingXmlInterface):
 
         ellipse = item.ellipse().normalized()
         center = ellipse.center()
-        self.writeFloat(ellipseElement, 'cx', center.x(), writeIfDefault=True)
-        self.writeFloat(ellipseElement, 'cy', center.y(), writeIfDefault=True)
-        self.writeFloat(ellipseElement, 'rx', ellipse.width() / 2, writeIfDefault=True)
-        self.writeFloat(ellipseElement, 'ry', ellipse.height() / 2, writeIfDefault=True)
+        ellipseElement.set('cx', f'{center.x()}')
+        ellipseElement.set('cy', f'{center.y()}')
+        ellipseElement.set('rx', f'{ellipse.width() / 2}')
+        ellipseElement.set('ry', f'{ellipse.height() / 2}')
 
         self._writePenAndBrush(ellipseElement, item.brush(), item.pen())
 
@@ -344,7 +341,7 @@ class SvgWriter(DrawingXmlInterface):
     def _writePathItem(self, element: ElementTree.Element, item: DrawingPathItem) -> None:
         pathElement = ElementTree.SubElement(element, 'path')
 
-        self.writePath(pathElement, 'd', item.mapPathToScene(item.transformedPath()))
+        pathElement.set('d', self._pathToString(item.mapPathToScene(item.transformedPath())))
 
         self._writePenAndBrush(pathElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
@@ -362,7 +359,7 @@ class SvgWriter(DrawingXmlInterface):
         if (item.rotation() != 0):
             transformStr = f'{transformStr} rotate({item.rotation() * 90})'
 
-        self.writeStr(element, 'transform', transformStr)
+        element.set('transform', transformStr)
 
     def _writePenAndBrush(self, element: ElementTree.Element, brush: QBrush, pen: QPen) -> None:
         # Brush
@@ -370,87 +367,111 @@ class SvgWriter(DrawingXmlInterface):
         if (alpha != 0):
             color = QColor(brush.color())
             color.setAlpha(255)
-            self.writeColor(element, 'fill', color, writeIfDefault=True)
+            element.set('fill', color.name(QColor.NameFormat.HexRgb))
             if (alpha != 255):
-                self.writeStr(element, 'fill-opacity', f'{alpha / 255 * 100:.1f}%')
+                element.set('fill-opacity', f'{alpha / 255 * 100:.1f}%')
         else:
-            self.writeStr(element, 'fill', 'none')
+            element.set('fill', 'none')
 
         # Pen
         alpha = pen.brush().color().alpha()
         if (alpha != 0 and pen.style() != Qt.PenStyle.NoPen):
             color = QColor(pen.brush().color())
             color.setAlpha(255)
-            self.writeColor(element, 'stroke', color, writeIfDefault=True)
+            element.set('stroke', color.name(QColor.NameFormat.HexRgb))
             if (alpha != 255):
-                self.writeStr(element, 'stroke-opacity', f'{alpha / 255 * 100:.1f}%')
+                element.set('stroke-opacity', f'{alpha / 255 * 100:.1f}%')
 
-            self.writeFloat(element, 'stroke-width', pen.widthF())
+            element.set('stroke-width', f'{pen.widthF()}')
 
             dashLength = 4 * pen.widthF()
             dotLength = pen.widthF()
             spaceLength = 2 * pen.widthF()
             match (pen.style()):
                 case Qt.PenStyle.DashLine:
-                    self.writeStr(element, 'stroke-dasharray', f'{dashLength} {spaceLength}')
+                    element.set('stroke-dasharray', f'{dashLength} {spaceLength}')
                 case Qt.PenStyle.DotLine:
-                    self.writeStr(element, 'stroke-dasharray', f'{dotLength} {spaceLength}')
+                    element.set('stroke-dasharray', f'{dotLength} {spaceLength}')
                 case Qt.PenStyle.DashDotLine:
-                    self.writeStr(element, 'stroke-dasharray', f'{dashLength} {spaceLength} {dotLength} {spaceLength}')
+                    element.set('stroke-dasharray', f'{dashLength} {spaceLength} {dotLength} {spaceLength}')
                 case Qt.PenStyle.DashDotDotLine:
-                    self.writeStr(element, 'stroke-dasharray', f'{dashLength} {spaceLength} {dotLength} {spaceLength} '
-                                                               f'{dotLength} {spaceLength}')
+                    element.set('stroke-dasharray', f'{dashLength} {spaceLength} {dotLength} {spaceLength} '
+                                                    f'{dotLength} {spaceLength}')
 
             match (pen.capStyle()):
                 case Qt.PenCapStyle.SquareCap:
-                    self.writeStr(element, 'stroke-linecap', 'square')
+                    element.set('stroke-linecap', 'square')
                 case Qt.PenCapStyle.RoundCap:
-                    self.writeStr(element, 'stroke-linecap', 'round')
+                    element.set('stroke-linecap', 'round')
 
             match (pen.joinStyle()):
                 case Qt.PenJoinStyle.BevelJoin:
-                    self.writeStr(element, 'stroke-linejoin', 'bevel')
+                    element.set('stroke-linejoin', 'bevel')
                 case Qt.PenJoinStyle.RoundJoin:
-                    self.writeStr(element, 'stroke-linejoin', 'round')
+                    element.set('stroke-linejoin', 'round')
         else:
-            self.writeStr(element, 'stroke', 'none')
+            element.set('stroke', 'none')
 
     def _writeText(self, element: ElementTree.Element, text: str, font: QFont, alignment: Qt.AlignmentFlag) -> None:
         # Font
-        self.writeStr(element, 'font-family', font.family())
-        self.writeFloat(element, 'font-size', font.pointSizeF(), writeIfDefault=True)
+        element.set('font-family', font.family())
+        element.set('font-size', f'{font.pointSizeF()}')
 
         if (font.bold()):
-            self.writeStr(element, 'font-weight', 'bold')
+            element.set('font-weight', 'bold')
         if (font.italic()):
-            self.writeStr(element, 'font-style', 'italic')
+            element.set('font-style', 'italic')
         if (font.underline()):
-            self.writeStr(element, 'text-decoration', 'underline')
+            element.set('text-decoration', 'underline')
         if (font.strikeOut()):
-            self.writeStr(element, 'text-decoration', 'line-through')
+            element.set('text-decoration', 'line-through')
 
         # Horizontal alignment
         if (alignment & Qt.AlignmentFlag.AlignHCenter):
-            self.writeStr(element, 'text-anchor', 'middle')
+            element.set('text-anchor', 'middle')
         elif (alignment & Qt.AlignmentFlag.AlignRight):
-            self.writeStr(element, 'text-anchor', 'end')
+            element.set('text-anchor', 'end')
 
         # Vertical alignment
-        self.writeStr(element, 'dominant-baseline', 'central')
+        element.set('dominant-baseline', 'central')
 
         if (alignment & Qt.AlignmentFlag.AlignTop):
-            self.writeFloat(element, 'y', font.pointSizeF() * 3 / 4)
+            element.set('y', f'{font.pointSizeF() * 3 / 4}')
         elif (alignment & Qt.AlignmentFlag.AlignBottom):
-            self.writeFloat(element, 'y', -font.pointSizeF() * 3 / 4)
+            element.set('y', f'{-font.pointSizeF() * 3 / 4}')
 
         # Text
         lines = text.split('\n')
         if (len(lines) > 1):
             for index, line in enumerate(lines):
                 tspanElement = ElementTree.SubElement(element, 'tspan')
-                self.writeStr(tspanElement, 'x', '0', writeIfDefault=True)
+                tspanElement.set('x', '0')
                 if (index > 0):
-                    self.writeStr(tspanElement, 'dy', '1.0em')
+                    tspanElement.set('dy', '1.0em')
                 tspanElement.text = line
         else:
             element.text = str(text)
+
+    # ==================================================================================================================
+
+    def _polygonToString(self, polygon: QPolygonF) -> str:
+        polygonStr = ''
+        for index in range(polygon.size()):
+            point = polygon.at(index)
+            polygonStr = polygonStr + f'{point.x()},{point.y()} '
+        return polygonStr.strip()
+
+    def _pathToString(self, path: QPainterPath) -> str:
+        pathStr = ''
+        for index in range(path.elementCount()):
+            pathElement = path.elementAt(index)
+            match (pathElement.type):                                           # type: ignore
+                case QPainterPath.ElementType.MoveToElement:
+                    pathStr = f'{pathStr} M {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.LineToElement:
+                    pathStr = f'{pathStr} L {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.CurveToElement:
+                    pathStr = f'{pathStr} C {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.CurveToDataElement:
+                    pathStr = f'{pathStr} {pathElement.x} {pathElement.y}'      # type: ignore
+        return pathStr.strip()
