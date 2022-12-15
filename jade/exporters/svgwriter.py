@@ -204,6 +204,7 @@ class SvgWriter(DrawingXmlInterface):
         self.writeFloat(lineElement, 'x2', p2.x(), writeIfDefault=True)
         self.writeFloat(lineElement, 'y2', p2.y(), writeIfDefault=True)
 
+        self._writeBrushToSvg(lineElement, QBrush(Qt.GlobalColor.transparent))
         self._writePenToSvg(lineElement, item.pen())
 
         # Write arrows
@@ -214,10 +215,46 @@ class SvgWriter(DrawingXmlInterface):
             self.writeStr(lineElement, 'marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')
 
     def _writeCurveItem(self, element: ElementTree.Element, item: DrawingCurveItem) -> None:
-        pass
+        curve = item.mapPolygonToScene(item.curve())
+        if (curve.size() == 4):
+            pathElement = ElementTree.SubElement(element, 'path')
+
+            # Write curve
+            p1 = curve.at(0)
+            cp1 = curve.at(1)
+            cp2 = curve.at(2)
+            p2 = curve.at(3)
+            pathStr = f'M {p1.x()},{p1.y()} C {cp1.x()},{cp1.y()} {cp2.x()},{cp2.y()} {p2.x()},{p2.y()}'
+            self.writeStr(pathElement, 'd', pathStr)
+
+            self._writeBrushToSvg(pathElement, QBrush(Qt.GlobalColor.transparent))
+            self._writePenToSvg(pathElement, item.pen())
+
+            # Write arrows
+            lineLength = QLineF(curve.at(0), curve.at(curve.size() - 1)).length()
+            if (item.startArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.startArrow().size()):
+                self.writeStr(pathElement, 'marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')     # noqa
+            if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.endArrow().size()):
+                self.writeStr(pathElement, 'marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')         # noqa
 
     def _writePolylineItem(self, element: ElementTree.Element, item: DrawingPolylineItem) -> None:
-        pass
+        polylineElement = ElementTree.SubElement(element, 'polyline')
+
+        # Write polyline
+        polyline = item.mapPolygonToScene(item.polyline())
+        self.writePoints(polylineElement, 'points', polyline)
+
+        self._writeBrushToSvg(polylineElement, QBrush(Qt.GlobalColor.transparent))
+        self._writePenToSvg(polylineElement, item.pen())
+
+        # Write arrows
+        if (polyline.size() >= 2):
+            firstLength = QLineF(polyline.at(0), polyline.at(1)).length()
+            lastLength = QLineF(polyline.at(polyline.size() - 1), polyline.at(polyline.size() - 2)).length()
+            if (item.startArrow().style() != DrawingArrow.Style.NoStyle and firstLength >= item.startArrow().size()):
+                self.writeStr(polylineElement, 'marker-start', f'url(#{self._arrowMarkerName(item.startArrow(), item.pen())})')     # noqa
+            if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lastLength >= item.endArrow().size()):
+                self.writeStr(polylineElement, 'marker-end', f'url(#{self._arrowMarkerName(item.endArrow(), item.pen())})')         # noqa
 
     def _writeRectItem(self, element: ElementTree.Element, item: DrawingRectItem) -> None:
         rectElement = ElementTree.SubElement(element, 'rect')
