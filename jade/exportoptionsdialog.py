@@ -14,10 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from PySide6.QtCore import Qt, QMarginsF, QSizeF
-from PySide6.QtGui import QColor, QDoubleValidator, QFontMetrics, QIcon, QIntValidator
-from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QSizeF
+from PySide6.QtGui import QDoubleValidator, QFontMetrics, QIcon, QIntValidator
+from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout,
+                               QWidget)
 from .diagramwidget import DiagramWidget
+from .properties.helperwidgets import SizeEdit
 
 
 class PngSvgExportOptionsDialog(QDialog):
@@ -126,23 +128,45 @@ class PngSvgExportOptionsDialog(QDialog):
 # ======================================================================================================================
 
 class OdgVsdxExportOptionsDialog(QDialog):
-    def __init__(self, drawing: DiagramWidget, units: str, scale: float, pageSize: QSizeF, pageMargins: QMarginsF,
-                 backgroundColor: QColor, parent: QWidget) -> None:
+    def __init__(self, drawing: DiagramWidget, exportEntireDocument: bool, scale: float, units: str,
+                 parent: QWidget) -> None:
         super().__init__(parent)
 
-        self._units: str = str(units)
-        self._scale: float = scale
-        self._pageSize: QSizeF = QSizeF(pageSize)
-        self._pageMargins: QMarginsF = QMarginsF(pageMargins)
-        self._backgroundColor: QColor = QColor(backgroundColor)
-
         layout = QVBoxLayout()
+        layout.addWidget(self._createExportGroup())
         layout.addWidget(self._createButtonBox())
         self.setLayout(layout)
 
         self.setWindowTitle('Export Options')
         self.setWindowIcon(QIcon('icons:jade.png'))
-        self.resize(200, 10)
+        self.resize(280, 10)
+
+        self._pagesCombo.setCurrentIndex(0 if (exportEntireDocument) else 1)
+        self._scaleCombo.setSize(scale)
+        self._unitsCombo.setCurrentIndex(1 if (units.lower() == 'in') else 0)
+
+    def _createExportGroup(self) -> QWidget:
+        self._pagesCombo: QComboBox = QComboBox()
+        self._pagesCombo.addItems(['Entire Document', 'Current Page Only'])
+
+        self._scaleCombo: SizeEdit = SizeEdit()
+
+        self._unitsCombo: QComboBox = QComboBox()
+        self._unitsCombo.addItems(['Millimeters (mm)', 'Inches (in)'])
+
+        exportGroup = QGroupBox('Export')
+        labelWidth = QFontMetrics(exportGroup.font()).boundingRect('Target Units:').width() + 16
+        exportLayout = QFormLayout()
+        exportLayout.addRow('Pages:', self._pagesCombo)
+        exportLayout.addRow('Scale:', self._scaleCombo)
+        exportLayout.addRow('Target Units:', self._unitsCombo)
+        exportLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        exportLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        exportLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        exportLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(labelWidth)
+        exportGroup.setLayout(exportLayout)
+
+        return exportGroup
 
     def _createButtonBox(self) -> QWidget:
         buttonBox = QDialogButtonBox(Qt.Orientation.Horizontal)
@@ -162,28 +186,11 @@ class OdgVsdxExportOptionsDialog(QDialog):
 
     # ==================================================================================================================
 
-    def units(self) -> str:
-        return self._units
+    def shouldExportEntireDocument(self) -> bool:
+        return (self._pagesCombo.currentIndex() == 0)
 
     def scale(self) -> float:
-        return self._scale
+        return self._scaleCombo.size()
 
-    def pageSize(self) -> QSizeF:
-        return self._pageSize
-
-    def pageMargins(self) -> QMarginsF:
-        return self._pageMargins
-
-    def backgroundColor(self) -> QColor:
-        return self._backgroundColor
-
-    # ==================================================================================================================
-
-    def autoPageSize(self) -> QSizeF:
-        return self._pageSize
-
-    def autoPageMargins(self) -> QMarginsF:
-        return self._pageMargins
-
-    def autoBackgroundColor(self) -> QColor:
-        return self._backgroundColor
+    def units(self) -> str:
+        return 'in' if (self._unitsCombo.currentIndex() == 1) else 'mm'

@@ -17,8 +17,8 @@
 import os
 import typing
 from xml.etree import ElementTree
-from PySide6.QtCore import Qt, QMarginsF, QRectF, QSize, QSizeF, SignalInstance
-from PySide6.QtGui import (QAction, QBrush, QColor, QCloseEvent, QFontMetrics, QIcon, QImage, QKeySequence, QPainter,
+from PySide6.QtCore import Qt, QSize, QSizeF, SignalInstance
+from PySide6.QtGui import (QAction, QBrush, QCloseEvent, QFontMetrics, QIcon, QImage, QKeySequence, QPainter,
                            QShowEvent)
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
                                QMenu, QMessageBox, QToolBar, QWidget)
@@ -48,11 +48,9 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
 
         self._pngSvgExportScale: float = 1.0
 
-        self._odgVsdxUnits: str = 'mm'
+        self._odgVsdxExportEntireDocument: bool = True
         self._odgVsdxScale: float = 1.0
-        self._odgVsdxPageSize: QSizeF = QSizeF()
-        self._odgVsdxPageMargins: QMarginsF = QMarginsF(0, 0, 0, 0)
-        self._odgVsdxBackgroundColor: QColor = QColor(255, 255, 255)
+        self._odgVsdxUnits: str = 'mm'
 
         # Main widget
         self._diagram: DiagramWidget = DiagramWidget()
@@ -401,17 +399,17 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                         path = f'{path}.png'
 
                     # Use the selected path to export the drawing to a PNG image
-                    exportOptionsDialog = PngSvgExportOptionsDialog(self._pngSvgExportScale, page.sceneRect().size(),
-                                                                    self)
+                    pageRect = page.pageRect()
+                    exportOptionsDialog = PngSvgExportOptionsDialog(self._pngSvgExportScale, pageRect.size(), self)
                     if (exportOptionsDialog.exec() == PngSvgExportOptionsDialog.DialogCode.Accepted):
                         self._pngSvgExportScale = exportOptionsDialog.scale()
 
-                        pngImage = QImage(round(page.sceneRect().width() * self._pngSvgExportScale),
-                                          round(page.sceneRect().height() * self._pngSvgExportScale),
+                        pngImage = QImage(round(pageRect.width() * self._pngSvgExportScale),
+                                          round(pageRect.height() * self._pngSvgExportScale),
                                           QImage.Format.Format_ARGB32)
                         with QPainter(pngImage) as painter:
                             painter.scale(self._pngSvgExportScale, self._pngSvgExportScale)
-                            painter.translate(-page.sceneRect().left(), -page.sceneRect().top())
+                            painter.translate(-pageRect.left(), -pageRect.top())
                             painter.setRenderHints((QPainter.RenderHint.Antialiasing |
                                                     QPainter.RenderHint.TextAntialiasing), True)
                             page.paint(painter, export=True)
@@ -439,8 +437,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                         path = f'{path}.svg'
 
                     # Use the selected path to export the drawing to an SVG image
-                    exportOptionsDialog = PngSvgExportOptionsDialog(self._pngSvgExportScale, page.sceneRect().size(),
-                                                                    self)
+                    exportOptionsDialog = PngSvgExportOptionsDialog(self._pngSvgExportScale, page.pageSize(), self)
                     if (exportOptionsDialog.exec() == PngSvgExportOptionsDialog.DialogCode.Accepted):
                         self._pngSvgExportScale = exportOptionsDialog.scale()
 
@@ -468,22 +465,16 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                     path = f'{path}.odg'
 
                 # Allow user to change various ODG export options
-                dialog = OdgVsdxExportOptionsDialog(self._diagram, self._odgVsdxUnits, self._odgVsdxScale,
-                                                    self._odgVsdxPageSize, self._odgVsdxPageMargins,
-                                                    self._odgVsdxBackgroundColor, self)
+                dialog = OdgVsdxExportOptionsDialog(self._diagram, self._odgVsdxExportEntireDocument,
+                                                    self._odgVsdxScale, self._odgVsdxUnits, self)
                 if (dialog.exec() == OdgVsdxExportOptionsDialog.DialogCode.Accepted):
-                    self._odgVsdxUnits = dialog.units()
+                    self._odgVsdxExportEntireDocument = dialog.shouldExportEntireDocument()
                     self._odgVsdxScale = dialog.scale()
-                    if (dialog.pageSize() != dialog.autoPageSize()):
-                        self._odgVsdxPageSize = dialog.pageSize()
-                    if (dialog.pageMargins() != dialog.autoPageMargins()):
-                        self._odgVsdxPageMargins = dialog.pageMargins()
-                    if (dialog.backgroundColor() != dialog.autoBackgroundColor()):
-                        self._odgVsdxBackgroundColor = dialog.backgroundColor()
+                    self._odgVsdxUnits = dialog.units()
 
                 # Use the selected path to export the drawing to an ODG document
-                odgWriter = OdgWriter(self._diagram, self._odgVsdxUnits, self._odgVsdxScale,
-                                      self._odgVsdxPageSize, self._odgVsdxPageMargins, self._odgVsdxBackgroundColor)
+                odgWriter = OdgWriter(self._diagram, self._odgVsdxExportEntireDocument, self._odgVsdxScale,
+                                      self._odgVsdxUnits)
                 odgWriter.write(path)
 
     def exportVsdx(self) -> None:
@@ -506,8 +497,17 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                 if (not path.endswith('.vsdx')):
                     path = f'{path}.vsdx'
 
+                # Allow user to change various VSDX export options
+                dialog = OdgVsdxExportOptionsDialog(self._diagram, self._odgVsdxExportEntireDocument,
+                                                    self._odgVsdxScale, self._odgVsdxUnits, self)
+                if (dialog.exec() == OdgVsdxExportOptionsDialog.DialogCode.Accepted):
+                    self._odgVsdxExportEntireDocument = dialog.shouldExportEntireDocument()
+                    self._odgVsdxScale = dialog.scale()
+                    self._odgVsdxUnits = dialog.units()
+
                 # Use the selected path to export the drawing to a Visio document
-                vsdxWriter = VsdxWriter(self._diagram)
+                vsdxWriter = VsdxWriter(self._diagram, self._odgVsdxExportEntireDocument, self._odgVsdxScale,
+                                        self._odgVsdxUnits)
                 vsdxWriter.write(path)
 
     # ==================================================================================================================
@@ -518,7 +518,8 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         dialog.setPromptWhenOverwriting(self._promptOverwrite)
         dialog.setPromptWhenClosingUnsaved(self._promptCloseUnsaved)
 
-        dialog.setDefaultSceneRect(self._diagram.defaultSceneRect())
+        dialog.setDefaultPageSize(self._diagram.defaultPageSize())
+        dialog.setDefaultPageMargin(self._diagram.defaultPageMargin())
         dialog.setDefaultBackgroundBrush(self._diagram.defaultBackgroundBrush())
         dialog.setDefaultGrid(self._diagram.defaultGrid())
         dialog.setDefaultGridVisible(self._diagram.isDefaultGridVisible())
@@ -538,7 +539,8 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
             self._promptOverwrite = dialog.shouldPromptWhenOverwriting()
             self._promptCloseUnsaved = dialog.shouldPromptWhenClosingUnsaved()
 
-            self._diagram.setDefaultSceneRect(dialog.defaultSceneRect())
+            self._diagram.setDefaultPageSize(dialog.defaultPageSize())
+            self._diagram.setDefaultPageMargin(dialog.defaultPageMargin())
             self._diagram.setDefaultBackgroundBrush(dialog.defaultBackgroundBrush())
             self._diagram.setDefaultGrid(dialog.defaultGrid())
             self._diagram.setDefaultGridVisible(dialog.isDefaultGridVisible())
@@ -611,11 +613,6 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
 
         self._diagram.setActionsEnabled(visible)
 
-        # Reset export settings
-        self._odgVsdxPageSize = QSizeF()
-        self._odgVsdxPageMargins = QMarginsF(0, 0, 0, 0)
-        self._odgVsdxBackgroundColor = QColor(255, 255, 255)
-
     def _setFilePath(self, path: str) -> None:
         self._filePath = path
 
@@ -654,10 +651,9 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
 
         # Default drawing properties
         diagramElement = ElementTree.SubElement(configElement, 'diagramDefaults')
-        self.writeFloat(diagramElement, 'sceneLeft', self._diagram.defaultSceneRect().left(), writeIfDefault=True)
-        self.writeFloat(diagramElement, 'sceneTop', self._diagram.defaultSceneRect().top(), writeIfDefault=True)
-        self.writeFloat(diagramElement, 'sceneWidth', self._diagram.defaultSceneRect().width(), writeIfDefault=True)
-        self.writeFloat(diagramElement, 'sceneHeight', self._diagram.defaultSceneRect().height(), writeIfDefault=True)
+        self.writeFloat(diagramElement, 'pageWidth', self._diagram.defaultPageSize().width(), writeIfDefault=True)
+        self.writeFloat(diagramElement, 'pageHeight', self._diagram.defaultPageSize().height(), writeIfDefault=True)
+        self.writeFloat(diagramElement, 'pageMargin', self._diagram.defaultPageMargin(), writeIfDefault=True)
         self.writeColor(diagramElement, 'backgroundColor', self._diagram.defaultBackgroundBrush().color(),
                         writeIfDefault=True)
         self.writeFloat(diagramElement, 'grid', self._diagram.defaultGrid(), writeIfDefault=True)
@@ -679,8 +675,9 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         # Export settings
         exportElement = ElementTree.SubElement(configElement, 'exportSettings')
         self.writeFloat(exportElement, 'pngSvgExportScale', self._pngSvgExportScale)
-        self.writeStr(exportElement, 'odgVsdxUnits', self._odgVsdxUnits)
+        self.writeBool(exportElement, 'odgVsdxExportEntireDocument', self._odgVsdxExportEntireDocument)
         self.writeFloat(exportElement, 'odgVsdxExportScale', self._odgVsdxScale)
+        self.writeStr(exportElement, 'odgVsdxExportUnits', self._odgVsdxUnits)
 
         ElementTree.indent(configElement, space='  ')
         with open('./config.xml', 'w', encoding='utf-8') as file:
@@ -693,38 +690,61 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
             configElement = xml.getroot()
             if (configElement.tag == 'jade-config'):
                 # Main window properties
-                self._workingDir = self.readStr(configElement, 'workingDir')
-                self._promptOverwrite = self.readBool(configElement, 'promptOverwrite')
-                self._promptCloseUnsaved = self.readBool(configElement, 'promptCloseUnsaved')
+                if ('workingDir' in configElement.attrib):
+                    self._workingDir = self.readStr(configElement, 'workingDir')
+                if ('promptOverwrite' in configElement.attrib):
+                    self._promptOverwrite = self.readBool(configElement, 'promptOverwrite')
+                if ('promptCloseUnsaved' in configElement.attrib):
+                    self._promptCloseUnsaved = self.readBool(configElement, 'promptCloseUnsaved')
 
                 # Default drawing properties
                 for diagramElement in configElement.findall('diagramDefaults'):
-                    self._diagram.setDefaultSceneRect(QRectF(self.readFloat(diagramElement, 'sceneLeft'),
-                                                             self.readFloat(diagramElement, 'sceneTop'),
-                                                             self.readFloat(diagramElement, 'sceneWidth'),
-                                                             self.readFloat(diagramElement, 'sceneHeight')))
-                    self._diagram.setDefaultBackgroundBrush(QBrush(self.readColor(diagramElement, 'backgroundColor')))
-                    self._diagram.setDefaultGrid(self.readFloat(diagramElement, 'grid'))
-                    self._diagram.setDefaultGridVisible(self.readBool(diagramElement, 'gridVisible'))
-                    self._diagram.setDefaultGridBrush(QBrush(self.readColor(diagramElement, 'gridColor')))
-                    self._diagram.setDefaultGridSpacingMajor(self.readInt(diagramElement, 'gridSpacingMajor'))
-                    self._diagram.setDefaultGridSpacingMinor(self.readInt(diagramElement, 'gridSpacingMinor'))
+                    if ('pageWidth' in diagramElement.attrib and 'pageHeight' in diagramElement.attrib):
+                        self._diagram.setDefaultPageSize(QSizeF(self.readFloat(diagramElement, 'pageWidth'),
+                                                                self.readFloat(diagramElement, 'pageHeight')))
+                    if ('pageMargin' in diagramElement.attrib):
+                        self._diagram.setDefaultPageMargin(self.readFloat(diagramElement, 'pageMargin'))
+                    if ('backgroundColor' in diagramElement.attrib):
+                        self._diagram.setDefaultBackgroundBrush(
+                            QBrush(self.readColor(diagramElement, 'backgroundColor')))
+                    if ('grid' in diagramElement.attrib):
+                        self._diagram.setDefaultGrid(self.readFloat(diagramElement, 'grid'))
+                    if ('gridVisible' in diagramElement.attrib):
+                        self._diagram.setDefaultGridVisible(self.readBool(diagramElement, 'gridVisible'))
+                    if ('gridColor' in diagramElement.attrib):
+                        self._diagram.setDefaultGridBrush(QBrush(self.readColor(diagramElement, 'gridColor')))
+                    if ('gridSpacingMajor' in diagramElement.attrib):
+                        self._diagram.setDefaultGridSpacingMajor(self.readInt(diagramElement, 'gridSpacingMajor'))
+                    if ('gridSpacingMinor' in diagramElement.attrib):
+                        self._diagram.setDefaultGridSpacingMinor(self.readInt(diagramElement, 'gridSpacingMinor'))
 
                 # Default item properties
                 for itemElement in configElement.findall('itemDefaults'):
-                    self._diagram.setDefaultPen(self.readPen(itemElement, 'pen'))
-                    self._diagram.setDefaultBrush(self.readBrush(itemElement, 'brush'))
-                    self._diagram.setDefaultStartArrow(self.readArrow(itemElement, 'startArrow'))
-                    self._diagram.setDefaultEndArrow(self.readArrow(itemElement, 'endArrow'))
-                    self._diagram.setDefaultFont(self.readFont(itemElement, 'font'))
-                    self._diagram.setDefaultTextAlignment(self.readAlignment(itemElement, 'textAlignment'))
-                    self._diagram.setDefaultTextBrush(self.readBrush(itemElement, 'text'))
+                    if ('pen' in itemElement.attrib):
+                        self._diagram.setDefaultPen(self.readPen(itemElement, 'pen'))
+                    if ('brush' in itemElement.attrib):
+                        self._diagram.setDefaultBrush(self.readBrush(itemElement, 'brush'))
+                    if ('startArrow' in itemElement.attrib):
+                        self._diagram.setDefaultStartArrow(self.readArrow(itemElement, 'startArrow'))
+                    if ('endArrow' in itemElement.attrib):
+                        self._diagram.setDefaultEndArrow(self.readArrow(itemElement, 'endArrow'))
+                    if ('font' in itemElement.attrib):
+                        self._diagram.setDefaultFont(self.readFont(itemElement, 'font'))
+                    if ('textAlignment' in itemElement.attrib):
+                        self._diagram.setDefaultTextAlignment(self.readAlignment(itemElement, 'textAlignment'))
+                    if ('text' in itemElement.attrib):
+                        self._diagram.setDefaultTextBrush(self.readBrush(itemElement, 'text'))
 
                 # Export settings
                 for exportElement in configElement.findall('exportSettings'):
-                    self._pngSvgExportScale = self.readFloat(exportElement, 'pngSvgExportScale')
-                    self._odgVsdxUnits = self.readStr(exportElement, 'odgVsdxUnits')
-                    self._odgVsdxScale = self.readFloat(exportElement, 'odgVsdxExportScale')
+                    if ('pngSvgExportScale' in exportElement.attrib):
+                        self._pngSvgExportScale = self.readFloat(exportElement, 'pngSvgExportScale')
+                    if ('odgVsdxExportEntireDocument' in exportElement.attrib):
+                        self._odgVsdxExportEntireDocument = self.readBool(exportElement, 'odgVsdxExportEntireDocument')
+                    if ('odgVsdxExportScale' in exportElement.attrib):
+                        self._odgVsdxScale = self.readFloat(exportElement, 'odgVsdxExportScale')
+                    if ('odgVsdxExportUnits' in exportElement.attrib):
+                        self._odgVsdxUnits = self.readStr(exportElement, 'odgVsdxExportUnits')
 
             self._diagram.clear()
         except FileNotFoundError:

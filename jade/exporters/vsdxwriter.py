@@ -19,8 +19,13 @@ from ..diagramwidget import DiagramWidget
 
 
 class VsdxWriter(DrawingXmlInterface):
-    def __init__(self, drawing: DiagramWidget) -> None:
+    def __init__(self, drawing: DiagramWidget, exportEntireDocument: bool, scale: float, units: str) -> None:
         super().__init__()
+
+        self._drawing: DiagramWidget = drawing
+        self._exportEntireDocument: bool = exportEntireDocument
+        self._scale: float = scale
+        self._units: str = str(units)
 
     # ==================================================================================================================
 

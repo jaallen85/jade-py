@@ -45,7 +45,7 @@ class SvgWriter:
     def write(self, path: str) -> None:
         svgElement = ElementTree.Element('svg')
 
-        rect = self._page.sceneRect()
+        rect = self._page.pageRect()
         svgElement.set('width', f'{round(rect.width() * self._scale)}')
         svgElement.set('height', f'{round(rect.height() * self._scale)}')
         svgElement.set('viewBox', f'{rect.left()} {rect.top()} {rect.width()} {rect.height()}')

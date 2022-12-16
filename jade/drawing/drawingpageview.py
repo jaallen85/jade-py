@@ -18,7 +18,7 @@ import math
 import typing
 from enum import Enum
 from xml.etree import ElementTree
-from PySide6.QtCore import Qt, QLineF, QPoint, QPointF, QRect, QRectF, QTimer, Signal
+from PySide6.QtCore import Qt, QLineF, QPoint, QPointF, QRect, QRectF, QSizeF, QTimer, Signal
 from PySide6.QtGui import (QBrush, QColor, QCursor, QMouseEvent, QPainter, QPainterPath, QPaintEvent, QPalette, QPen,
                            QResizeEvent, QTransform, QWheelEvent)
 from PySide6.QtWidgets import (QAbstractScrollArea, QApplication, QRubberBand, QStyle, QStyleHintReturnMask,
@@ -66,7 +66,8 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.setMouseTracking(True)
 
-        self._sceneRect: QRectF = QRectF()
+        self._pageSize: QSizeF = QSizeF()
+        self._pageMargin: float = 0.0
         self._backgroundBrush: QBrush = QBrush()
 
         self._grid: float = 0.0
@@ -125,10 +126,16 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
 
     # ==================================================================================================================
 
-    def setSceneRect(self, rect: QRectF) -> None:
-        if (self._sceneRect != rect and rect.isValid()):
-            self._sceneRect = QRectF(rect)
-            self.propertyChanged.emit('sceneRect', self._sceneRect)
+    def setPageSize(self, size: QSizeF) -> None:
+        if (self._pageSize != size and size.width() > 0 and size.height() > 0):
+            self._pageSize = QSizeF(size)
+            self.propertyChanged.emit('pageSize', self._pageSize)
+            self.zoomFit()
+
+    def setPageMargin(self, margin: float) -> None:
+        if (self._pageMargin != margin and margin >= 0):
+            self._pageMargin = margin
+            self.propertyChanged.emit('pageMargin', self._pageMargin)
             self.zoomFit()
 
     def setBackgroundBrush(self, brush: QBrush) -> None:
@@ -137,11 +144,21 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
             self.propertyChanged.emit('backgroundBrush', self._backgroundBrush)
             self.viewport().update()
 
-    def sceneRect(self) -> QRectF:
-        return self._sceneRect
+    def pageSize(self) -> QSizeF:
+        return self._pageSize
+
+    def pageMargin(self) -> float:
+        return self._pageMargin
 
     def backgroundBrush(self) -> QBrush:
         return self._backgroundBrush
+
+    def pageRect(self) -> QRectF:
+        return QRectF(-self._pageMargin, -self._pageMargin, self._pageSize.width(), self._pageSize.height())
+
+    def contentRect(self) -> QRectF:
+        return QRectF(0, 0, self._pageSize.width() - 2 * self._pageMargin,
+                      self._pageSize.height() - 2 * self._pageMargin)
 
     # ==================================================================================================================
 
@@ -287,11 +304,11 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
             if (self.viewport().rect().contains(previousMousePosition)):
                 self.mouseCursorOn(previousMouseScenePosition)
             else:
-                self.centerOn(self._sceneRect.center())
+                self.centerOn(self.pageRect().center())
 
     def zoomToRect(self, rect: QRectF = QRectF()) -> None:
-        if (not rect.isValid()):
-            rect = self._sceneRect
+        if (rect.width() <= 0 or rect.height() <= 0):
+            rect = self.pageRect()
 
         # Update view to the new scale
         scaleX = (self.maximumViewportSize().width() - 1) / rect.width()
@@ -366,9 +383,12 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
             case 'name':
                 if (isinstance(value, str)):
                     self.setName(value)
-            case 'sceneRect':
-                if (isinstance(value, QRectF)):
-                    self.setSceneRect(value)
+            case 'pageSize':
+                if (isinstance(value, QSizeF)):
+                    self.setPageSize(value)
+            case 'pageMargin':
+                if (isinstance(value, float)):
+                    self.setPageMargin(value)
             case 'backgroundBrush':
                 if (isinstance(value, QBrush)):
                     self.setBackgroundBrush(value)
@@ -393,8 +413,10 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         match (name):
             case 'name':
                 return self.name()
-            case 'sceneRect':
-                return self.sceneRect()
+            case 'pageSize':
+                return self.pageSize()
+            case 'pageMargin':
+                return self.pageMargin()
             case 'backgroundBrush':
                 return self.backgroundBrush()
             case 'grid':
@@ -428,7 +450,7 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         self.setScale(self.scale() * math.sqrt(2) / 2)
 
     def zoomFit(self) -> None:
-        self.zoomToRect(self._sceneRect)
+        self.zoomToRect(self.pageRect())
 
     # ==================================================================================================================
 
@@ -505,10 +527,9 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
 
     def writeToXml(self, element: ElementTree.Element) -> None:
         self.writeStr(element, 'name', self.name(), writeIfDefault=True)
-        self.writeFloat(element, 'sceneLeft', self._sceneRect.left(), writeIfDefault=True)
-        self.writeFloat(element, 'sceneTop', self._sceneRect.top(), writeIfDefault=True)
-        self.writeFloat(element, 'sceneWidth', self._sceneRect.width(), writeIfDefault=True)
-        self.writeFloat(element, 'sceneHeight', self._sceneRect.height(), writeIfDefault=True)
+        self.writeFloat(element, 'width', self._pageSize.width(), writeIfDefault=True)
+        self.writeFloat(element, 'height', self._pageSize.height(), writeIfDefault=True)
+        self.writeFloat(element, 'margin', self._pageMargin, writeIfDefault=True)
         self.writeColor(element, 'backgroundColor', self._backgroundBrush.color(), writeIfDefault=True)
 
         DrawingItem.writeItemsToXml(element, self._items)
@@ -517,8 +538,8 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         self.clearItems()
 
         self.setName(self.readStr(element, 'name'))
-        self.setSceneRect(QRectF(self.readFloat(element, 'sceneLeft'), self.readFloat(element, 'sceneTop'),
-                                 self.readFloat(element, 'sceneWidth'), self.readFloat(element, 'sceneHeight')))
+        self.setPageMargin(self.readFloat(element, 'margin'))
+        self.setPageSize(QSizeF(self.readFloat(element, 'width'), self.readFloat(element, 'height')))
         self.setBackgroundBrush(QBrush(self.readColor(element, 'backgroundColor')))
 
         items = DrawingItem.readItemsFromXml(element)
@@ -551,53 +572,61 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
 
     def _drawBackground(self, painter: QPainter, forceHideGrid: bool) -> None:
         bgColor = self._backgroundBrush.color()
-        borderColor = QColor(255 - bgColor.red(), 255 - bgColor.green(), 255 - bgColor.blue())
+        pageBorderColor = QColor(255 - bgColor.red(), 255 - bgColor.green(), 255 - bgColor.blue())
+        contentBorderColor = QColor(128, 128, 128)
 
         # Draw background
         painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing, False)
         painter.setBackground(self._backgroundBrush)
         painter.setBrush(self._backgroundBrush)
-        painter.setPen(QPen(borderColor, 0))
-        painter.drawRect(self._sceneRect)
+        painter.setPen(QPen(QBrush(pageBorderColor), 0))
+        painter.drawRect(self.pageRect())
+
+        # Draw content border
+        painter.setBrush(QBrush(Qt.GlobalColor.transparent))
+        painter.setPen(QPen(QBrush(contentBorderColor), 0))
+        painter.drawRect(self.contentRect())
 
         # Draw grid
         if (not forceHideGrid and self._gridVisible and self._grid > 0):
+            gridRect = self.contentRect()
+
             # Minor grid lines
             if (self._gridSpacingMinor > 0):
                 painter.setPen(QPen(self._gridBrush, 0, Qt.PenStyle.DotLine))
 
                 gridInterval = self._grid * self._gridSpacingMinor
-                gridLeftIndex = math.ceil(self._sceneRect.left() / gridInterval)
-                gridRightIndex = math.floor(self._sceneRect.right() / gridInterval)
-                gridTopIndex = math.ceil(self._sceneRect.top() / gridInterval)
-                gridBottomIndex = math.floor(self._sceneRect.bottom() / gridInterval)
+                gridLeftIndex = math.ceil(gridRect.left() / gridInterval)
+                gridRightIndex = math.floor(gridRect.right() / gridInterval)
+                gridTopIndex = math.ceil(gridRect.top() / gridInterval)
+                gridBottomIndex = math.floor(gridRect.bottom() / gridInterval)
                 for xIndex in range(gridLeftIndex, gridRightIndex + 1):
                     x = xIndex * gridInterval
-                    painter.drawLine(QLineF(x, self._sceneRect.top(), x, self._sceneRect.bottom()))
+                    painter.drawLine(QLineF(x, gridRect.top(), x, gridRect.bottom()))
                 for yIndex in range(gridTopIndex, gridBottomIndex + 1):
                     y = yIndex * gridInterval
-                    painter.drawLine(QLineF(self._sceneRect.left(), y, self._sceneRect.right(), y))
+                    painter.drawLine(QLineF(gridRect.left(), y, gridRect.right(), y))
 
             # Major grid lines
             if (self._gridSpacingMajor > 0):
                 painter.setPen(QPen(self._gridBrush, 0, Qt.PenStyle.SolidLine))
 
                 gridInterval = self._grid * self._gridSpacingMajor
-                gridLeftIndex = math.ceil(self._sceneRect.left() / gridInterval)
-                gridRightIndex = math.floor(self._sceneRect.right() / gridInterval)
-                gridTopIndex = math.ceil(self._sceneRect.top() / gridInterval)
-                gridBottomIndex = math.floor(self._sceneRect.bottom() / gridInterval)
+                gridLeftIndex = math.ceil(gridRect.left() / gridInterval)
+                gridRightIndex = math.floor(gridRect.right() / gridInterval)
+                gridTopIndex = math.ceil(gridRect.top() / gridInterval)
+                gridBottomIndex = math.floor(gridRect.bottom() / gridInterval)
                 for xIndex in range(gridLeftIndex, gridRightIndex + 1):
                     x = xIndex * gridInterval
-                    painter.drawLine(QLineF(x, self._sceneRect.top(), x, self._sceneRect.bottom()))
+                    painter.drawLine(QLineF(x, gridRect.top(), x, gridRect.bottom()))
                 for yIndex in range(gridTopIndex, gridBottomIndex + 1):
                     y = yIndex * gridInterval
-                    painter.drawLine(QLineF(self._sceneRect.left(), y, self._sceneRect.right(), y))
+                    painter.drawLine(QLineF(gridRect.left(), y, gridRect.right(), y))
 
-            # Redraw the border
+            # Draw content border again
             painter.setBrush(QBrush(Qt.GlobalColor.transparent))
-            painter.setPen(QPen(borderColor, 0))
-            painter.drawRect(self._sceneRect)
+            painter.setPen(QPen(self._gridBrush, 0))
+            painter.drawRect(self.contentRect())
 
     def _drawItems(self, painter: QPainter, items: list[DrawingItem]) -> None:
         painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing, True)
@@ -651,7 +680,7 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
                             painter.drawEllipse(rect)
 
     def _drawRubberBand(self, painter: QPainter, rect: QRect) -> None:
-        if (rect.isValid()):
+        if (rect.width() > 0 and rect.height() > 0):
             painter.save()
             painter.resetTransform()
             painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing, False)
@@ -679,8 +708,9 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         if (scale <= 0):
             scale = self.scale()
 
-        contentWidth = round(self._sceneRect.width() * scale)
-        contentHeight = round(self._sceneRect.height() * scale)
+        pageRect = self.pageRect()
+        contentWidth = round(pageRect.width() * scale)
+        contentHeight = round(pageRect.height() * scale)
         viewportWidth = self.maximumViewportSize().width()
         viewportHeight = self.maximumViewportSize().height()
         scrollBarExtent = self.style().pixelMetric(QStyle.PixelMetric.PM_ScrollBarExtent, None, self)
@@ -691,11 +721,11 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
 
         # Update transform
         self._transform.reset()
-        self._transform.translate(-self._sceneRect.left() * scale, -self._sceneRect.top() * scale)
+        self._transform.translate(-pageRect.left() * scale, -pageRect.top() * scale)
         if (contentWidth <= viewportWidth):
-            self._transform.translate(-(self._sceneRect.width() * scale - viewportWidth) / 2, 0)
+            self._transform.translate(-(pageRect.width() * scale - viewportWidth) / 2, 0)
         if (contentHeight <= viewportHeight):
-            self._transform.translate(0, -(self._sceneRect.height() * scale - viewportHeight) / 2)
+            self._transform.translate(0, -(pageRect.height() * scale - viewportHeight) / 2)
         self._transform.scale(scale, scale)
 
         self._transformInverse = self._transform.inverted()[0]

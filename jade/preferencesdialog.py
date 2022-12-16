@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from PySide6.QtCore import Qt, QRectF, QSize
+from PySide6.QtCore import Qt, QSize, QSizeF
 from PySide6.QtGui import QBrush, QFont, QFontMetrics, QIcon, QPen
 from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QGroupBox, QHBoxLayout, QListWidget,
                                QListWidgetItem, QStackedWidget, QVBoxLayout, QWidget)
@@ -138,8 +138,11 @@ class PreferencesDialog(QDialog):
 
     # ==================================================================================================================
 
-    def setDefaultSceneRect(self, rect: QRectF) -> None:
-        self._diagramDefaultPropertiesWidget.setSceneRect(rect)
+    def setDefaultPageSize(self, size: QSizeF) -> None:
+        self._diagramDefaultPropertiesWidget.setPageSize(size)
+
+    def setDefaultPageMargin(self, margin: float) -> None:
+        self._diagramDefaultPropertiesWidget.setPageMargin(margin)
 
     def setDefaultBackgroundBrush(self, brush: QBrush) -> None:
         self._diagramDefaultPropertiesWidget.setBackgroundBrush(brush)
@@ -159,8 +162,11 @@ class PreferencesDialog(QDialog):
     def setDefaultGridSpacingMinor(self, spacing: int) -> None:
         self._diagramDefaultPropertiesWidget.setGridSpacingMinor(spacing)
 
-    def defaultSceneRect(self) -> QRectF:
-        return self._diagramDefaultPropertiesWidget.sceneRect()
+    def defaultPageSize(self) -> QSizeF:
+        return self._diagramDefaultPropertiesWidget.pageSize()
+
+    def defaultPageMargin(self) -> float:
+        return self._diagramDefaultPropertiesWidget.pageMargin()
 
     def defaultBackgroundBrush(self) -> QBrush:
         return self._diagramDefaultPropertiesWidget.backgroundBrush()

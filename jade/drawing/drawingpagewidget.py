@@ -571,7 +571,7 @@ class DrawingPageWidget(DrawingPageView):
             newItems = DrawingItem.copyItems(self._placeModeItems)
             if (self._placeByMousePressAndRelease):
                 for item in newItems:
-                    item.placeStartEvent(self._sceneRect, self._grid)
+                    item.placeStartEvent(self.contentRect(), self._grid)
 
             self._placeModeItems = []
             self.setPlaceMode(newItems, self._placeByMousePressAndRelease)

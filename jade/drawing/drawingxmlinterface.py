@@ -94,7 +94,7 @@ class DrawingXmlInterface:
             case Qt.PenStyle.DotLine:
                 penStyle = 'dot'
             case Qt.PenStyle.DashDotLine:
-                penStyle = '"dash-dot'
+                penStyle = 'dash-dot'
             case Qt.PenStyle.DashDotDotLine:
                 penStyle = 'dash-dot-dot'
         self.writeStr(element, f'{name}Style', penStyle)

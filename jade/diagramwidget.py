@@ -16,7 +16,7 @@
 
 import typing
 from xml.etree import ElementTree
-from PySide6.QtCore import Qt, QPoint, QRectF, Signal
+from PySide6.QtCore import Qt, QPoint, QSizeF, Signal
 from PySide6.QtGui import QAction, QActionGroup, QBrush, QColor, QFont, QIcon, QKeySequence, QPen
 from PySide6.QtWidgets import QMenu
 from .drawing.drawingarrow import DrawingArrow
@@ -45,7 +45,8 @@ class DiagramWidget(DrawingWidget):
         super().__init__()
 
         # Default drawing properties
-        self.setDefaultSceneRect(QRectF(-20, -20, 800, 600))
+        self.setDefaultPageSize(QSizeF(800, 600))
+        self.setDefaultPageMargin(20)
         self.setDefaultBackgroundBrush(QBrush(Qt.GlobalColor.white))
         self._defaultGrid: float = 5.0
         self._defaultGridVisible: bool = True
@@ -412,7 +413,7 @@ class DiagramWidget(DrawingWidget):
                     self._setDefaultItemProperties(item)
 
                     # Send the item a placeStartEvent so it can set its initial geometry as needed
-                    item.placeStartEvent(self._currentPage.sceneRect(), self._currentPage.grid())
+                    item.placeStartEvent(self._currentPage.contentRect(), self._currentPage.grid())
                     placeByMousePressAndRelease = (not item.isValid() and item.resizeStartPoint() is not None and
                                                    item.resizeEndPoint() is not None)
 

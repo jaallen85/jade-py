@@ -16,7 +16,7 @@
 
 import typing
 from xml.etree import ElementTree
-from PySide6.QtCore import QPoint, QPointF, QRectF, Signal
+from PySide6.QtCore import QPoint, QPointF, QRectF, QSizeF, Signal
 from PySide6.QtGui import QBrush, QUndoCommand, QUndoStack
 from PySide6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
 from .drawingitem import DrawingItem
@@ -49,10 +49,11 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
     def __init__(self) -> None:
         super().__init__()
 
-        self._defaultSceneRect: QRectF = QRectF()
+        self._defaultPageSize: QSizeF = QSizeF()
+        self._defaultPageMargin: float = 0.0
         self._defaultBackgroundBrush: QBrush = QBrush()
 
-        self._grid: float = 0
+        self._grid: float = 0.0
         self._gridVisible: bool = False
         self._gridBrush: QBrush = QBrush()
         self._gridSpacingMajor: int = 0
@@ -78,14 +79,22 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
 
     # ==================================================================================================================
 
-    def setDefaultSceneRect(self, rect: QRectF) -> None:
-        self._defaultSceneRect = QRectF(rect)
+    def setDefaultPageSize(self, size: QSizeF) -> None:
+        if (size.width() > 0 and size.height() > 0):
+            self._defaultPageSize = QSizeF(size)
+
+    def setDefaultPageMargin(self, margin: float) -> None:
+        if (margin >= 0):
+            self._defaultPageMargin = margin
 
     def setDefaultBackgroundBrush(self, brush: QBrush) -> None:
         self._defaultBackgroundBrush = QBrush(brush)
 
-    def defaultSceneRect(self) -> QRectF:
-        return self._defaultSceneRect
+    def defaultPageSize(self) -> QSizeF:
+        return self._defaultPageSize
+
+    def defaultPageMargin(self) -> float:
+        return self._defaultPageMargin
 
     def defaultBackgroundBrush(self) -> QBrush:
         return self._defaultBackgroundBrush
@@ -354,7 +363,7 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
 
             if (isinstance(command, DrawingPageUndoCommand)):
                 self.setCurrentPage(command.page())
-                if (command.viewRect().isValid()):
+                if (command.viewRect().width() > 0 and command.viewRect().height() > 0):
                     self.zoomToRect(command.viewRect())
                 if (isinstance(command, DrawingItemsUndoCommand)):
                     self.setSelectedItems(command.items())
@@ -374,7 +383,7 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
 
             if (isinstance(command, DrawingPageUndoCommand)):
                 self.setCurrentPage(command.page())
-                if (command.viewRect().isValid()):
+                if (command.viewRect().width() > 0 and command.viewRect().height() > 0):
                     self.zoomToRect(command.viewRect())
                 if (isinstance(command, DrawingItemsUndoCommand)):
                     self.setSelectedItems(command.items())
@@ -518,7 +527,8 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         # Create the new page and add it to the view
         newPage = DrawingPageWidget()
         newPage.setName(name)
-        newPage.setSceneRect(self._defaultSceneRect)
+        newPage.setPageSize(self._defaultPageSize)
+        newPage.setPageMargin(self._defaultPageMargin)
         newPage.setBackgroundBrush(self._defaultBackgroundBrush)
         newPage.setGrid(self._grid)
         newPage.setGridVisible(self._gridVisible)

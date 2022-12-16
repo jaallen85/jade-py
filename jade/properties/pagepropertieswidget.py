@@ -15,11 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import typing
-from PySide6.QtCore import Qt, QPointF, QRectF, QSizeF, Signal
+from PySide6.QtCore import Qt, QSizeF, Signal
 from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIntValidator
 from PySide6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
 from ..drawing.drawingpagewidget import DrawingPageWidget
-from .helperwidgets import ColorWidget, PositionWidget, SizeEdit, SizeWidget
+from .helperwidgets import ColorWidget, SizeEdit, SizeWidget
 
 
 class PagePropertiesWidget(QWidget):
@@ -41,19 +41,19 @@ class PagePropertiesWidget(QWidget):
         self.setLayout(layout)
 
     def _createPageGroup(self, labelWidth: int) -> QGroupBox:
-        self._sceneRectTopLeftWidget: PositionWidget = PositionWidget()
-        self._sceneRectTopLeftWidget.positionChanged.connect(self._handleSceneRectTopLeftChange)
+        self._pageSizeWidget: SizeWidget = SizeWidget()
+        self._pageSizeWidget.sizeChanged.connect(self._handlePageSizeChange)
 
-        self._sceneRectSizeWidget: SizeWidget = SizeWidget()
-        self._sceneRectSizeWidget.sizeChanged.connect(self._handleSceneRectSizeChange)
+        self._pageMarginEdit: SizeEdit = SizeEdit()
+        self._pageMarginEdit.sizeChanged.connect(self._handlePageMarginChange)
 
         self._backgroundColorWidget: ColorWidget = ColorWidget()
         self._backgroundColorWidget.colorChanged.connect(self._handleBackgroundColorChange)
 
         pageGroup = QGroupBox('Page')
         pageLayout = QFormLayout()
-        pageLayout.addRow('Top-Left:', self._sceneRectTopLeftWidget)
-        pageLayout.addRow('Size:', self._sceneRectSizeWidget)
+        pageLayout.addRow('Page Size:', self._pageSizeWidget)
+        pageLayout.addRow('Margin:', self._pageMarginEdit)
         pageLayout.addRow('Background Color:', self._backgroundColorWidget)
         pageLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
         pageLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -99,9 +99,11 @@ class PagePropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
-    def setSceneRect(self, rect: QRectF) -> None:
-        self._sceneRectTopLeftWidget.setPosition(rect.topLeft())
-        self._sceneRectSizeWidget.setSize(rect.size())
+    def setPageSize(self, size: QSizeF) -> None:
+        self._pageSizeWidget.setSize(size)
+
+    def setPageMargin(self, margin: float) -> None:
+        self._pageMarginEdit.setSize(margin)
 
     def setBackgroundBrush(self, brush: QBrush) -> None:
         self._backgroundColorWidget.setColor(brush.color())
@@ -123,8 +125,11 @@ class PagePropertiesWidget(QWidget):
         self._gridSpacingMinorWidget.setText(str(spacing))
         self._cachedGridSpacingMinor = spacing
 
-    def sceneRect(self) -> QRectF:
-        return QRectF(self._sceneRectTopLeftWidget.position(), self._sceneRectSizeWidget.size()).normalized()
+    def pageSize(self) -> QSizeF:
+        return self._pageSizeWidget.size()
+
+    def pageMargin(self) -> float:
+        return self._pageMarginEdit.size()
 
     def backgroundBrush(self) -> QBrush:
         return QBrush(self._backgroundColorWidget.color())
@@ -171,25 +176,28 @@ class PagePropertiesWidget(QWidget):
     def setPage(self, page: DrawingPageWidget | None) -> None:
         if (page is not None):
             self.blockSignals(True)
-            self.setSceneRect(page.sceneRect())
+            self.setPageSize(page.pageSize())
+            self.setPageMargin(page.pageMargin())
             self.setBackgroundBrush(page.backgroundBrush())
             self.blockSignals(False)
 
     def setPageProperty(self, name: str, value: typing.Any) -> None:
         self.blockSignals(True)
-        if (name == 'sceneRect' and isinstance(value, QRectF)):
-            self.setSceneRect(value)
+        if (name == 'pageSize' and isinstance(value, QSizeF)):
+            self.setPageSize(value)
+        elif (name == 'pageMargin' and isinstance(value, float)):
+            self.setPageMargin(value)
         elif (name == 'backgroundBrush' and isinstance(value, QBrush)):
             self.setBackgroundBrush(value)
         self.blockSignals(False)
 
     # ==================================================================================================================
 
-    def _handleSceneRectTopLeftChange(self, position: QPointF) -> None:
-        self.pagePropertyChanged.emit('sceneRect', QRectF(position, self._sceneRectSizeWidget.size()).normalized())
+    def _handlePageSizeChange(self, size: QSizeF) -> None:
+        self.pagePropertyChanged.emit('pageSize', size)
 
-    def _handleSceneRectSizeChange(self, size: QSizeF) -> None:
-        self.pagePropertyChanged.emit('sceneRect', QRectF(self._sceneRectTopLeftWidget.position(), size).normalized())
+    def _handlePageMarginChange(self, margin: float) -> None:
+        self.pagePropertyChanged.emit('pageMargin', margin)
 
     def _handleBackgroundColorChange(self, color: QColor) -> None:
         self.pagePropertyChanged.emit('backgroundBrush', QBrush(color))

@@ -314,7 +314,7 @@ class ColorSelectWidget(QWidget):
                 self.drawColorItem(painter, ColorSelectWidget.customColors[index], rect)
 
             # Draw hover rect
-            if (self._hoverRect.isValid()):
+            if (self._hoverRect.width() > 0 and self._hoverRect.height() > 0):
                 painter.setPen(QPen(QBrush(QColor(197, 197, 197)), 0))
                 painter.setBrush(Qt.BrushStyle.NoBrush)
                 painter.drawRect(self._hoverRect.adjusted(0, 0, -1, -1))
@@ -343,7 +343,7 @@ class ColorSelectWidget(QWidget):
         self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if (self._hoverRect.isValid()):
+        if (self._hoverRect.width() > 0 and self._hoverRect.height() > 0):
             self.colorSelected.emit(self._hoverColor)
 
     # ==================================================================================================================
