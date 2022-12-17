@@ -185,10 +185,10 @@ class OdgWriter:
                                    '102-13 105-29 102-51 102-72 93-93 72-98 51-106 29-101 13z')
 
         markerElement = ElementTree.SubElement(element, 'draw:marker')
-        markerElement.set('draw:name', 'Triangle')
-        markerElement.set('svg:viewBox', '0 0 1013 1130')
-        markerElement.set('svg:d', 'M1009 1050l-449-1008-22-30-29-12-34 12-21 26-449 1012-5 13v8l5 21 12 21 17 13 21 '
-                                   '4h903l21-4 21-13 9-21 4-21v-8z')
+        markerElement.set('draw:name', 'Arrowheads_20_2')
+        markerElement.set('draw:display-name', 'Arrowheads 2')
+        markerElement.set('svg:viewBox', '0 0 20 20')
+        markerElement.set('svg:d', 'M0 20l10-20 10 20z')
 
     def _writeStrokeDashStyles(self, element: ElementTree.Element) -> None:
         strokeDashElement = ElementTree.SubElement(element, 'draw:stroke-dash')
@@ -398,8 +398,8 @@ class OdgWriter:
                 element.set('draw:marker-start-width', self._sizeToString(startArrow.size()))
                 element.set('draw:marker-start-center', 'true')
             else:
-                element.set('draw:marker-start', 'Triangle')
-                element.set('draw:marker-start-width', self._sizeToString(startArrow.size() / 2 * 1.25))
+                element.set('draw:marker-start', 'Arrowheads_20_2')
+                element.set('draw:marker-start-width', self._sizeToString(startArrow.size() / 2 * 1.5))
                 element.set('draw:marker-start-center', 'false')
 
         if (endArrow.style() != DrawingArrow.Style.NoStyle):
@@ -408,8 +408,8 @@ class OdgWriter:
                 element.set('draw:marker-end-width', self._sizeToString(endArrow.size()))
                 element.set('draw:marker-end-center', 'true')
             else:
-                element.set('draw:marker-end', 'Triangle')
-                element.set('draw:marker-end-width', self._sizeToString(endArrow.size() / 2 * 1.25))
+                element.set('draw:marker-end', 'Arrowheads_20_2')
+                element.set('draw:marker-end-width', self._sizeToString(endArrow.size() / 2 * 1.5))
                 element.set('draw:marker-end-center', 'false')
 
     # ==================================================================================================================
