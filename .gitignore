@@ -1,5 +1,8 @@
 __pycache__
 .python-version
 venv
-*.jdm
 config.xml
+*.jdm
+*.svg
+*.odg
+*.png
