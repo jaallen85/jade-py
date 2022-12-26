@@ -14,10 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
 from xml.etree import ElementTree
 from zipfile import ZipFile
-from PySide6.QtCore import Qt, QSizeF
-from PySide6.QtGui import QBrush, QColor, QPen
+from PySide6.QtCore import Qt, QLineF, QMarginsF, QPointF, QRectF, QSizeF
+from PySide6.QtGui import QBrush, QColor, QFont, QPainterPath, QPen, QPolygonF
 from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitemgroup import DrawingItemGroup
@@ -44,32 +45,31 @@ class OdgWriter:
         self._scale: float = scale
         self._units: str = str(units)
 
-        # Get master page attributes
+        self._itemIndex: int = 0
+
+        # Determine master page attributes
         self._pagesToExport: list[DrawingPageWidget] = []
         self._pageSize: QSizeF = QSizeF()
         self._pageMargin: float = 0.0
-        self._backgroundColor: QColor = QColor(255, 255, 255)
 
         currentPage = self._drawing.currentPage()
         if (self._exportEntireDocument):
             self._pagesToExport = self._drawing.pages()
 
             # LibreOffice only supports one master page (despite the Open Document spec supporting multiple).
-            # So all pages in the document must be the same (same size, margin, and background color).
-            # Choose a page size and margin that is large enough to fit all the pages in the document.
-            # Choose the background color from the first page to use for the entire document.
-            for index, page in enumerate(self._drawing.pages()):
+            # So all pages in the document must be the same size and have the same margins.
+            # Here we choose a page size and margin that is large enough to fit all the pages in the document.
+            for page in self._drawing.pages():
                 self._pageSize.setWidth(max(self._pageSize.width(), page.pageSize().width()))
                 self._pageSize.setHeight(max(self._pageSize.height(), page.pageSize().height()))
                 self._pageMargin = max(self._pageMargin, page.pageMargin())
-                if (index == 0):
-                    self._backgroundColor = page.backgroundBrush().color()
 
         elif (currentPage is not None):
             self._pagesToExport = [currentPage]
+
+            # Since we're only exporting a single page, use its size and margins for the master page
             self._pageSize = currentPage.pageSize()
             self._pageMargin = currentPage.pageMargin()
-            self._backgroundColor = currentPage.backgroundBrush().color()
 
     # ==================================================================================================================
 
@@ -97,7 +97,6 @@ class OdgWriter:
             fileElement.set('manifest:full-path', path)
             fileElement.set('manifest:media-type', 'text/xml')
 
-        ElementTree.indent(manifestElement, space='  ')
         return f'{ElementTree.tostring(manifestElement, encoding="unicode", xml_declaration=True)}\n'
 
     def _writeMeta(self) -> str:
@@ -107,7 +106,6 @@ class OdgWriter:
 
         ElementTree.SubElement(metaElement, 'office:meta')
 
-        ElementTree.indent(metaElement, space='  ')
         return f'{ElementTree.tostring(metaElement, encoding="unicode", xml_declaration=True)}\n'
 
     def _writeSettings(self) -> str:
@@ -118,7 +116,6 @@ class OdgWriter:
 
         ElementTree.SubElement(settingsElement, 'office:settings')
 
-        ElementTree.indent(settingsElement, space='  ')
         return f'{ElementTree.tostring(settingsElement, encoding="unicode", xml_declaration=True)}\n'
 
     # ==================================================================================================================
@@ -148,12 +145,12 @@ class OdgWriter:
         pageLayoutElement.set('style:name', 'PM0')
 
         pageLayoutPropertiesElement = ElementTree.SubElement(pageLayoutElement, 'style:page-layout-properties')
-        pageLayoutPropertiesElement.set('fo:margin-top', f'{self._sizeToString(self._pageMargin)}')
-        pageLayoutPropertiesElement.set('fo:margin-bottom', f'{self._sizeToString(self._pageMargin)}')
-        pageLayoutPropertiesElement.set('fo:margin-left', f'{self._sizeToString(self._pageMargin)}')
-        pageLayoutPropertiesElement.set('fo:margin-right', f'{self._sizeToString(self._pageMargin)}')
-        pageLayoutPropertiesElement.set('fo:page-width', f'{self._sizeToString(self._pageSize.width())}')
-        pageLayoutPropertiesElement.set('fo:page-height', f'{self._sizeToString(self._pageSize.height())}')
+        pageLayoutPropertiesElement.set('fo:margin-top', f'{self._lengthToString(self._pageMargin)}')
+        pageLayoutPropertiesElement.set('fo:margin-bottom', f'{self._lengthToString(self._pageMargin)}')
+        pageLayoutPropertiesElement.set('fo:margin-left', f'{self._lengthToString(self._pageMargin)}')
+        pageLayoutPropertiesElement.set('fo:margin-right', f'{self._lengthToString(self._pageMargin)}')
+        pageLayoutPropertiesElement.set('fo:page-width', f'{self._lengthToString(self._pageSize.width())}')
+        pageLayoutPropertiesElement.set('fo:page-height', f'{self._lengthToString(self._pageSize.height())}')
         pageLayoutPropertiesElement.set('style:print-orientation', printOrientation)
 
         styleElement = ElementTree.SubElement(automaticStylesElement, 'style:style')
@@ -163,7 +160,7 @@ class OdgWriter:
         drawingPagePropertiesElement = ElementTree.SubElement(styleElement, 'style:drawing-page-properties')
         drawingPagePropertiesElement.set('draw:background-size', 'full')
         drawingPagePropertiesElement.set('draw:fill', 'solid')
-        drawingPagePropertiesElement.set('draw:fill-color', self._backgroundColor.name(QColor.NameFormat.HexRgb))
+        drawingPagePropertiesElement.set('draw:fill-color', '#FFFFFF')
 
         # Master styles
         masterStylesElement = ElementTree.SubElement(stylesElement, 'office:master-styles')
@@ -173,7 +170,6 @@ class OdgWriter:
         masterPageElement.set('style:page-layout-name', 'PM0')
         masterPageElement.set('draw:style-name', 'Mdp1')
 
-        ElementTree.indent(stylesElement, space='  ')
         return f'{ElementTree.tostring(stylesElement, encoding="unicode", xml_declaration=True)}\n'
 
     def _writeMarkerStyles(self, element: ElementTree.Element) -> None:
@@ -232,9 +228,11 @@ class OdgWriter:
     def _writeContent(self) -> str:
         contentElement = ElementTree.Element('office:document-content')
         contentElement.set('xmlns:draw', 'urn:oasis:names:tc:opendocument:xmlns:drawing:1.0')
+        contentElement.set('xmlns:fo', 'urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0')
         contentElement.set('xmlns:office', 'urn:oasis:names:tc:opendocument:xmlns:office:1.0')
         contentElement.set('xmlns:style', 'urn:oasis:names:tc:opendocument:xmlns:style:1.0')
         contentElement.set('xmlns:svg', 'urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0')
+        contentElement.set('xmlns:text', 'urn:oasis:names:tc:opendocument:xmlns:text:1.0')
         contentElement.set('manifest:version', '1.3')
 
         ElementTree.SubElement(contentElement, 'office:scripts')
@@ -243,125 +241,367 @@ class OdgWriter:
         # Automatic styles
         automaticStylesElement = ElementTree.SubElement(contentElement, 'office:automatic-styles')
 
-        styleElement = ElementTree.SubElement(automaticStylesElement, 'style:style')
-        styleElement.set('style:name', 'dp')
-        styleElement.set('style:family', 'drawing-page')
+        for pageIndex, page in enumerate(self._pagesToExport):
+            styleElement = ElementTree.SubElement(automaticStylesElement, 'style:style')
+            styleElement.set('style:name', f'dp{pageIndex}')
+            styleElement.set('style:family', 'drawing-page')
 
-        for page in self._pagesToExport:
-            self._writeItemStyles(automaticStylesElement, page.items(), 0)
+            drawingPagePropertiesElement = ElementTree.SubElement(styleElement, 'style:drawing-page-properties')
+            drawingPagePropertiesElement.set('draw:background-size', 'full')
+            drawingPagePropertiesElement.set('draw:fill', 'solid')
+            drawingPagePropertiesElement.set('draw:fill-color',
+                                             page.backgroundBrush().color().name(QColor.NameFormat.HexRgb))
 
         # Document body
         bodyElement = ElementTree.SubElement(contentElement, 'office:body')
         drawingElement = ElementTree.SubElement(bodyElement, 'office:drawing')
-        for page in self._pagesToExport:
+        for pageIndex, page in enumerate(self._pagesToExport):
             pageElement = ElementTree.SubElement(drawingElement, 'draw:page')
             pageElement.set('draw:name', page.name())
-            pageElement.set('draw:style-name', 'dp')
+            pageElement.set('draw:style-name', f'dp{pageIndex}')
             pageElement.set('draw:master-page-name', 'Default')
-            self._writeItemContent(pageElement, page.items(), 0)
+            self._writeItems(pageElement, automaticStylesElement, page.items())
 
-        ElementTree.indent(contentElement, space='  ')
         return f'{ElementTree.tostring(contentElement, encoding="unicode", xml_declaration=True)}\n'
 
     # ==================================================================================================================
 
-    def _writeItemStyles(self, element: ElementTree.Element, items: list[DrawingItem], index: int) -> int:
+    def _writeItems(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                    items: list[DrawingItem]) -> None:
         for item in items:
             if (isinstance(item, DrawingLineItem)):
-                index = self._writeLineItemStyle(element, item, index)
+                self._writeLineItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingCurveItem)):
-                index = self._writeCurveItemStyle(element, item, index)
+                self._writeCurveItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingPolylineItem)):
-                index = self._writePolylineItemStyle(element, item, index)
+                self._writePolylineItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingTextRectItem)):
-                index = self._writeTextRectItemStyle(element, item, index)
+                self._writeTextRectItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingRectItem)):
-                index = self._writeRectItemStyle(element, item, index)
+                self._writeRectItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingTextEllipseItem)):
-                index = self._writeTextEllipseItemStyle(element, item, index)
+                self._writeTextEllipseItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingEllipseItem)):
-                index = self._writeEllipseItemStyle(element, item, index)
+                self._writeEllipseItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingPolygonItem)):
-                index = self._writePolygonItemStyle(element, item, index)
+                self._writePolygonItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingTextItem)):
-                index = self._writeTextItemStyle(element, item, index)
+                self._writeTextItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingPathItem)):
-                index = self._writePathItemStyle(element, item, index)
+                self._writePathItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingItemGroup)):
-                index = self._writeGroupItemStyle(element, item, index)
-        return index
+                self._writeGroupItem(pageElement, automaticStylesElement, item)
 
-    def _writeLineItemStyle(self, element: ElementTree.Element, item: DrawingLineItem, index: int) -> int:
+    def _writeLineItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                       item: DrawingLineItem) -> None:
+        # Line
+        lineElement = ElementTree.SubElement(pageElement, 'draw:line')
+
+        self._writeTransform(lineElement, QPointF(0, 0), 0, False)
+
+        p1 = item.mapToScene(item.line().p1())
+        p2 = item.mapToScene(item.line().p2())
+        lineElement.set('svg:x1', f'{self._lengthToString(p1.x())}')
+        lineElement.set('svg:y1', f'{self._lengthToString(p1.y())}')
+        lineElement.set('svg:x2', f'{self._lengthToString(p2.x())}')
+        lineElement.set('svg:y2', f'{self._lengthToString(p2.y())}')
+
+        graphicStyleName, _, _ = self._getUniqueItemStyleNames()
+        lineElement.set('draw:style-name', graphicStyleName)
+
+        # Style
+        startArrow, endArrow = None, None
+        lineLength = QLineF(p1, p2).length()
+        if (item.startArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.startArrow().size()):
+            startArrow = item.startArrow()
+        if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.endArrow().size()):
+            endArrow = item.endArrow()
+
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, brush=QBrush(Qt.GlobalColor.transparent),
+                                pen=item.pen(), startArrow=startArrow, endArrow=endArrow)
+
+    def _writeCurveItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                        item: DrawingCurveItem) -> None:
+        curve = item.curve()
+        if (curve.size() == 4):
+            pathElement = ElementTree.SubElement(pageElement, 'draw:path')
+
+            # Curve
+            p1 = curve.at(0)
+            cp1 = curve.at(1)
+            cp2 = curve.at(2)
+            p2 = curve.at(3)
+
+            path = QPainterPath()
+            path.moveTo(p1)
+            path.cubicTo(cp1, cp2, p2)
+            rect = path.boundingRect()
+
+            self._writeTransform(pathElement, item.position(), item.rotation(), item.isFlipped())
+            self._writeRect(pathElement, rect)
+            self._writePath(pathElement, path, rect)
+
+            graphicStyleName, _, _ = self._getUniqueItemStyleNames()
+            pathElement.set('draw:style-name', graphicStyleName)
+
+            # Style
+            lineLength = QLineF(curve.at(0), curve.at(curve.size() - 1)).length()
+            if (item.startArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.startArrow().size()):
+                startArrow = item.startArrow()
+            if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lineLength >= item.endArrow().size()):
+                endArrow = item.endArrow()
+
+            self._writeGraphicStyle(automaticStylesElement, graphicStyleName, brush=QBrush(Qt.GlobalColor.transparent),
+                                    pen=item.pen(), startArrow=startArrow, endArrow=endArrow)
+
+    def _writePolylineItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                           item: DrawingPolylineItem) -> None:
+        polylineElement = ElementTree.SubElement(pageElement, 'draw:polyline')
+
+        # Polyline
+        polyline = item.polyline()
+        sceneBoundingRect = item.mapPolygonToScene(polyline).boundingRect()
+
+        self._writeTransform(polylineElement, QPointF(0, 0), 0, False)
+        self._writeRect(polylineElement, sceneBoundingRect)
+        self._writePoints(polylineElement, polyline)
+
+        graphicStyleName, _, _ = self._getUniqueItemStyleNames()
+        polylineElement.set('draw:style-name', graphicStyleName)
+
+        # Style
+        startArrow, endArrow = None, None
+        if (polyline.size() >= 2):
+            firstLength = QLineF(polyline.at(0), polyline.at(1)).length()
+            lastLength = QLineF(polyline.at(polyline.size() - 1), polyline.at(polyline.size() - 2)).length()
+            if (item.startArrow().style() != DrawingArrow.Style.NoStyle and firstLength >= item.startArrow().size()):
+                startArrow = item.startArrow()
+            if (item.endArrow().style() != DrawingArrow.Style.NoStyle and lastLength >= item.endArrow().size()):
+                endArrow = item.endArrow()
+
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, brush=QBrush(Qt.GlobalColor.transparent),
+                                pen=item.pen(), startArrow=startArrow, endArrow=endArrow)
+
+    def _writeRectItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                       item: DrawingRectItem) -> None:
+        # Rect
+        rectElement = ElementTree.SubElement(pageElement, 'draw:rect')
+
+        self._writeTransform(rectElement, QPointF(0, 0), 0, False)
+        self._writeRect(rectElement, item.mapRectToScene(item.rect()))
+
+        if (item.cornerRadius() != 0):
+            rectElement.set('svg:rx', f'{self._lengthToString(item.cornerRadius())}')
+            rectElement.set('svg:ry', f'{self._lengthToString(item.cornerRadius())}')
+
+        graphicStyleName, _, _ = self._getUniqueItemStyleNames()
+        rectElement.set('draw:style-name', graphicStyleName)
+
+        # Style
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, brush=item.brush(), pen=item.pen())
+
+    def _writeEllipseItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                          item: DrawingEllipseItem) -> None:
+        ellipseElement = ElementTree.SubElement(pageElement, 'draw:ellipse')
+
+        self._writeTransform(ellipseElement, QPointF(0, 0), 0, False)
+
+        ellipse = item.mapRectToScene(item.ellipse())
+        center = ellipse.center()
+        ellipseElement.set('svg:cx', f'{self._lengthToString(center.x())}')
+        ellipseElement.set('svg:cy', f'{self._lengthToString(center.y())}')
+        ellipseElement.set('svg:rx', f'{self._lengthToString(ellipse.width() / 2)}')
+        ellipseElement.set('svg:ry', f'{self._lengthToString(ellipse.height() / 2)}')
+
+        graphicStyleName, _, _ = self._getUniqueItemStyleNames()
+        ellipseElement.set('draw:style-name', graphicStyleName)
+
+        # Style
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, brush=item.brush(), pen=item.pen())
+
+    def _writePolygonItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                          item: DrawingPolygonItem) -> None:
+        polygonElement = ElementTree.SubElement(pageElement, 'draw:polygon')
+
+        polygon = item.polygon()
+        sceneBoundingRect = item.mapPolygonToScene(polygon).boundingRect()
+
+        self._writeTransform(polygonElement, QPointF(0, 0), 0, False)
+        self._writeRect(polygonElement, sceneBoundingRect)
+        self._writePoints(polygonElement, polygon)
+
+        graphicStyleName, _, _ = self._getUniqueItemStyleNames()
+        polygonElement.set('draw:style-name', graphicStyleName)
+
+        # Style
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, brush=item.brush(), pen=item.pen())
+
+    def _writeTextItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                       item: DrawingTextItem) -> None:
+        # Rect
+        rectElement = ElementTree.SubElement(pageElement, 'draw:rect')
+
+        self._writeTransform(rectElement, item.position(), item.rotation(), item.isFlipped())
+
+        rect = item.boundingRect()
+        self._writeRect(rectElement, rect)
+
+        graphicStyleName, paragraphStyleName, textStyleName = self._getUniqueItemStyleNames()
+        rectElement.set('draw:style-name', graphicStyleName)
+        rectElement.set('draw:text-style-name', paragraphStyleName)
+
+        # Text
+        self._writeText(rectElement, item.caption(), paragraphStyleName, textStyleName)
+
+        # Style
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, QBrush(Qt.GlobalColor.transparent),
+                                QPen(Qt.PenStyle.NoPen), item.alignment(), rect.size(), QMarginsF(0, 0, 0, 0))
+        self._writeParagraphStyle(automaticStylesElement, paragraphStyleName, item.font(), item.alignment(),
+                                  item.brush())
+        self._writeTextStyle(automaticStylesElement, textStyleName, item.font(), item.brush())
+
+    def _writeTextRectItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                           item: DrawingTextRectItem) -> None:
+        # Rect
+        rectElement = ElementTree.SubElement(pageElement, 'draw:rect')
+
+        self._writeTransform(rectElement, item.position(), item.rotation(), item.isFlipped())
+
+        rect = item.rect()
+        self._writeRect(rectElement, rect)
+
+        if (item.cornerRadius() != 0):
+            rectElement.set('svg:rx', f'{self._lengthToString(item.cornerRadius())}')
+            rectElement.set('svg:ry', f'{self._lengthToString(item.cornerRadius())}')
+
+        graphicStyleName, paragraphStyleName, textStyleName = self._getUniqueItemStyleNames()
+        rectElement.set('draw:style-name', graphicStyleName)
+        rectElement.set('draw:text-style-name', paragraphStyleName)
+
+        # Text
+        self._writeText(rectElement, item.caption(), paragraphStyleName, textStyleName)
+
+        # Style
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, item.brush(), item.pen(),
+                                Qt.AlignmentFlag.AlignCenter, rect.size(), QMarginsF(0, 0, 0, 0))
+        self._writeParagraphStyle(automaticStylesElement, paragraphStyleName, item.font(),
+                                  Qt.AlignmentFlag.AlignCenter, item.textBrush())
+        self._writeTextStyle(automaticStylesElement, textStyleName, item.font(), item.textBrush())
+
+    def _writeTextEllipseItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                              item: DrawingTextEllipseItem) -> None:
+        # Ellipse
+        ellipseElement = ElementTree.SubElement(pageElement, 'draw:ellipse')
+
+        self._writeTransform(ellipseElement, item.position(), item.rotation(), item.isFlipped())
+
+        ellipse = item.ellipse()
+        center = ellipse.center()
+        ellipseElement.set('svg:cx', f'{self._lengthToString(center.x())}')
+        ellipseElement.set('svg:cy', f'{self._lengthToString(center.y())}')
+        ellipseElement.set('svg:rx', f'{self._lengthToString(ellipse.width() / 2)}')
+        ellipseElement.set('svg:ry', f'{self._lengthToString(ellipse.height() / 2)}')
+
+        graphicStyleName, paragraphStyleName, textStyleName = self._getUniqueItemStyleNames()
+        ellipseElement.set('draw:style-name', graphicStyleName)
+        ellipseElement.set('draw:text-style-name', paragraphStyleName)
+
+        # Text
+        self._writeText(ellipseElement, item.caption(), paragraphStyleName, textStyleName)
+
+        # Style
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, item.brush(), item.pen(),
+                                Qt.AlignmentFlag.AlignCenter, ellipse.size(), QMarginsF(0, 0, 0, 0))
+        self._writeParagraphStyle(automaticStylesElement, paragraphStyleName, item.font(),
+                                  Qt.AlignmentFlag.AlignCenter, item.textBrush())
+        self._writeTextStyle(automaticStylesElement, textStyleName, item.font(), item.textBrush())
+
+    def _writePathItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                       item: DrawingPathItem) -> None:
+        pathElement = ElementTree.SubElement(pageElement, 'draw:path')
+
+        # Path
+        self._writeTransform(pathElement, item.position(), item.rotation(), item.isFlipped())
+        self._writeRect(pathElement, item.rect())
+        self._writePath(pathElement, item.path(), item.pathRect())
+
+        graphicStyleName, _, _ = self._getUniqueItemStyleNames()
+        pathElement.set('draw:style-name', graphicStyleName)
+
+        # Style
+        self._writeGraphicStyle(automaticStylesElement, graphicStyleName, brush=QBrush(Qt.GlobalColor.transparent),
+                                pen=item.pen())
+
+    def _writeGroupItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
+                        item: DrawingItemGroup) -> None:
+        groupElement = ElementTree.SubElement(pageElement, 'draw:g')
+
+        # draw:g element does not support the draw:transform attribute, so we must apply the group transform to each
+        # of its items
+        for child in item.items():
+            child.setPosition(item.mapToScene(child.position()))
+            child.setRotation(child.rotation() + item.rotation())
+            if (item.isFlipped()):
+                child.setFlipped(not child.isFlipped())
+
+        self._writeItems(groupElement, automaticStylesElement, item.items())
+
+        # Undo the child item transforms to leave things as we found them
+        for child in item.items():
+            child.setPosition(item.mapFromScene(child.position()))
+            child.setRotation(child.rotation() - item.rotation())
+            if (item.isFlipped()):
+                child.setFlipped(not child.isFlipped())
+
+    # ==================================================================================================================
+
+    def _writeGraphicStyle(self, element: ElementTree.Element, name: str, brush: QBrush | None = None,
+                           pen: QPen | None = None, textAlignment: Qt.AlignmentFlag | None = None,
+                           textBoxMinimumSize: QSizeF | None = None, textBoxPadding: QMarginsF | None = None,
+                           startArrow: DrawingArrow | None = None, endArrow: DrawingArrow | None = None) -> None:
         styleElement = ElementTree.SubElement(element, 'style:style')
-        styleElement.set('style:name', f'item{index}Style')
+        styleElement.set('style:name', name)
         styleElement.set('style:family', 'graphic')
 
         graphicPropertiesElement = ElementTree.SubElement(styleElement, 'style:graphic-properties')
+        if (isinstance(brush, QBrush)):
+            self._writeBrush(graphicPropertiesElement, brush)
+        if (isinstance(pen, QPen)):
+            self._writePen(graphicPropertiesElement, pen)
+        if (isinstance(textAlignment, Qt.AlignmentFlag)):
+            self._writeTextAlignment(graphicPropertiesElement, textAlignment)
+        if (isinstance(textBoxMinimumSize, QSizeF)):
+            self._writeTextBoxMinimumSize(graphicPropertiesElement, textBoxMinimumSize)
+        if (isinstance(textBoxPadding, QMarginsF)):
+            self._writeTextBoxPadding(graphicPropertiesElement, textBoxPadding)
+        if (isinstance(startArrow, DrawingArrow)):
+            self._writeStartArrow(graphicPropertiesElement, startArrow)
+        if (isinstance(endArrow, DrawingArrow)):
+            self._writeEndArrow(graphicPropertiesElement, endArrow)
 
-        self._writePenAndBrush(graphicPropertiesElement, QBrush(Qt.GlobalColor.transparent), item.pen())
-        self._writeArrows(graphicPropertiesElement, item.startArrow(), item.endArrow())
-
-        return index + 1
-
-    def _writeCurveItemStyle(self, element: ElementTree.Element, item: DrawingCurveItem, index: int) -> int:
-        return index + 1
-
-    def _writePolylineItemStyle(self, element: ElementTree.Element, item: DrawingPolylineItem, index: int) -> int:
-        return index + 1
-
-    def _writeRectItemStyle(self, element: ElementTree.Element, item: DrawingRectItem, index: int) -> int:
-        styleElement = ElementTree.SubElement(element, 'style:style')
-        styleElement.set('style:name', f'item{index}Style')
-        styleElement.set('style:family', 'graphic')
-
-        graphicPropertiesElement = ElementTree.SubElement(styleElement, 'style:graphic-properties')
-
-        self._writePenAndBrush(graphicPropertiesElement, item.brush(), item.pen())
-
-        return index + 1
-
-    def _writeEllipseItemStyle(self, element: ElementTree.Element, item: DrawingEllipseItem, index: int) -> int:
-        return index + 1
-
-    def _writePolygonItemStyle(self, element: ElementTree.Element, item: DrawingPolygonItem, index: int) -> int:
-        return index + 1
-
-    def _writeTextItemStyle(self, element: ElementTree.Element, item: DrawingTextItem, index: int) -> int:
-        return index + 1
-
-    def _writeTextRectItemStyle(self, element: ElementTree.Element, item: DrawingTextRectItem, index: int) -> int:
-        return index + 1
-
-    def _writeTextEllipseItemStyle(self, element: ElementTree.Element, item: DrawingTextEllipseItem, index: int) -> int:
-        return index + 1
-
-    def _writePathItemStyle(self, element: ElementTree.Element, item: DrawingPathItem, index: int) -> int:
-        return index + 1
-
-    def _writeGroupItemStyle(self, element: ElementTree.Element, item: DrawingItemGroup, index: int) -> int:
-        return index + 1
-
-    def _writePenAndBrush(self, element: ElementTree.Element, brush: QBrush, pen: QPen) -> None:
-        # Brush
-        alpha = brush.color().alpha()
-        if (alpha != 0):
+    def _writeBrush(self, element: ElementTree.Element, brush: QBrush) -> None:
+        color = QColor(brush.color())
+        alpha = color.alpha()
+        if (alpha != 0 and brush.style() != Qt.BrushStyle.NoBrush):
             element.set('draw:fill', 'solid')
-            color = QColor(brush.color())
+
             color.setAlpha(255)
             element.set('draw:fill-color', color.name(QColor.NameFormat.HexRgb))
+
             if (alpha != 255):
                 element.set('draw:opacity', f'{alpha / 255 * 100:.1f}%')
         else:
             element.set('draw:fill', 'none')
 
-        # Pen
-        alpha = pen.brush().color().alpha()
-        if (alpha != 0 and pen.style() != Qt.PenStyle.NoPen):
+    def _writePen(self, element: ElementTree.Element, pen: QPen) -> None:
+        color = QColor(pen.brush().color())
+        alpha = color.alpha()
+        if (alpha != 0 and pen.style() != Qt.PenStyle.NoPen and pen.brush().style() != Qt.BrushStyle.NoBrush):
             element.set('draw:stroke', 'solid' if (pen.style() == Qt.PenStyle.SolidLine) else 'dash')
 
-            color = QColor(pen.brush().color())
             color.setAlpha(255)
             element.set('svg:stroke-color', color.name(QColor.NameFormat.HexRgb))
+
             if (alpha != 255):
                 element.set('svg:stroke-opacity', f'{alpha / 255 * 100:.1f}%')
 
@@ -391,121 +631,191 @@ class OdgWriter:
         else:
             element.set('draw:stroke', 'none')
 
-    def _writeArrows(self, element: ElementTree.Element, startArrow: DrawingArrow, endArrow: DrawingArrow) -> None:
-        if (startArrow.style() != DrawingArrow.Style.NoStyle):
-            if (startArrow.style() in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
+    def _writeTextAlignment(self, element: ElementTree.Element, alignment: Qt.AlignmentFlag) -> None:
+        horizontal = (alignment & Qt.AlignmentFlag.AlignHorizontal_Mask)
+        if (horizontal & Qt.AlignmentFlag.AlignHCenter):
+            element.set('draw:textarea-horizontal-align', 'center')
+        elif (horizontal & Qt.AlignmentFlag.AlignRight):
+            element.set('draw:textarea-horizontal-align', 'right')
+        else:
+            element.set('draw:textarea-horizontal-align', 'left')
+
+        vertical = (alignment & Qt.AlignmentFlag.AlignVertical_Mask)
+        if (vertical & Qt.AlignmentFlag.AlignVCenter):
+            element.set('draw:textarea-vertical-align', 'middle')
+        elif (vertical & Qt.AlignmentFlag.AlignBottom):
+            element.set('draw:textarea-vertical-align', 'bottom')
+        else:
+            element.set('draw:textarea-vertical-align', 'top')
+
+    def _writeTextBoxMinimumSize(self, element: ElementTree.Element, minimumSize: QSizeF) -> None:
+        element.set('draw:auto-grow-width', 'false')
+        element.set('draw:auto-grow-height', 'false')
+        element.set('fo:min-width', self._lengthToString(minimumSize.width()))
+        element.set('fo:min-height', self._lengthToString(minimumSize.height()))
+
+    def _writeTextBoxPadding(self, element: ElementTree.Element, padding: QMarginsF) -> None:
+        element.set('fo:padding-left', self._lengthToString(padding.left()))
+        element.set('fo:padding-top', self._lengthToString(padding.top()))
+        element.set('fo:padding-right', self._lengthToString(padding.right()))
+        element.set('fo:padding-bottom', self._lengthToString(padding.bottom()))
+
+    def _writeStartArrow(self, element: ElementTree.Element, arrow: DrawingArrow) -> None:
+        if (arrow.style() != DrawingArrow.Style.NoStyle):
+            if (arrow.style() in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
                 element.set('draw:marker-start', 'Circle')
-                element.set('draw:marker-start-width', self._sizeToString(startArrow.size()))
+                element.set('draw:marker-start-width', self._lengthToString(arrow.size()))
                 element.set('draw:marker-start-center', 'true')
             else:
                 element.set('draw:marker-start', 'Arrowheads_20_2')
-                element.set('draw:marker-start-width', self._sizeToString(startArrow.size() / 2 * 1.5))
+                element.set('draw:marker-start-width', self._lengthToString(arrow.size() / 2 * 1.5))
                 element.set('draw:marker-start-center', 'false')
 
-        if (endArrow.style() != DrawingArrow.Style.NoStyle):
-            if (endArrow.style() in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
+    def _writeEndArrow(self, element: ElementTree.Element, arrow: DrawingArrow) -> None:
+        if (arrow.style() != DrawingArrow.Style.NoStyle):
+            if (arrow.style() in (DrawingArrow.Style.Circle, DrawingArrow.Style.CircleFilled)):
                 element.set('draw:marker-end', 'Circle')
-                element.set('draw:marker-end-width', self._sizeToString(endArrow.size()))
+                element.set('draw:marker-end-width', self._lengthToString(arrow.size()))
                 element.set('draw:marker-end-center', 'true')
             else:
                 element.set('draw:marker-end', 'Arrowheads_20_2')
-                element.set('draw:marker-end-width', self._sizeToString(endArrow.size() / 2 * 1.5))
+                element.set('draw:marker-end-width', self._lengthToString(arrow.size() / 2 * 1.5))
                 element.set('draw:marker-end-center', 'false')
 
     # ==================================================================================================================
 
-    def _writeItemContent(self, element: ElementTree.Element, items: list[DrawingItem], index: int) -> int:
-        for item in items:
-            if (isinstance(item, DrawingLineItem)):
-                index = self._writeLineItemContent(element, item, index)
-            elif (isinstance(item, DrawingCurveItem)):
-                index = self._writeCurveItemContent(element, item, index)
-            elif (isinstance(item, DrawingPolylineItem)):
-                index = self._writePolylineItemContent(element, item, index)
-            elif (isinstance(item, DrawingTextRectItem)):
-                index = self._writeTextRectItemContent(element, item, index)
-            elif (isinstance(item, DrawingRectItem)):
-                index = self._writeRectItemContent(element, item, index)
-            elif (isinstance(item, DrawingTextEllipseItem)):
-                index = self._writeTextEllipseItemContent(element, item, index)
-            elif (isinstance(item, DrawingEllipseItem)):
-                index = self._writeEllipseItemContent(element, item, index)
-            elif (isinstance(item, DrawingPolygonItem)):
-                index = self._writePolygonItemContent(element, item, index)
-            elif (isinstance(item, DrawingTextItem)):
-                index = self._writeTextItemContent(element, item, index)
-            elif (isinstance(item, DrawingPathItem)):
-                index = self._writePathItemContent(element, item, index)
-            elif (isinstance(item, DrawingItemGroup)):
-                index = self._writeGroupItemContent(element, item, index)
-        return index
+    def _writeParagraphStyle(self, element: ElementTree.Element, name: str, font: QFont | None = None,
+                             alignment: Qt.AlignmentFlag | None = None, textBrush: QBrush | None = None) -> None:
+        styleElement = ElementTree.SubElement(element, 'style:style')
+        styleElement.set('style:name', name)
+        styleElement.set('style:family', 'paragraph')
 
-    def _writeLineItemContent(self, element: ElementTree.Element, item: DrawingLineItem, index: int) -> int:
-        lineElement = ElementTree.SubElement(element, 'draw:line')
+        paragraphPropertiesElement = ElementTree.SubElement(styleElement, 'style:paragraph-properties')
+        if (isinstance(alignment, Qt.AlignmentFlag)):
+            horizontal = (alignment & Qt.AlignmentFlag.AlignHorizontal_Mask)
+            if (horizontal & Qt.AlignmentFlag.AlignHCenter):
+                paragraphPropertiesElement.set('fo:text-align', 'center')
+            elif (horizontal & Qt.AlignmentFlag.AlignRight):
+                paragraphPropertiesElement.set('fo:text-align', 'end')
+            else:
+                paragraphPropertiesElement.set('fo:text-align', 'start')
 
-        p1 = item.mapToScene(item.line().p1())
-        p2 = item.mapToScene(item.line().p2())
-        lineElement.set('svg:x1', f'{self._positionToString(p1.x())}')
-        lineElement.set('svg:y1', f'{self._positionToString(p1.y())}')
-        lineElement.set('svg:x2', f'{self._positionToString(p2.x())}')
-        lineElement.set('svg:y2', f'{self._positionToString(p2.y())}')
+        textPropertiesElement = ElementTree.SubElement(styleElement, 'style:text-properties')
+        if (isinstance(font, QFont)):
+            self._writeFont(textPropertiesElement, font)
+        if (isinstance(textBrush, QBrush)):
+            self._writeTextBrush(textPropertiesElement, textBrush)
 
-        lineElement.set('draw:style-name', f'item{index}Style')
+    def _writeTextStyle(self, element: ElementTree.Element, name: str, font: QFont | None = None,
+                        textBrush: QBrush | None = None) -> None:
+        styleElement = ElementTree.SubElement(element, 'style:style')
+        styleElement.set('style:name', name)
+        styleElement.set('style:family', 'text')
 
-        return index + 1
+        textPropertiesElement = ElementTree.SubElement(styleElement, 'style:text-properties')
+        if (isinstance(font, QFont)):
+            self._writeFont(textPropertiesElement, font)
+        if (isinstance(textBrush, QBrush)):
+            self._writeTextBrush(textPropertiesElement, textBrush)
 
-    def _writeCurveItemContent(self, element: ElementTree.Element, item: DrawingCurveItem, index: int) -> int:
-        return index + 1
+    def _writeFont(self, element: ElementTree.Element, font: QFont) -> None:
+        # Font
+        element.set('style:font-name', font.family())
+        element.set('fo:font-size', self._lengthToString(font.pointSizeF()))
 
-    def _writePolylineItemContent(self, element: ElementTree.Element, item: DrawingPolylineItem, index: int) -> int:
-        return index + 1
+        element.set('fo:font-weight', 'bold' if (font.bold()) else 'normal')
+        element.set('fo:font-style', 'italic' if (font.italic()) else 'normal')
 
-    def _writeRectItemContent(self, element: ElementTree.Element, item: DrawingRectItem, index: int) -> int:
-        rectElement = ElementTree.SubElement(element, 'draw:rect')
+        if (font.underline()):
+            element.set('style:text-underline-style', 'solid')
+            element.set('style:text-underline-mode', 'continuous')
+            element.set('style:text-underline-type', 'single')
+            element.set('style:text-underline-width', 'auto')
+            element.set('style:text-underline-color', 'font-color')
+        else:
+            element.set('style:text-underline-style', 'none')
 
-        rect = item.mapRectToScene(item.rect())
-        rectElement.set('svg:x', f'{self._positionToString(rect.left())}')
-        rectElement.set('svg:y', f'{self._positionToString(rect.top())}')
-        rectElement.set('svg:width', f'{self._sizeToString(rect.width())}')
-        rectElement.set('svg:height', f'{self._sizeToString(rect.height())}')
+        if (font.strikeOut()):
+            element.set('style:text-line-through-style', 'solid')
+            element.set('style:text-line-through-mode', 'continuous')
+            element.set('style:text-line-through-type', 'single')
+            element.set('style:text-line-through-width', 'auto')
+            element.set('style:text-line-through-color', 'font-color')
+        else:
+            element.set('style:text-line-through-style', 'none')
 
-        if (item.cornerRadius() != 0):
-            rectElement.set('svg:rx', f'{self._sizeToString(item.cornerRadius())}')
-            rectElement.set('svg:ry', f'{self._sizeToString(item.cornerRadius())}')
+    def _writeTextBrush(self, element: ElementTree.Element, textBrush: QBrush) -> None:
+        # Text color
+        color = textBrush.color()
+        alpha = color.alpha()
+        if (alpha != 0 and textBrush.style() != Qt.BrushStyle.NoBrush):
+            color.setAlpha(255)
+            element.set('fo:color', color.name(QColor.NameFormat.HexRgb))
 
-        rectElement.set('draw:style-name', f'item{index}Style')
-
-        return index + 1
-
-    def _writeEllipseItemContent(self, element: ElementTree.Element, item: DrawingEllipseItem, index: int) -> int:
-        return index + 1
-
-    def _writePolygonItemContent(self, element: ElementTree.Element, item: DrawingPolygonItem, index: int) -> int:
-        return index + 1
-
-    def _writeTextItemContent(self, element: ElementTree.Element, item: DrawingTextItem, index: int) -> int:
-        return index + 1
-
-    def _writeTextRectItemContent(self, element: ElementTree.Element, item: DrawingTextRectItem, index: int) -> int:
-        return index + 1
-
-    def _writeTextEllipseItemContent(self, element: ElementTree.Element, item: DrawingTextEllipseItem,
-                                     index: int) -> int:
-        return index + 1
-
-    def _writePathItemContent(self, element: ElementTree.Element, item: DrawingPathItem, index: int) -> int:
-        return index + 1
-
-    def _writeGroupItemContent(self, element: ElementTree.Element, item: DrawingItemGroup, index: int) -> int:
-        return index + 1
+            if (alpha != 255):
+                element.set('loext:opacity', f'{alpha / 255 * 100:.1f}%')
 
     # ==================================================================================================================
 
-    def _positionToString(self, position: float) -> str:
-        return f'{(position + self._pageMargin) * self._scale}{self._units}'
+    def _writeTransform(self, element: ElementTree.Element, position: QPointF, rotation: int, flipped: bool) -> None:
+        xStr = self._lengthToString(position.x() + self._pageMargin)
+        yStr = self._lengthToString(position.y() + self._pageMargin)
+        transformStr = f'translate ({xStr} {yStr})'
 
-    def _sizeToString(self, size: float) -> str:
-        return f'{size * self._scale}{self._units}'
+        if (flipped):
+            transformStr = f'scale (-1 1) {transformStr}'
+        if (rotation != 0):
+            transformStr = f'rotate ({-rotation * math.pi / 2}) {transformStr}'
+
+        element.set('draw:transform', transformStr)
+
+    def _writeRect(self, element: ElementTree.Element, rect: QRectF) -> None:
+        element.set('svg:x', f'{self._lengthToString(rect.left())}')
+        element.set('svg:y', f'{self._lengthToString(rect.top())}')
+        element.set('svg:width', f'{self._lengthToString(rect.width())}')
+        element.set('svg:height', f'{self._lengthToString(rect.height())}')
+
+    def _writePoints(self, element: ElementTree.Element, polygon: QPolygonF) -> None:
+        pointsStr = ''
+        for polygonIndex in range(polygon.count()):
+            point = polygon.at(polygonIndex)
+            pointsStr = f'{pointsStr} {point.x()},{point.y()}'
+
+        boundingRect = polygon.boundingRect()
+        element.set('svg:viewBox', f'{boundingRect.left()} {boundingRect.top()} '
+                                   f'{boundingRect.width()} {boundingRect.height()}')
+        element.set('draw:points', pointsStr.strip())
+
+    def _writePath(self, element: ElementTree.Element, path: QPainterPath, pathRect: QRectF) -> None:
+        pathStr = ''
+        for index in range(path.elementCount()):
+            pathElement = path.elementAt(index)
+            match (pathElement.type):                                           # type: ignore
+                case QPainterPath.ElementType.MoveToElement:
+                    pathStr = f'{pathStr} M {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.LineToElement:
+                    pathStr = f'{pathStr} L {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.CurveToElement:
+                    pathStr = f'{pathStr} C {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.CurveToDataElement:
+                    pathStr = f'{pathStr} {pathElement.x} {pathElement.y}'      # type: ignore
+
+        element.set('svg:viewBox', f'{pathRect.left()} {pathRect.top()} {pathRect.width()} {pathRect.height()}')
+        element.set('svg:d', pathStr.strip())
+
+    def _writeText(self, element: ElementTree.Element, text: str, paragraphStyleName: str, textStyleName: str) -> None:
+        for line in text.split('\n'):
+            pElement = ElementTree.SubElement(element, 'text:p')
+            pElement.set('text:style-name', paragraphStyleName)
+
+            spanElement = ElementTree.SubElement(pElement, 'text:span')
+            spanElement.set('text:style-name', textStyleName)
+            spanElement.text = line
+
+    # ==================================================================================================================
+
+    def _lengthToString(self, length: float) -> str:
+        return f'{length * self._scale}{self._units}'
 
     def _penWidthToString(self, size: float) -> str:
         penWidth = size * self._scale
@@ -519,3 +829,10 @@ class OdgWriter:
                 penWidthIn = supportedPenWidthPoints / 72
 
         return f'{penWidthIn}in' if (self._units == 'in') else f'{penWidthIn * 25.4}mm'
+
+    def _getUniqueItemStyleNames(self) -> tuple[str, str, str]:
+        graphicStyleName = f'item{self._itemIndex}Style'
+        paragraphStyleName = f'item{self._itemIndex}ParagraphStyle'
+        textStyleName = f'item{self._itemIndex}TextStyle'
+        self._itemIndex = self._itemIndex + 1
+        return (graphicStyleName, paragraphStyleName, textStyleName)
