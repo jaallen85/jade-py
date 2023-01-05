@@ -110,7 +110,9 @@ class DrawingRectItem(DrawingItem):
     # ==================================================================================================================
 
     def setProperty(self, name: str, value: typing.Any) -> None:
-        if (name == 'pen' and isinstance(value, QPen)):
+        if (name == 'cornerRadius' and isinstance(value, float)):
+            self.setCornerRadius(value)
+        elif (name == 'pen' and isinstance(value, QPen)):
             self.setPen(value)
         elif (name == 'penStyle' and isinstance(value, int)):
             pen = self.pen()
