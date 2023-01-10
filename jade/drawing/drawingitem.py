@@ -201,14 +201,6 @@ class DrawingItem(ABC, DrawingXmlInterface):
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
         point.setPosition(self.mapFromScene(position))
 
-    def resizeStartPoint(self) -> DrawingItemPoint | None:
-        return None
-
-    def resizeEndPoint(self) -> DrawingItemPoint | None:
-        return None
-
-    # ==================================================================================================================
-
     def rotate(self, position: QPointF) -> None:
         # Calculate new position of item
         difference = self._position - position
@@ -253,11 +245,14 @@ class DrawingItem(ABC, DrawingXmlInterface):
 
     # ==================================================================================================================
 
-    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+    def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
         pass
 
-    def placeEndEvent(self) -> None:
-        pass
+    def placeResizeStartPoint(self) -> DrawingItemPoint | None:
+        return None
+
+    def placeResizeEndPoint(self) -> DrawingItemPoint | None:
+        return None
 
     # ==================================================================================================================
 

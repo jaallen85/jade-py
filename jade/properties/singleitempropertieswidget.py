@@ -772,17 +772,17 @@ class SingleItemPropertiesWidget(QWidget):
 
     def _handleLineStartChange(self, position: QPointF) -> None:
         if (self._item is not None):
-            self.itemResized.emit(self._item.resizeStartPoint(), position)
+            self.itemResized.emit(self._item.placeResizeStartPoint(), position)
 
     def _handleLineEndChange(self, position: QPointF) -> None:
         if (self._item is not None):
-            self.itemResized.emit(self._item.resizeEndPoint(), position)
+            self.itemResized.emit(self._item.placeResizeEndPoint(), position)
 
     def _handleLineSizeChange(self, size: QSizeF) -> None:
         position = QPointF(self._lineStartWidget.position().x() + size.width(),
                            self._lineStartWidget.position().y() + size.height())
         if (self._item is not None):
-            self.itemResized.emit(self._item.resizeEndPoint(), position)
+            self.itemResized.emit(self._item.placeResizeEndPoint(), position)
 
     # ==================================================================================================================
 
@@ -814,17 +814,17 @@ class SingleItemPropertiesWidget(QWidget):
 
     def _handleRectTopLeftChange(self, position: QPointF) -> None:
         if (self._item is not None):
-            self.itemResized.emit(self._item.resizeStartPoint(), position)
+            self.itemResized.emit(self._item.placeResizeStartPoint(), position)
 
     def _handleRectBottomRightChange(self, position: QPointF) -> None:
         if (self._item is not None):
-            self.itemResized.emit(self._item.resizeEndPoint(), position)
+            self.itemResized.emit(self._item.placeResizeEndPoint(), position)
 
     def _handleRectSizeChange(self, size: QSizeF) -> None:
         if (self._item is not None):
             position = QPointF(self._rectTopLeftWidget.position().x() + size.width(),
                                self._rectTopLeftWidget.position().y() + size.height())
-            self.itemResized.emit(self._item.resizeEndPoint(), position)
+            self.itemResized.emit(self._item.placeResizeEndPoint(), position)
 
     def _handleRectCornerRadiusChange(self, size: float) -> None:
         self.itemPropertyChanged.emit('cornerRadius', size)
@@ -833,17 +833,17 @@ class SingleItemPropertiesWidget(QWidget):
 
     def _handleEllipseTopLeftChange(self, position: QPointF) -> None:
         if (self._item is not None):
-            self.itemResized.emit(self._item.resizeStartPoint(), position)
+            self.itemResized.emit(self._item.placeResizeStartPoint(), position)
 
     def _handleEllipseBottomRightChange(self, position: QPointF) -> None:
         if (self._item is not None):
-            self.itemResized.emit(self._item.resizeEndPoint(), position)
+            self.itemResized.emit(self._item.placeResizeEndPoint(), position)
 
     def _handleEllipseSizeChange(self, size: QSizeF) -> None:
         if (self._item is not None):
             position = QPointF(self._ellipseTopLeftWidget.position().x() + size.width(),
                                self._ellipseTopLeftWidget.position().y() + size.height())
-            self.itemResized.emit(self._item.resizeEndPoint(), position)
+            self.itemResized.emit(self._item.placeResizeEndPoint(), position)
 
     # ==================================================================================================================
 

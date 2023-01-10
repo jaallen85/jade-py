@@ -231,12 +231,6 @@ class DrawingPolylineItem(DrawingItem):
 
             self.setPolyline(polyline)
 
-    def resizeStartPoint(self) -> DrawingItemPoint | None:
-        return self._points[0] if (len(self._points) >= 2) else None
-
-    def resizeEndPoint(self) -> DrawingItemPoint | None:
-        return self._points[-1] if (len(self._points) >= 2) else None
-
     # ==================================================================================================================
 
     def canInsertPoints(self) -> bool:
@@ -271,7 +265,7 @@ class DrawingPolylineItem(DrawingItem):
         if (self.canRemovePoints()):
             point = self._pointNearest(self.mapFromScene(position))
             # The user cannot remove the end points of the polyline
-            if (point == self.resizeStartPoint() or point == self.resizeEndPoint()):
+            if (point == self.placeResizeStartPoint() or point == self.placeResizeEndPoint()):
                 point = None
             if (point is not None):
                 removeIndex = self._points.index(point)
@@ -283,11 +277,17 @@ class DrawingPolylineItem(DrawingItem):
 
     # ==================================================================================================================
 
-    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+    def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
         polyline = QPolygonF()
         polyline.append(QPointF())
         polyline.append(QPointF())
         self.setPolyline(polyline)
+
+    def placeResizeStartPoint(self) -> DrawingItemPoint | None:
+        return self._points[0] if (len(self._points) >= 2) else None
+
+    def placeResizeEndPoint(self) -> DrawingItemPoint | None:
+        return self._points[-1] if (len(self._points) >= 2) else None
 
     # ==================================================================================================================
 

@@ -194,7 +194,7 @@ class DrawingTextItem(DrawingItem):
 
     # ==================================================================================================================
 
-    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+    def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
         self.setCaption('Label')
 
     # ==================================================================================================================

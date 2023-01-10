@@ -267,7 +267,7 @@ class DrawingCurveItem(DrawingItem):
 
     # ==================================================================================================================
 
-    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+    def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
         size = 4 * grid
         if (size <= 0):
             size = sceneRect.width() / 40

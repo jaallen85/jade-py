@@ -543,8 +543,8 @@ class DrawingPageWidget(DrawingPageView):
         if (self._placeByMousePressAndRelease):
             # Resize the item's end point to the current mouse position
             placeItem = self._placeModeItems[0]
-            placeItemResizeStartPoint = placeItem.resizeStartPoint()
-            placeItemResizeEndPoint = placeItem.resizeEndPoint()
+            placeItemResizeStartPoint = placeItem.placeResizeStartPoint()
+            placeItemResizeEndPoint = placeItem.placeResizeEndPoint()
 
             if (placeItemResizeStartPoint is not None and placeItemResizeEndPoint is not None):
                 startPosition = placeItem.mapToScene(placeItemResizeStartPoint.position())
@@ -563,15 +563,12 @@ class DrawingPageWidget(DrawingPageView):
         if (len(self._placeModeItems) > 0 or (len(self._placeModeItems) == 1 and self._placeModeItems[0].isValid())):
             # Place the items within the scene.
             self._pushUndoCommand(self._addItemsCommand(self._placeModeItems, place=(len(self._placeModeItems) == 1)))
-            if (self._placeByMousePressAndRelease):
-                for item in self._placeModeItems:
-                    item.placeEndEvent()
 
             # Create a new set of place items
             newItems = DrawingItem.copyItems(self._placeModeItems)
             if (self._placeByMousePressAndRelease):
                 for item in newItems:
-                    item.placeStartEvent(self.contentRect(), self._grid)
+                    item.placeCreateEvent(self.contentRect(), self._grid)
 
             self._placeModeItems = []
             self.setPlaceMode(newItems, self._placeByMousePressAndRelease)

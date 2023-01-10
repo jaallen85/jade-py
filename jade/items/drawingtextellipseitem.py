@@ -217,7 +217,7 @@ class DrawingTextEllipseItem(DrawingEllipseItem):
 
     # ==================================================================================================================
 
-    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+    def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
         size = 8 * grid
         if (size <= 0):
             size = sceneRect.width() / 40

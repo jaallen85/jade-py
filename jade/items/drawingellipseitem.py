@@ -215,16 +215,16 @@ class DrawingEllipseItem(DrawingItem):
 
             self.setEllipse(ellipse)
 
-    def resizeStartPoint(self) -> DrawingItemPoint | None:
-        return self._points[DrawingEllipseItem.PointIndex.TopLeft] if (len(self._points) >= 8) else None
-
-    def resizeEndPoint(self) -> DrawingItemPoint | None:
-        return self._points[DrawingEllipseItem.PointIndex.BottomRight] if (len(self._points) >= 8) else None
-
     # ==================================================================================================================
 
-    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+    def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
         self.setEllipse(QRectF())
+
+    def placeResizeStartPoint(self) -> DrawingItemPoint | None:
+        return self._points[DrawingEllipseItem.PointIndex.TopLeft] if (len(self._points) >= 8) else None
+
+    def placeResizeEndPoint(self) -> DrawingItemPoint | None:
+        return self._points[DrawingEllipseItem.PointIndex.BottomRight] if (len(self._points) >= 8) else None
 
     # ==================================================================================================================
 

@@ -234,16 +234,16 @@ class DrawingLineItem(DrawingItem):
 
             self.setLine(line)
 
-    def resizeStartPoint(self) -> DrawingItemPoint | None:
-        return self._points[DrawingLineItem.PointIndex.StartPoint] if (len(self._points) >= 3) else None
-
-    def resizeEndPoint(self) -> DrawingItemPoint | None:
-        return self._points[DrawingLineItem.PointIndex.EndPoint] if (len(self._points) >= 3) else None
-
     # ==================================================================================================================
 
-    def placeStartEvent(self, sceneRect: QRectF, grid: float) -> None:
+    def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
         self.setLine(QLineF())
+
+    def placeResizeStartPoint(self) -> DrawingItemPoint | None:
+        return self._points[DrawingLineItem.PointIndex.StartPoint] if (len(self._points) >= 3) else None
+
+    def placeResizeEndPoint(self) -> DrawingItemPoint | None:
+        return self._points[DrawingLineItem.PointIndex.EndPoint] if (len(self._points) >= 3) else None
 
     # ==================================================================================================================
 
