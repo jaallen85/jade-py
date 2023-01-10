@@ -70,6 +70,7 @@ class PropertiesBrowser(QStackedWidget):
         self._singleItemsPropertiesWidget.itemMoved.connect(self._diagram.moveCurrentItem)
         self._singleItemsPropertiesWidget.itemResized.connect(self._diagram.resizeCurrentItem)
         self._singleItemsPropertiesWidget.itemPropertyChanged.connect(self._diagram.updateCurrentItemsProperty)
+
     # ==================================================================================================================
 
     def sizeHint(self) -> QSize:

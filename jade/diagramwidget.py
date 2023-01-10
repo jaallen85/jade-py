@@ -409,7 +409,7 @@ class DiagramWidget(DrawingWidget):
             if (self._currentPage is not None):
                 key = action.property('key')
                 item = DrawingItem.createItemFromFactory(key)
-                if (item is not None):
+                if (isinstance(item, DrawingItem)):
                     self._setDefaultItemProperties(item)
 
                     # Send the item a placeCreateEvent so it can set its initial geometry as needed
@@ -432,7 +432,7 @@ class DiagramWidget(DrawingWidget):
         canRemovePoints = False
         if (len(items) == 1):
             item = items[0]
-            canUngroup = (item.key() == 'group')
+            canUngroup = isinstance(item, DrawingItemGroup)
             canInsertPoints = item.canInsertPoints()
             canRemovePoints = item.canRemovePoints()
 

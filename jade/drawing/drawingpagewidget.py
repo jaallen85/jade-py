@@ -375,9 +375,9 @@ class DrawingPageWidget(DrawingPageView):
 
             itemGroup = DrawingItemGroup()
 
-            # Put the group position in the center of the selected items and adjust each item's position accordingly
+            # Put the group position equal to the position of the last item and adjust each item's position accordingly
             items = DrawingItem.copyItems(itemsToRemove)
-            itemGroup.setPosition(self._itemsCenter(items))
+            itemGroup.setPosition(itemsToRemove[-1].position())
             for item in items:
                 item.setPosition(itemGroup.mapFromScene(item.position()))
             itemGroup.setItems(items)
@@ -672,7 +672,7 @@ class DrawingPageWidget(DrawingPageView):
 
         point1Item = point1.item()
         point2Item = point2.item()
-        if (point1Item is not None and point2Item is not None):
+        if (isinstance(point1Item, DrawingItem) and isinstance(point2Item, DrawingItem)):
             point1Position = point1Item.mapToScene(point1.position())
             point2Position = point2Item.mapToScene(point2.position())
             if (point1Position != point2Position):
@@ -717,7 +717,9 @@ class DrawingPageWidget(DrawingPageView):
             for point in item.points():
                 if (point != pointToSkip and (checkControlPoints or not point.isControlPoint())):
                     for targetPoint in point.connections():
-                        if (item.mapToScene(point.position()) != targetPoint.item().mapToScene(targetPoint.position())):
+                        targetItem = targetPoint.item()
+                        if (isinstance(targetItem, DrawingItem) and
+                                item.mapToScene(point.position()) != targetItem.mapToScene(targetPoint.position())):
                             # Try to maintain the connection by resizing targetPoint if possible
                             if (allowResize and targetPoint.isFree() and not self._shouldDisconnect(point, targetPoint)):   # noqa
                                 command.addChild(

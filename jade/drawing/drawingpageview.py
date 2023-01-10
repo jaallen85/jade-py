@@ -1177,7 +1177,7 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         adjustedShape = QPainterPath()
 
         pen = item.property('pen')
-        if (pen is not None):
+        if (isinstance(pen, QPen)):
             # Determine minimum pen width
             mappedPenSize = self.mapToScene(QPoint(8, 8)) - self.mapToScene(QPoint(0, 0))
             minimumPenWidth = max(abs(mappedPenSize.x()), abs(mappedPenSize.y()))
@@ -1206,25 +1206,29 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         # The points should be connected if both are members of different valid items, both are connection points,
         # at least one point is free to be resized when the other point is moved, the points are not already connected,
         # and the points are at the same location within the scene.
-        if (point1.item() is not None and point2.item() is not None and point1.item() != point2.item() and
+        item1 = point1.item()
+        item2 = point2.item()
+        if (isinstance(item1, DrawingItem) and isinstance(item2, DrawingItem) and item1 != item2 and
                 point1.isConnectionPoint() and point2.isConnectionPoint() and (point1.isFree() or point2.isFree()) and
                 not point1.isConnected(point2) and not point2.isConnected(point1)):
-            vec = point1.item().mapToScene(point1.position()) - point2.item().mapToScene(point2.position())
+            vec = item1.mapToScene(point1.position()) - item2.mapToScene(point2.position())
             return (math.sqrt(vec.x() * vec.x() + vec.y() * vec.y()) <= 1E-6)
         return False
 
     def _shouldDisconnect(self, point1: DrawingItemPoint, point2: DrawingItemPoint) -> bool:
         # The points should be disconnected if they are already connected to each other and if they are not at the
         # same location within the scene and point2 cannot be resized to move it to the same location as point1.
-        if (point1.item() is not None and point2.item() is not None and
+        item1 = point1.item()
+        item2 = point2.item()
+        if (isinstance(item1, DrawingItem) and isinstance(item2, DrawingItem) and
                 point1.isConnected(point2) and point2.isConnected(point1)):
-            return (point1.item().mapToScene(point1.position()) != point2.item().mapToScene(point2.position()) and
-                    not point2.isFree())
+            return (item1.mapToScene(point1.position()) != item2.mapToScene(point2.position()) and not point2.isFree())
         return False
 
     def _pointRect(self, point: DrawingItemPoint) -> QRectF:
-        if (point.item() is not None):
-            position = point.item().mapToScene(point.position())
+        item = point.item()
+        if (isinstance(item, DrawingItem)):
+            position = item.mapToScene(point.position())
             size = 8 / self.scale()
             return QRectF(position.x() - size / 2, position.y() - size / 2, size, size)
         return QRectF()
