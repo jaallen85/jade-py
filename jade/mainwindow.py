@@ -33,7 +33,9 @@ from .pagesbrowser import PagesBrowser
 from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
 
+# Todo: rename drawingitemgroup to drawinggroupitem
 # Todo: should lines, curves, and polylines ignore position, rotation, and flipped transforms?  what about other items?
+# Todo: consider adding a DrawingFilledPathItem
 
 
 class MainWindow(QMainWindow, DrawingXmlInterface):

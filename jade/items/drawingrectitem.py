@@ -40,8 +40,8 @@ class DrawingRectItem(DrawingItem):
         super().__init__()
 
         self._rect: QRectF = QRectF()
-
         self._cornerRadius: float = 0.0
+
         self._brush: QBrush = QBrush()
         self._pen: QPen = QPen()
 
@@ -82,13 +82,11 @@ class DrawingRectItem(DrawingItem):
             self._points[DrawingRectItem.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
             self._points[DrawingRectItem.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
 
-    def rect(self) -> QRectF:
-        return self._rect
-
-    # ==================================================================================================================
-
     def setCornerRadius(self, radius: float) -> None:
         self._cornerRadius = radius
+
+    def rect(self) -> QRectF:
+        return self._rect
 
     def cornerRadius(self) -> float:
         return self._cornerRadius
