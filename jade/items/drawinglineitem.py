@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
 import typing
 from enum import IntEnum
 from xml.etree import ElementTree
@@ -180,13 +181,10 @@ class DrawingLineItem(DrawingItem):
         shape = self._strokePath(linePath, self._pen)
 
         # Add shape for each arrow, if necessary
-        lineLength = self._line.length()
-        endArrowAngle = self._line.angle()
-        startArrowAngle = 180 + endArrowAngle
-        if (lineLength >= self._startArrow.size()):
-            shape.addPath(self._startArrow.shape(self._pen, self._line.p1(), startArrowAngle))
-        if (lineLength >= self._endArrow.size()):
-            shape.addPath(self._endArrow.shape(self._pen, self._line.p2(), endArrowAngle))
+        if (self._shouldShowStartArrow()):
+            shape.addPath(self._startArrow.shape(self._pen, self._line.p1(), self._startArrowAngle()))
+        if (self._shouldShowEndArrow()):
+            shape.addPath(self._endArrow.shape(self._pen, self._line.p2(), self._endArrowAngle()))
 
         return shape
 
@@ -202,14 +200,10 @@ class DrawingLineItem(DrawingItem):
         painter.drawLine(self._line)
 
         # Draw arrows if necessary
-        lineLength = self._line.length()
-        endArrowAngle = self._line.angle()
-        startArrowAngle = 180 + endArrowAngle
-
-        if (lineLength >= self._startArrow.size()):
-            self._startArrow.paint(painter, self._pen, self._line.p1(), startArrowAngle)
-        if (lineLength >= self._endArrow.size()):
-            self._endArrow.paint(painter, self._pen, self._line.p2(), endArrowAngle)
+        if (self._shouldShowStartArrow()):
+            self._startArrow.paint(painter, self._pen, self._line.p1(), self._startArrowAngle())
+        if (self._shouldShowEndArrow()):
+            self._endArrow.paint(painter, self._pen, self._line.p2(), self._endArrowAngle())
 
     # ==================================================================================================================
 
@@ -270,3 +264,17 @@ class DrawingLineItem(DrawingItem):
         self.setPen(self._readPen(element, 'pen'))
         self.setStartArrow(self._readArrow(element, 'startArrow'))
         self.setEndArrow(self._readArrow(element, 'endArrow'))
+
+    # ==================================================================================================================
+
+    def _shouldShowStartArrow(self) -> bool:
+        return (self._line.length() >= self._startArrow.size())
+
+    def _shouldShowEndArrow(self) -> bool:
+        return (self._line.length() >= self._endArrow.size())
+
+    def _startArrowAngle(self) -> float:
+        return math.atan2(self._line.y1() - self._line.y2(), self._line.x1() - self._line.x2()) * 180 / math.pi
+
+    def _endArrowAngle(self) -> float:
+        return math.atan2(self._line.y2() - self._line.y1(), self._line.x2() - self._line.x1()) * 180 / math.pi

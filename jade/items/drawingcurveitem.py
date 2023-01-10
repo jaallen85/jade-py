@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
 import typing
 from enum import IntEnum
 from xml.etree import ElementTree
@@ -188,14 +189,12 @@ class DrawingCurveItem(DrawingItem):
         shape = self._strokePath(self._curvePath, self._pen)
 
         # Add shape for each arrow, if necessary
-        if (self._curve.size() == 4):
-            curveLength = self._curveLength()
-            if (curveLength >= self._startArrow.size()):
-                shape.addPath(self._startArrow.shape(self._pen, self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
-                                                     self._startArrowAngle()))
-            if (curveLength >= self._endArrow.size()):
-                shape.addPath(self._endArrow.shape(self._pen, self._curve.at(DrawingCurveItem.PointIndex.EndPoint),
-                                                   self._endArrowAngle()))
+        if (self._shouldShowStartArrow()):
+            shape.addPath(self._startArrow.shape(self._pen, self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
+                          self._startArrowAngle()))
+        if (self._shouldShowEndArrow()):
+            shape.addPath(self._endArrow.shape(self._pen, self._curve.at(DrawingCurveItem.PointIndex.EndPoint),
+                          self._endArrowAngle()))
 
         return shape
 
@@ -213,11 +212,10 @@ class DrawingCurveItem(DrawingItem):
 
         if (self._curve.size() == 4):
             # Draw arrows, if necessary
-            curveLength = self._curveLength()
-            if (curveLength >= self._startArrow.size()):
+            if (self._shouldShowStartArrow()):
                 self._startArrow.paint(painter, self._pen, self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
                                        self._startArrowAngle())
-            if (curveLength >= self._endArrow.size()):
+            if (self._shouldShowEndArrow()):
                 self._endArrow.paint(painter, self._pen, self._curve.at(DrawingCurveItem.PointIndex.EndPoint),
                                      self._endArrowAngle())
 
@@ -322,15 +320,33 @@ class DrawingCurveItem(DrawingItem):
 
     # ==================================================================================================================
 
-    def _curveLength(self) -> float:
-        return QLineF(self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
-                      self._curve.at(DrawingCurveItem.PointIndex.EndPoint)).length()
+    def _shouldShowStartArrow(self) -> bool:
+        if (self._curve.size() == 4):
+            length = QLineF(self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
+                            self._curve.at(DrawingCurveItem.PointIndex.EndPoint)).length()
+            return (length >= self._startArrow.size())
+        return False
+
+    def _shouldShowEndArrow(self) -> bool:
+        if (self._curve.size() == 4):
+            length = QLineF(self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
+                            self._curve.at(DrawingCurveItem.PointIndex.EndPoint)).length()
+            return (length >= self._endArrow.size())
+        return False
 
     def _startArrowAngle(self) -> float:
-        return QLineF(self._pointFromRatio(0.05), self._curve.at(DrawingCurveItem.PointIndex.StartPoint)).angle()
+        if (self._curve.size() == 4):
+            p1 = self._curve.at(DrawingCurveItem.PointIndex.StartPoint)
+            p2 = self._pointFromRatio(0.05)
+            return math.atan2(p1.y() - p2.y(), p1.x() - p2.x()) * 180 / math.pi
+        return 0
 
     def _endArrowAngle(self) -> float:
-        return QLineF(self._pointFromRatio(0.95), self._curve.at(DrawingCurveItem.PointIndex.EndPoint)).angle()
+        if (self._curve.size() == 4):
+            p1 = self._curve.at(DrawingCurveItem.PointIndex.EndPoint)
+            p2 = self._pointFromRatio(0.95)
+            return math.atan2(p1.y() - p2.y(), p1.x() - p2.x()) * 180 / math.pi
+        return 0
 
     def _pointFromRatio(self, ratio: float) -> QPointF:
         curveStartPosition = self._curve.at(DrawingCurveItem.PointIndex.StartPoint)

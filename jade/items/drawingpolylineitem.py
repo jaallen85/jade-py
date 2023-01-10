@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
 import typing
 from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
@@ -181,9 +182,9 @@ class DrawingPolylineItem(DrawingItem):
 
         # Add shape for each arrow, if necessary
         if (self._polyline.size() >= 2):
-            if (self._firstSegmentLength() >= self._startArrow.size()):
+            if (self._shouldShowStartArrow()):
                 shape.addPath(self._startArrow.shape(self._pen, self._polyline.at(0), self._startArrowAngle()))
-            if (self._lastSegmentLength() >= self._endArrow.size()):
+            if (self._shouldShowEndArrow()):
                 shape.addPath(self._endArrow.shape(self._pen, self._polyline.at(self._polyline.size() - 1),
                                                    self._endArrowAngle()))
 
@@ -203,9 +204,9 @@ class DrawingPolylineItem(DrawingItem):
 
         # Draw arrows if necessary
         if (self._polyline.size() >= 2):
-            if (self._firstSegmentLength() >= self._startArrow.size()):
+            if (self._shouldShowStartArrow()):
                 self._startArrow.paint(painter, self._pen, self._polyline.at(0), self._startArrowAngle())
-            if (self._lastSegmentLength() >= self._endArrow.size()):
+            if (self._shouldShowEndArrow()):
                 self._endArrow.paint(painter, self._pen, self._polyline.at(self._polyline.size() - 1),
                                      self._endArrowAngle())
 
@@ -307,14 +308,30 @@ class DrawingPolylineItem(DrawingItem):
 
     # ==================================================================================================================
 
-    def _firstSegmentLength(self) -> float:
-        return QLineF(self._polyline.at(0), self._polyline.at(1)).length()
+    def _shouldShowStartArrow(self) -> bool:
+        if (self._polyline.size() >= 2):
+            length = QLineF(self._polyline.at(0),
+                            self._polyline.at(1)).length()
+            return (length >= self._startArrow.size())
+        return False
 
-    def _lastSegmentLength(self) -> float:
-        return QLineF(self._polyline.at(self._polyline.size() - 1), self._polyline.at(self._polyline.size() - 2)).length()  # noqa
+    def _shouldShowEndArrow(self) -> bool:
+        if (self._polyline.size() >= 2):
+            length = QLineF(self._polyline.at(self._polyline.size() - 2),
+                            self._polyline.at(self._polyline.size() - 1)).length()
+            return (length >= self._endArrow.size())
+        return False
 
     def _startArrowAngle(self) -> float:
-        return QLineF(self._polyline.at(1), self._polyline.at(0)).angle()
+        if (self._polyline.size() >= 2):
+            p1 = self._polyline.at(0)
+            p2 = self._polyline.at(1)
+            return math.atan2(p1.y() - p2.y(), p1.x() - p2.x()) * 180 / math.pi
+        return 0
 
     def _endArrowAngle(self) -> float:
-        return QLineF(self._polyline.at(self._polyline.size() - 2), self._polyline.at(self._polyline.size() - 1)).angle()   # noqa
+        if (self._polyline.size() >= 2):
+            p1 = self._polyline.at(self._polyline.size() - 1)
+            p2 = self._polyline.at(self._polyline.size() - 2)
+            return math.atan2(p1.y() - p2.y(), p1.x() - p2.x()) * 180 / math.pi
+        return 0

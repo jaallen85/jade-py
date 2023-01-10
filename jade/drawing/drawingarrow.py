@@ -67,7 +67,7 @@ class DrawingArrow:
             # Transform the path to the specified position and angle
             transform = QTransform()
             transform.translate(position.x(), position.y())
-            transform.rotate(-angle)
+            transform.rotate(angle)
             transformedPath = transform.map(self._path)
 
             # Create a shape representing the outline of the path
@@ -101,9 +101,9 @@ class DrawingArrow:
 
             # Draw arrow
             painter.translate(position)
-            painter.rotate(-angle)
-            painter.drawPath(self._path)
             painter.rotate(angle)
+            painter.drawPath(self._path)
+            painter.rotate(-angle)
             painter.translate(-position)
 
             # Cleanup tasks
