@@ -136,6 +136,8 @@ class DrawingLineItem(DrawingItem):
             self.setEndArrow(arrow)
 
     def property(self, name: str) -> typing.Any:
+        if (name == 'position'):
+            return self.position()
         if (name == 'line'):
             return QLineF(self.mapToScene(self._line.p1()), self.mapToScene(self._line.p2()))
         if (name == 'pen'):

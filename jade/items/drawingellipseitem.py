@@ -126,6 +126,8 @@ class DrawingEllipseItem(DrawingItem):
             self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
+        if (name == 'position'):
+            return self.position()
         if (name == 'ellipse'):
             return self.mapRectToScene(self.ellipse())
         if (name == 'pen'):

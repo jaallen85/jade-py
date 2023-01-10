@@ -34,7 +34,12 @@ from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
 
 # Todo: should lines, curves, and polylines ignore position, rotation, and flipped transforms?  what about other items?
-# Todo: consider adding a DrawingFilledPathItem
+# Todo: add layer support
+# Todo: add style support
+# Todo: add way for users to create custom items and libraries
+# Todo: add an ArrayItem, where a single item can be replicated many times in a 2D array?
+# Todo: other improvements to make PCB floorplanning easier
+# Todo: improve exporters to SVG, ODG, and VSDX
 
 
 class MainWindow(QMainWindow, DrawingXmlInterface):

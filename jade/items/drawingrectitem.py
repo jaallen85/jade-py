@@ -130,6 +130,8 @@ class DrawingRectItem(DrawingItem):
             self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
+        if (name == 'position'):
+            return self.position()
         if (name == 'rect'):
             return self.mapRectToScene(self.rect())
         if (name == 'cornerRadius'):
