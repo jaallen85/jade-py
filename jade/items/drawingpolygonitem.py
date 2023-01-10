@@ -174,10 +174,10 @@ class DrawingPolygonItem(DrawingItem):
                 polygon.takeAt(pointIndex)
                 polygon.insert(pointIndex, position)
 
-            # Keep the item's position at the first point of the polygon
-            firstPointPosition = polygon.at(0)
-            self.setPosition(self.mapToScene(firstPointPosition))
-            polygon.translate(-firstPointPosition)
+            # Keep the item's position at the center of the polygon
+            center = polygon.boundingRect().center()
+            self.setPosition(self.mapToScene(center))
+            polygon.translate(-center)
 
             self.setPolygon(polygon)
 

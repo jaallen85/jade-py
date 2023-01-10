@@ -173,9 +173,6 @@ class DrawingTextItem(DrawingItem):
         shape.addRect(self._textRect)
         return shape
 
-    def centerPosition(self) -> QPointF:
-        return QPointF(0, 0)
-
     def isValid(self) -> bool:
         return (self._caption != '')
 

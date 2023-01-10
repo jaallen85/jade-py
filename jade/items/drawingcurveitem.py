@@ -229,8 +229,10 @@ class DrawingCurveItem(DrawingItem):
                 self._pen.setStyle(Qt.PenStyle.DotLine)
                 self._pen.setWidthF(originalPenWidth * 0.75)
                 painter.setPen(self._pen)
-                painter.drawLine(self._curve.at(0), self._curve.at(1))
-                painter.drawLine(self._curve.at(3), self._curve.at(2))
+                painter.drawLine(self._curve.at(DrawingCurveItem.PointIndex.StartPoint),
+                                 self._curve.at(DrawingCurveItem.PointIndex.StartControlPoint))
+                painter.drawLine(self._curve.at(DrawingCurveItem.PointIndex.EndPoint),
+                                 self._curve.at(DrawingCurveItem.PointIndex.EndControlPoint))
 
                 self._pen.setStyle(originalPenStyle)
                 self._pen.setWidthF(originalPenWidth)
@@ -239,8 +241,10 @@ class DrawingCurveItem(DrawingItem):
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
         if (point in self._points and self._curve.size() == 4):
-            originalStartControlOffset = self._curve.at(1) - self._curve.at(0)
-            originalEndControlOffset = self._curve.at(2) - self._curve.at(3)
+            originalStartControlOffset = (self._curve.at(DrawingCurveItem.PointIndex.StartControlPoint) -
+                                          self._curve.at(DrawingCurveItem.PointIndex.StartPoint))
+            originalEndControlOffset = (self._curve.at(DrawingCurveItem.PointIndex.EndControlPoint) -
+                                        self._curve.at(DrawingCurveItem.PointIndex.EndPoint))
 
             pointIndex = self._points.index(point)
             position = self.mapFromScene(position)
@@ -258,10 +262,11 @@ class DrawingCurveItem(DrawingItem):
                 curve.takeAt(DrawingCurveItem.PointIndex.EndControlPoint)
                 curve.insert(DrawingCurveItem.PointIndex.EndControlPoint, position + originalEndControlOffset)
 
-            # Keep the item's position at the first point of the curve
-            firstPointPosition = curve.at(0)
-            self.setPosition(self.mapToScene(firstPointPosition))
-            curve.translate(-firstPointPosition)
+            # Keep the item's position at the center of the curve
+            center = QLineF(curve.at(DrawingCurveItem.PointIndex.StartPoint),
+                            curve.at(DrawingCurveItem.PointIndex.EndPoint)).center()
+            self.setPosition(self.mapToScene(center))
+            curve.translate(-center)
 
             self.setCurve(curve)
 
@@ -284,14 +289,14 @@ class DrawingCurveItem(DrawingItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        element.set('x1', self._toPositionStr(self._curve.at(0).x()))
-        element.set('y1', self._toPositionStr(self._curve.at(0).y()))
-        element.set('cx1', self._toPositionStr(self._curve.at(1).x()))
-        element.set('cy1', self._toPositionStr(self._curve.at(1).y()))
-        element.set('cx2', self._toPositionStr(self._curve.at(2).x()))
-        element.set('cy2', self._toPositionStr(self._curve.at(2).y()))
-        element.set('x2', self._toPositionStr(self._curve.at(3).x()))
-        element.set('y2', self._toPositionStr(self._curve.at(3).y()))
+        element.set('x1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartPoint).x()))
+        element.set('y1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartPoint).y()))
+        element.set('cx1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartControlPoint).x()))
+        element.set('cy1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartControlPoint).y()))
+        element.set('cx2', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.EndControlPoint).x()))
+        element.set('cy2', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.EndControlPoint).y()))
+        element.set('x2', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.EndPoint).x()))
+        element.set('y2', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.EndPoint).y()))
 
         self._writePen(element, 'pen', self._pen)
         self._writeArrow(element, 'startArrow', self._startArrow)

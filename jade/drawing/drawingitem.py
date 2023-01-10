@@ -181,9 +181,6 @@ class DrawingItem(ABC, DrawingXmlInterface):
         shape.addRect(self.boundingRect())
         return shape
 
-    def centerPosition(self) -> QPointF:
-        return self.boundingRect().center()
-
     def isValid(self) -> bool:
         return True
 

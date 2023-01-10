@@ -223,9 +223,6 @@ class DrawingPathItem(DrawingItem):
         shape.addRect(self._rect.normalized())
         return shape
 
-    def centerPosition(self) -> QPointF:
-        return QPointF(0.0, 0.0)
-
     def isValid(self) -> bool:
         return (self._rect.width() != 0 and self._rect.height() != 0 and not self._path.isEmpty() and
                 self._pathRect.width() != 0 and self._pathRect.height() != 0)

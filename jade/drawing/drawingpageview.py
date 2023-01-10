@@ -1153,7 +1153,7 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         if (len(items) > 1):
             return self._itemsRect(items).center()
         if (len(items) == 1):
-            return items[0].mapToScene(items[0].centerPosition())
+            return items[0].position()
         return QPointF()
 
     def _isItemInRect(self, item: DrawingItem, rect: QRectF) -> bool:

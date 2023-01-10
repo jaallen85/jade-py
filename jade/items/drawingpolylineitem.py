@@ -224,10 +224,10 @@ class DrawingPolylineItem(DrawingItem):
                 polyline.takeAt(pointIndex)
                 polyline.insert(pointIndex, position)
 
-            # Keep the item's position at the first point of the polyline
-            firstPointPosition = polyline.at(0)
-            self.setPosition(self.mapToScene(firstPointPosition))
-            polyline.translate(-firstPointPosition)
+            # Keep the item's position at the center of the polyline
+            center = polyline.boundingRect().center()
+            self.setPosition(self.mapToScene(center))
+            polyline.translate(-center)
 
             self.setPolyline(polyline)
 

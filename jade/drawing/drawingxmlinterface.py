@@ -209,7 +209,7 @@ class DrawingXmlInterface:
     def _fromPointsStr(self, text: str) -> QPolygonF:
         try:
             points = QPolygonF()
-            for token in text:
+            for token in text.split(' '):
                 coords = token.split(',')
                 points.append(QPointF(self._fromPositionStr(coords[0]), self._fromPositionStr(coords[1])))
             return points
