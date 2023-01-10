@@ -202,18 +202,18 @@ class DrawingTextItem(DrawingItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        self.writeFont(element, 'font', self._font)
-        self.writeAlignment(element, 'textAlignment', self._alignment)
-        self.writeBrush(element, 'text', self._pen.brush())
+        self._writeFont(element, 'font', self._font)
+        self._writeAlignment(element, 'textAlignment', self._alignment)
+        self._writeBrush(element, 'text', self._pen.brush())
 
         element.text = self._caption
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
 
-        self.setFont(self.readFont(element, 'font'))
-        self.setAlignment(self.readAlignment(element, 'textAlignment'))
-        self.setBrush(self.readBrush(element, 'text'))
+        self.setFont(self._readFont(element, 'font'))
+        self.setAlignment(self._readAlignment(element, 'textAlignment'))
+        self.setBrush(self._readBrush(element, 'text'))
 
         if (isinstance(element.text, str)):
             self.setCaption(element.text)

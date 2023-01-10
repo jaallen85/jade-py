@@ -239,24 +239,25 @@ class DrawingRectItem(DrawingItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        # Rect and corner radius
-        self.writeFloat(element, 'left', self._rect.left(), writeIfDefault=True)
-        self.writeFloat(element, 'top', self._rect.top(), writeIfDefault=True)
-        self.writeFloat(element, 'width', self._rect.width(), writeIfDefault=True)
-        self.writeFloat(element, 'height', self._rect.height(), writeIfDefault=True)
-        self.writeFloat(element, 'cornerRadius', self._cornerRadius)
+        element.set('x', self._toPositionStr(self._rect.left()))
+        element.set('y', self._toPositionStr(self._rect.top()))
+        element.set('width', self._toSizeStr(self._rect.width()))
+        element.set('height', self._toSizeStr(self._rect.height()))
 
-        # Pen and brush
-        self.writePen(element, 'pen', self._pen)
-        self.writeBrush(element, 'brush', self._brush)
+        if (self._cornerRadius > 0):
+            element.set('cornerRadius', self._toSizeStr(self._cornerRadius))
+
+        self._writeBrush(element, 'brush', self._brush)
+        self._writePen(element, 'pen', self._pen)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
 
-        # Rect
-        self.setRect(QRectF(self.readFloat(element, 'left'), self.readFloat(element, 'top'),
-                            self.readFloat(element, 'width'), self.readFloat(element, 'height')))
+        self.setRect(QRectF(self._fromPositionStr(element.get('x', '0')),
+                            self._fromPositionStr(element.get('y', '0')),
+                            self._fromSizeStr(element.get('width', '0')),
+                            self._fromSizeStr(element.get('height', '0'))))
+        self.setCornerRadius(self._fromSizeStr(element.get('cornerRadius', '0')))
 
-        # Pen and brush
-        self.setPen(self.readPen(element, 'pen'))
-        self.setBrush(self.readBrush(element, 'brush'))
+        self.setBrush(self._readBrush(element, 'brush'))
+        self.setPen(self._readPen(element, 'pen'))

@@ -294,24 +294,20 @@ class DrawingPolylineItem(DrawingItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        # Polyline
-        self.writePoints(element, 'points', self._polyline)
+        element.set('points', self._toPointsStr(self._polyline))
 
-        # Pen and arrows
-        self.writePen(element, 'pen', self._pen)
-        self.writeArrow(element, 'startArrow', self._startArrow)
-        self.writeArrow(element, 'endArrow', self._endArrow)
+        self._writePen(element, 'pen', self._pen)
+        self._writeArrow(element, 'startArrow', self._startArrow)
+        self._writeArrow(element, 'endArrow', self._endArrow)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
 
-        # Polyline
-        self.setPolyline(self.readPoints(element, 'points'))
+        self.setPolyline(self._fromPointsStr(element.get('points', '')))
 
-        # Pen and arrows
-        self.setPen(self.readPen(element, 'pen'))
-        self.setStartArrow(self.readArrow(element, 'startArrow'))
-        self.setEndArrow(self.readArrow(element, 'endArrow'))
+        self.setPen(self._readPen(element, 'pen'))
+        self.setStartArrow(self._readArrow(element, 'startArrow'))
+        self.setEndArrow(self._readArrow(element, 'endArrow'))
 
     # ==================================================================================================================
 

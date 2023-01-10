@@ -21,159 +21,34 @@ from .drawingarrow import DrawingArrow
 
 
 class DrawingXmlInterface:
-    def writeStr(self, element: ElementTree.Element, name: str, value: str, writeIfDefault: bool = False) -> None:
-        if (writeIfDefault or value != '0'):
-            element.set(name, value)
+    def _writeBrush(self, element: ElementTree.Element, name: str, brush: QBrush) -> None:
+        element.set(f'{name}Color', self._toColorStr(brush.color()))
 
-    def writeInt(self, element: ElementTree.Element, name: str, value: int, writeIfDefault: bool = False) -> None:
-        if (writeIfDefault or value != 0):
-            element.set(name, f'{value}')
-
-    def writeFloat(self, element: ElementTree.Element, name: str, value: float, writeIfDefault: bool = False) -> None:
-        if (writeIfDefault or value != 0.0):
-            element.set(name, f'{value}')
-
-    def writeBool(self, element: ElementTree.Element, name: str, value: bool, writeIfDefault: bool = False) -> None:
-        if (writeIfDefault or value):
-            element.set(name, 'true' if (value) else 'false')
-
-    def writeColor(self, element: ElementTree.Element, name: str, color: QColor, writeIfDefault: bool = False) -> None:
-        if (writeIfDefault or color != QColor(0, 0, 0)):
-            if (color.alpha() == 255):
-                element.set(name, f'#{color.red():02X}{color.green():02X}{color.blue():02X}')
-            else:
-                element.set(name, f'#{color.red():02X}{color.green():02X}{color.blue():02X}{color.alpha():02X}')
-
-    def readStr(self, element: ElementTree.Element, name: str) -> str:
-        return element.get(name, '')
-
-    def readInt(self, element: ElementTree.Element, name: str) -> int:
-        try:
-            return int(element.get(name, '0'))
-        except ValueError:
-            pass
-        return 0
-
-    def readFloat(self, element: ElementTree.Element, name: str) -> float:
-        try:
-            return float(element.get(name, '0'))
-        except ValueError:
-            pass
-        return 0.0
-
-    def readBool(self, element: ElementTree.Element, name: str) -> bool:
-        return (element.get(name, 'false').lower() == 'true')
-
-    def readColor(self, element: ElementTree.Element, name: str) -> QColor:
-        try:
-            colorStr = element.get(name, '#000000')
-            if (len(colorStr) == 9):
-                return QColor(int(colorStr[1:3], 16), int(colorStr[3:5], 16), int(colorStr[5:7], 16),
-                              int(colorStr[7:9], 16))
-            return QColor(int(colorStr[1:3], 16), int(colorStr[3:5], 16), int(colorStr[5:7], 16))
-        except ValueError:
-            pass
-        return QColor(0, 0, 0)
-
-    # ==================================================================================================================
-
-    def writeBrush(self, element: ElementTree.Element, name: str, brush: QBrush) -> None:
-        self.writeColor(element, f'{name}Color', brush.color(), writeIfDefault=True)
-
-    def writePen(self, element: ElementTree.Element, name: str, pen: QPen) -> None:
-        self.writeColor(element, f'{name}Color', pen.brush().color(), writeIfDefault=True)
-        self.writeFloat(element, f'{name}Width', pen.widthF(), writeIfDefault=True)
-
-        # Set pen style
-        penStyle = 'solid'
+    def _writePen(self, element: ElementTree.Element, name: str, pen: QPen) -> None:
+        styleStr = 'solid'
         match (pen.style()):
             case Qt.PenStyle.NoPen:
-                penStyle = 'none'
+                styleStr = 'none'
             case Qt.PenStyle.DashLine:
-                penStyle = 'dash'
+                styleStr = 'dash'
             case Qt.PenStyle.DotLine:
-                penStyle = 'dot'
+                styleStr = 'dot'
             case Qt.PenStyle.DashDotLine:
-                penStyle = 'dash-dot'
+                styleStr = 'dash-dot'
             case Qt.PenStyle.DashDotDotLine:
-                penStyle = 'dash-dot-dot'
-        self.writeStr(element, f'{name}Style', penStyle)
+                styleStr = 'dash-dot-dot'
 
-    def writeFont(self, element: ElementTree.Element, name: str, font: QFont) -> None:
-        self.writeStr(element, f'{name}Name', font.family())
-        self.writeFloat(element, f'{name}Size', font.pointSizeF(), writeIfDefault=True)
-        self.writeBool(element, f'{name}Bold', font.bold())
-        self.writeBool(element, f'{name}Italic', font.italic())
-        self.writeBool(element, f'{name}Underline', font.underline())
-        self.writeBool(element, f'{name}StrikeThrough', font.strikeOut())
+        element.set(f'{name}Style', styleStr)
+        element.set(f'{name}Color', self._toColorStr(pen.brush().color()))
+        element.set(f'{name}Width', self._toSizeStr(pen.widthF()))
 
-    def writeAlignment(self, element: ElementTree.Element, name: str, alignment: Qt.AlignmentFlag) -> None:
-        hAlignment = (alignment & Qt.AlignmentFlag.AlignHorizontal_Mask)
-        hAlignmentStr = 'left'
-        if (hAlignment & Qt.AlignmentFlag.AlignHCenter):
-            hAlignmentStr = 'center'
-        elif (hAlignment & Qt.AlignmentFlag.AlignRight):
-            hAlignmentStr = 'right'
-        self.writeStr(element, f'{name}Horizontal', hAlignmentStr)
+    def _readBrush(self, element: ElementTree.Element, name: str) -> QBrush:
+        return QBrush(self._fromColorStr(element.get(f'{name}Color', '#FFFFFF')))
 
-        vAlignment = (alignment & Qt.AlignmentFlag.AlignVertical_Mask)
-        vAlignmentStr = 'top'
-        if (vAlignment & Qt.AlignmentFlag.AlignVCenter):
-            vAlignmentStr = 'center'
-        elif (vAlignment & Qt.AlignmentFlag.AlignBottom):
-            vAlignmentStr = 'bottom'
-        self.writeStr(element, f'{name}Vertical', vAlignmentStr)
-
-    def writeArrow(self, element: ElementTree.Element, name: str, arrow: DrawingArrow) -> None:
-        if (arrow.style() != DrawingArrow.Style.NoStyle):
-            styleStr = 'none'
-            match (arrow.style()):
-                case DrawingArrow.Style.Normal:
-                    styleStr = 'normal'
-                case DrawingArrow.Style.Triangle:
-                    styleStr = 'triangle'
-                case DrawingArrow.Style.TriangleFilled:
-                    styleStr = 'triangleFilled'
-                case DrawingArrow.Style.Concave:
-                    styleStr = 'concave'
-                case DrawingArrow.Style.ConcaveFilled:
-                    styleStr = 'concaveFilled'
-                case DrawingArrow.Style.Circle:
-                    styleStr = 'circle'
-                case DrawingArrow.Style.CircleFilled:
-                    styleStr = 'circleFilled'
-            self.writeStr(element, f'{name}Style', styleStr)
-        self.writeFloat(element, f'{name}Size', arrow.size())
-
-    def writePoints(self, element: ElementTree.Element, name: str, points: QPolygonF) -> None:
-        pointsStr = ''
-        for index in range(points.size()):
-            point = points.at(index)
-            pointsStr = pointsStr + f'{point.x()},{point.y()} '
-        self.writeStr(element, name, pointsStr.strip())
-
-    def writePath(self, element: ElementTree.Element, name: str, path: QPainterPath) -> None:
-        pathStr = ''
-        for index in range(path.elementCount()):
-            pathElement = path.elementAt(index)
-            match (pathElement.type):                                       # type: ignore
-                case QPainterPath.ElementType.MoveToElement:
-                    pathStr = f'{pathStr} M {pathElement.x} {pathElement.y}'    # type: ignore
-                case QPainterPath.ElementType.LineToElement:
-                    pathStr = f'{pathStr} L {pathElement.x} {pathElement.y}'    # type: ignore
-                case QPainterPath.ElementType.CurveToElement:
-                    pathStr = f'{pathStr} C {pathElement.x} {pathElement.y}'    # type: ignore
-                case QPainterPath.ElementType.CurveToDataElement:
-                    pathStr = f'{pathStr} {pathElement.x} {pathElement.y}'      # type: ignore
-        self.writeStr(element, name, pathStr.strip())
-
-    def readBrush(self, element: ElementTree.Element, name: str) -> QBrush:
-        return QBrush(self.readColor(element, f'{name}Color'))
-
-    def readPen(self, element: ElementTree.Element, name: str) -> QPen:
+    def _readPen(self, element: ElementTree.Element, name: str) -> QPen:
         # Get pen style
         penStyle = Qt.PenStyle.SolidLine
-        match (self.readStr(element, f'{name}Style').lower()):
+        match (element.get(f'{name}Style', 'solid').lower()):
             case 'none':
                 penStyle = Qt.PenStyle.NoPen
             case 'dash':
@@ -185,40 +60,36 @@ class DrawingXmlInterface:
             case 'dash-dot-dot':
                 penStyle = Qt.PenStyle.DashDotDotLine
 
-        return QPen(QBrush(self.readColor(element, f'{name}Color')),
-                    self.readFloat(element, f'{name}Width'),
+        return QPen(QBrush(self._fromColorStr(element.get(f'{name}Color', '#000000'))),
+                    self._fromSizeStr(element.get(f'{name}Width', '0')),
                     penStyle, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
 
-    def readFont(self, element: ElementTree.Element, name: str) -> QFont:
-        font = QFont()
-        font.setFamily(self.readStr(element, f'{name}Name'))
-        font.setPointSizeF(self.readFloat(element, f'{name}Size'))
-        font.setBold(self.readBool(element, f'{name}Bold'))
-        font.setItalic(self.readBool(element, f'{name}Italic'))
-        font.setUnderline(self.readBool(element, f'{name}Underline'))
-        font.setStrikeOut(self.readBool(element, f'{name}StrikeThrough'))
-        return font
+    # ==================================================================================================================
 
-    def readAlignment(self, element: ElementTree.Element, name: str) -> Qt.AlignmentFlag:
-        hAlignmentStr = self.readStr(element, f'{name}Horizontal').lower()
-        hAlignment = Qt.AlignmentFlag.AlignLeft
-        if (hAlignmentStr == 'center'):
-            hAlignment = Qt.AlignmentFlag.AlignHCenter
-        elif (hAlignmentStr == 'right'):
-            hAlignment = Qt.AlignmentFlag.AlignRight
+    def _writeArrow(self, element: ElementTree.Element, name: str, arrow: DrawingArrow) -> None:
+        styleStr = 'none'
+        match (arrow.style()):
+            case DrawingArrow.Style.Normal:
+                styleStr = 'normal'
+            case DrawingArrow.Style.Triangle:
+                styleStr = 'triangle'
+            case DrawingArrow.Style.TriangleFilled:
+                styleStr = 'triangleFilled'
+            case DrawingArrow.Style.Concave:
+                styleStr = 'concave'
+            case DrawingArrow.Style.ConcaveFilled:
+                styleStr = 'concaveFilled'
+            case DrawingArrow.Style.Circle:
+                styleStr = 'circle'
+            case DrawingArrow.Style.CircleFilled:
+                styleStr = 'circleFilled'
 
-        vAlignmentStr = self.readStr(element, f'{name}Vertical').lower()
-        vAlignment = Qt.AlignmentFlag.AlignTop
-        if (vAlignmentStr == 'center'):
-            vAlignment = Qt.AlignmentFlag.AlignVCenter
-        elif (vAlignmentStr == 'bottom'):
-            vAlignment = Qt.AlignmentFlag.AlignBottom
+        element.set(f'{name}Style', styleStr)
+        element.set(f'{name}Size', self._toSizeStr(arrow.size()))
 
-        return (hAlignment | vAlignment)
-
-    def readArrow(self, element: ElementTree.Element, name: str) -> DrawingArrow:
+    def _readArrow(self, element: ElementTree.Element, name: str) -> DrawingArrow:
         style = DrawingArrow.Style.NoStyle
-        match (self.readStr(element, f'{name}Style').lower()):
+        match (element.get(f'{name}Style', 'none').lower()):
             case 'normal':
                 style = DrawingArrow.Style.Normal
             case 'triangle':
@@ -234,24 +105,140 @@ class DrawingXmlInterface:
             case 'circlefilled':
                 style = DrawingArrow.Style.CircleFilled
 
-        return DrawingArrow(style, self.readFloat(element, f'{name}Size'))
+        return DrawingArrow(style, self._fromSizeStr(element.get(f'{name}Size', '0')))
 
-    def readPoints(self, element: ElementTree.Element, name: str) -> QPolygonF:
+    # ==================================================================================================================
+
+    def _writeFont(self, element: ElementTree.Element, name: str, font: QFont) -> None:
+        element.set(f'{name}Name', font.family())
+        element.set(f'{name}Size', self._toSizeStr(font.pointSizeF()))
+        if (font.bold()):
+            element.set(f'{name}Bold', 'true')
+        if (font.italic()):
+            element.set(f'{name}Italic', 'true')
+        if (font.underline()):
+            element.set(f'{name}Underline', 'true')
+        if (font.strikeOut()):
+            element.set(f'{name}StrikeThrough', 'true')
+
+    def _readFont(self, element: ElementTree.Element, name: str) -> QFont:
+        font = QFont()
+        font.setFamily(element.get(f'{name}Name', font.family()))
+        font.setPointSizeF(self._fromSizeStr(element.get(f'{name}Size', '0')))
+        font.setBold(element.get(f'{name}Bold', 'false').lower() == 'true')
+        font.setItalic(element.get(f'{name}Italic', 'false').lower() == 'true')
+        font.setUnderline(element.get(f'{name}Underline', 'false').lower() == 'true')
+        font.setStrikeOut(element.get(f'{name}StrikeThrough', 'false').lower() == 'true')
+        return font
+
+    # ==================================================================================================================
+
+    def _writeAlignment(self, element: ElementTree.Element, name: str, alignment: Qt.AlignmentFlag) -> None:
+        hAlignment = (alignment & Qt.AlignmentFlag.AlignHorizontal_Mask)
+        hAlignmentStr = 'left'
+        if (hAlignment & Qt.AlignmentFlag.AlignHCenter):
+            hAlignmentStr = 'center'
+        elif (hAlignment & Qt.AlignmentFlag.AlignRight):
+            hAlignmentStr = 'right'
+        element.set(f'{name}Horizontal', hAlignmentStr)
+
+        vAlignment = (alignment & Qt.AlignmentFlag.AlignVertical_Mask)
+        vAlignmentStr = 'top'
+        if (vAlignment & Qt.AlignmentFlag.AlignVCenter):
+            vAlignmentStr = 'center'
+        elif (vAlignment & Qt.AlignmentFlag.AlignBottom):
+            vAlignmentStr = 'bottom'
+        element.set(f'{name}Vertical', vAlignmentStr)
+
+    def _readAlignment(self, element: ElementTree.Element, name: str) -> Qt.AlignmentFlag:
+        hAlignmentStr = element.get(f'{name}Horizontal', 'left').lower()
+        hAlignment = Qt.AlignmentFlag.AlignLeft
+        if (hAlignmentStr == 'center'):
+            hAlignment = Qt.AlignmentFlag.AlignHCenter
+        elif (hAlignmentStr == 'right'):
+            hAlignment = Qt.AlignmentFlag.AlignRight
+
+        vAlignmentStr = element.get(f'{name}Vertical', 'top').lower()
+        vAlignment = Qt.AlignmentFlag.AlignTop
+        if (vAlignmentStr == 'center'):
+            vAlignment = Qt.AlignmentFlag.AlignVCenter
+        elif (vAlignmentStr == 'bottom'):
+            vAlignment = Qt.AlignmentFlag.AlignBottom
+
+        return (hAlignment | vAlignment)
+
+    # ==================================================================================================================
+
+    def _toPositionStr(self, position: float) -> str:
+        return f'{position}'
+
+    def _toSizeStr(self, size: float) -> str:
+        return f'{size}'
+
+    def _toColorStr(self, color: QColor) -> str:
+        if (color.alpha() == 255):
+            return f'#{color.red():02X}{color.green():02X}{color.blue():02X}'
+        return f'#{color.red():02X}{color.green():02X}{color.blue():02X}{color.alpha():02X}'
+
+    def _fromPositionStr(self, text: str) -> float:
+        return float(text)
+
+    def _fromSizeStr(self, text: str) -> float:
+        return float(text)
+
+    def _fromColorStr(self, text: str) -> QColor:
+        color = QColor()
+        if (text.startswith('#')):
+            if (len(text) in (7, 9)):
+                color.setRed(int(text[1:3], 16))
+                color.setGreen(int(text[3:5], 16))
+                color.setBlue(int(text[5:7], 16))
+            if (len(text) == 9):
+                color.setAlpha(int(text[7:9], 16))
+        return color
+
+    # ==================================================================================================================
+
+    def _toPointsStr(self, points: QPolygonF) -> str:
+        pointsStr = ''
+        for index in range(points.size()):
+            point = points.at(index)
+            pointsStr = pointsStr + f'{self._toPositionStr(point.x())},{self._toPositionStr(point.y())} '
+        return pointsStr.strip()
+
+    def _fromPointsStr(self, text: str) -> QPolygonF:
         try:
             points = QPolygonF()
-            for token in self.readStr(element, name).split(' '):
+            for token in text:
                 coords = token.split(',')
-                points.append(QPointF(float(coords[0]), float(coords[1])))
+                points.append(QPointF(self._fromPositionStr(coords[0]), self._fromPositionStr(coords[1])))
             return points
         except (KeyError, ValueError):
             pass
         return QPolygonF()
 
-    def readPath(self, element: ElementTree.Element, name: str) -> QPainterPath:
+    # ==================================================================================================================
+
+    def _toPathStr(self, path: QPainterPath) -> str:
+        pathStr = ''
+        for index in range(path.elementCount()):
+            pathElement = path.elementAt(index)
+            match (pathElement.type):                                       # type: ignore
+                case QPainterPath.ElementType.MoveToElement:
+                    pathStr = f'{pathStr} M {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.LineToElement:
+                    pathStr = f'{pathStr} L {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.CurveToElement:
+                    pathStr = f'{pathStr} C {pathElement.x} {pathElement.y}'    # type: ignore
+                case QPainterPath.ElementType.CurveToDataElement:
+                    pathStr = f'{pathStr} {pathElement.x} {pathElement.y}'      # type: ignore
+        return pathStr.strip()
+
+    def _fromPathStr(self, text: str) -> QPainterPath:
         try:
             path = QPainterPath()
 
-            tokenList = self.readStr(element, name).split(' ')
+            tokenList = text.split(' ')
             for index, token in enumerate(tokenList):
                 if (token == 'M'):
                     path.moveTo(float(tokenList[index + 1]), float(tokenList[index + 2]))

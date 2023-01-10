@@ -240,19 +240,15 @@ class DrawingPolygonItem(DrawingItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        # Polygon
-        self.writePoints(element, 'points', self._polygon)
+        element.set('points', self._toPointsStr(self._polygon))
 
-        # Pen and brush
-        self.writePen(element, 'pen', self._pen)
-        self.writeBrush(element, 'brush', self._brush)
+        self._writeBrush(element, 'brush', self._brush)
+        self._writePen(element, 'pen', self._pen)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
 
-        # Polygon
-        self.setPolygon(self.readPoints(element, 'points'))
+        self.setPolygon(self._fromPointsStr(element.get('points', '')))
 
-        # Pen and brush
-        self.setPen(self.readPen(element, 'pen'))
-        self.setBrush(self.readBrush(element, 'brush'))
+        self.setBrush(self._readBrush(element, 'brush'))
+        self.setPen(self._readPen(element, 'pen'))

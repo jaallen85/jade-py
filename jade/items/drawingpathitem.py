@@ -282,38 +282,43 @@ class DrawingPathItem(DrawingItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        self.writeStr(element, 'pathName', self._pathName)
+        element.set('pathName', self._pathName)
 
-        self.writeFloat(element, 'left', self._rect.left(), writeIfDefault=True)
-        self.writeFloat(element, 'top', self._rect.top(), writeIfDefault=True)
-        self.writeFloat(element, 'width', self._rect.width(), writeIfDefault=True)
-        self.writeFloat(element, 'height', self._rect.height(), writeIfDefault=True)
+        element.set('x', self._toPositionStr(self._rect.left()))
+        element.set('y', self._toPositionStr(self._rect.top()))
+        element.set('width', self._toSizeStr(self._rect.width()))
+        element.set('height', self._toSizeStr(self._rect.height()))
 
-        self.writePen(element, 'pen', self._pen)
+        self._writePen(element, 'pen', self._pen)
 
-        self.writeFloat(element, 'pathLeft', self._pathRect.left(), writeIfDefault=True)
-        self.writeFloat(element, 'pathTop', self._pathRect.top(), writeIfDefault=True)
-        self.writeFloat(element, 'pathWidth', self._pathRect.width(), writeIfDefault=True)
-        self.writeFloat(element, 'pathHeight', self._pathRect.height(), writeIfDefault=True)
+        element.set('pathLeft', self._toPositionStr(self._pathRect.left()))
+        element.set('pathTop', self._toPositionStr(self._pathRect.top()))
+        element.set('pathWidth', self._toSizeStr(self._pathRect.width()))
+        element.set('pathHeight', self._toSizeStr(self._pathRect.height()))
 
-        self.writePath(element, 'd', self._path)
+        element.set('d', self._toPathStr(self._path))
 
-        self.writePoints(element, 'connectionPoints', self.connectionPoints())
+        element.set('connectionPoints', self._toPointsStr(self.connectionPoints()))
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
 
-        self.setPathName(self.readStr(element, 'pathName'))
+        self.setPathName(element.get('pathName', ''))
 
-        self.setRect(QRectF(self.readFloat(element, 'left'), self.readFloat(element, 'top'),
-                            self.readFloat(element, 'width'), self.readFloat(element, 'height')))
-        self.setPen(self.readPen(element, 'pen'))
+        self.setRect(QRectF(self._fromPositionStr(element.get('x', '0')),
+                            self._fromPositionStr(element.get('y', '0')),
+                            self._fromSizeStr(element.get('width', '0')),
+                            self._fromSizeStr(element.get('height', '0'))))
 
-        self.setPath(self.readPath(element, 'd'),
-                     QRectF(self.readFloat(element, 'pathLeft'), self.readFloat(element, 'pathTop'),
-                            self.readFloat(element, 'pathWidth'), self.readFloat(element, 'pathHeight')))
+        self.setPen(self._readPen(element, 'pen'))
 
-        connectionPoints = self.readPoints(element, 'connectionPoints')
+        self.setPath(self._fromPathStr(element.get('d', '')),
+                     QRectF(self._fromPositionStr(element.get('pathLeft', '0')),
+                            self._fromPositionStr(element.get('pathTop', '0')),
+                            self._fromSizeStr(element.get('pathWidth', '0')),
+                            self._fromSizeStr(element.get('pathHeight', '0'))))
+
+        connectionPoints = self._fromPointsStr(element.get('connectionPoints', ''))
         for index in range(connectionPoints.size()):
             self.addConnectionPoint(connectionPoints.at(index))
 

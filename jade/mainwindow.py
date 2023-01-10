@@ -645,39 +645,38 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         configElement = ElementTree.Element('jade-config')
 
         # Main window properties
-        self.writeStr(configElement, 'workingDir', self._workingDir)
-        self.writeBool(configElement, 'promptOverwrite', self._promptOverwrite)
-        self.writeBool(configElement, 'promptCloseUnsaved', self._promptCloseUnsaved)
+        configElement.set('workingDir', self._workingDir)
+        configElement.set('promptOverwrite', 'true' if (self._promptOverwrite) else 'false')
+        configElement.set('promptCloseUnsaved', 'true' if (self._promptCloseUnsaved) else 'false')
 
         # Default drawing properties
         diagramElement = ElementTree.SubElement(configElement, 'diagramDefaults')
-        self.writeFloat(diagramElement, 'pageWidth', self._diagram.defaultPageSize().width(), writeIfDefault=True)
-        self.writeFloat(diagramElement, 'pageHeight', self._diagram.defaultPageSize().height(), writeIfDefault=True)
-        self.writeFloat(diagramElement, 'pageMargin', self._diagram.defaultPageMargin(), writeIfDefault=True)
-        self.writeColor(diagramElement, 'backgroundColor', self._diagram.defaultBackgroundBrush().color(),
-                        writeIfDefault=True)
-        self.writeFloat(diagramElement, 'grid', self._diagram.defaultGrid(), writeIfDefault=True)
-        self.writeBool(diagramElement, 'gridVisible', self._diagram.isDefaultGridVisible(), writeIfDefault=True)
-        self.writeColor(diagramElement, 'gridColor', self._diagram.defaultGridBrush().color(), writeIfDefault=True)
-        self.writeInt(diagramElement, 'gridSpacingMajor', self._diagram.defaultGridSpacingMajor(), writeIfDefault=True)
-        self.writeInt(diagramElement, 'gridSpacingMinor', self._diagram.defaultGridSpacingMinor(), writeIfDefault=True)
+        diagramElement.set('pageWidth', self._toSizeStr(self._diagram.defaultPageSize().width()))
+        diagramElement.set('pageHeight', self._toSizeStr(self._diagram.defaultPageSize().height()))
+        diagramElement.set('pageMargin', self._toSizeStr(self._diagram.defaultPageMargin()))
+        diagramElement.set('backgroundColor', self._toColorStr(self._diagram.defaultBackgroundBrush().color()))
+        diagramElement.set('grid', self._toSizeStr(self._diagram.defaultGrid()))
+        diagramElement.set('gridVisible', 'true' if (self._diagram.isDefaultGridVisible()) else 'false')
+        diagramElement.set('gridColor', self._toColorStr(self._diagram.defaultGridBrush().color()))
+        diagramElement.set('gridSpacingMajor', f'{self._diagram.defaultGridSpacingMajor()}')
+        diagramElement.set('gridSpacingMinor', f'{self._diagram.defaultGridSpacingMinor()}')
 
         # Default item properties
         itemElement = ElementTree.SubElement(configElement, 'itemDefaults')
-        self.writePen(itemElement, 'pen', self._diagram.defaultPen())
-        self.writeBrush(itemElement, 'brush', self._diagram.defaultBrush())
-        self.writeArrow(itemElement, 'startArrow', self._diagram.defaultStartArrow())
-        self.writeArrow(itemElement, 'endArrow', self._diagram.defaultEndArrow())
-        self.writeFont(itemElement, 'font', self._diagram.defaultFont())
-        self.writeAlignment(itemElement, 'textAlignment', self._diagram.defaultTextAlignment())
-        self.writeBrush(itemElement, 'text', self._diagram.defaultTextBrush())
+        self._writePen(itemElement, 'pen', self._diagram.defaultPen())
+        self._writeBrush(itemElement, 'brush', self._diagram.defaultBrush())
+        self._writeArrow(itemElement, 'startArrow', self._diagram.defaultStartArrow())
+        self._writeArrow(itemElement, 'endArrow', self._diagram.defaultEndArrow())
+        self._writeFont(itemElement, 'font', self._diagram.defaultFont())
+        self._writeAlignment(itemElement, 'textAlignment', self._diagram.defaultTextAlignment())
+        self._writeBrush(itemElement, 'text', self._diagram.defaultTextBrush())
 
         # Export settings
         exportElement = ElementTree.SubElement(configElement, 'exportSettings')
-        self.writeFloat(exportElement, 'pngSvgExportScale', self._pngSvgExportScale)
-        self.writeBool(exportElement, 'odgVsdxExportEntireDocument', self._odgVsdxExportEntireDocument)
-        self.writeFloat(exportElement, 'odgVsdxExportScale', self._odgVsdxScale)
-        self.writeStr(exportElement, 'odgVsdxExportUnits', self._odgVsdxUnits)
+        exportElement.set('pngSvgExportScale', f'{self._pngSvgExportScale}')
+        exportElement.set('odgVsdxExportEntireDocument', 'true' if (self._odgVsdxExportEntireDocument) else 'false')
+        exportElement.set('odgVsdxExportScale', f'{self._odgVsdxScale}')
+        exportElement.set('odgVsdxExportUnits', self._odgVsdxUnits)
 
         ElementTree.indent(configElement, space='  ')
         with open('./config.xml', 'w', encoding='utf-8') as file:
@@ -691,63 +690,67 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
             if (configElement.tag == 'jade-config'):
                 # Main window properties
                 if ('workingDir' in configElement.attrib):
-                    self._workingDir = self.readStr(configElement, 'workingDir')
+                    self._workingDir = configElement.get('workingDir', '')
                 if ('promptOverwrite' in configElement.attrib):
-                    self._promptOverwrite = self.readBool(configElement, 'promptOverwrite')
+                    self._promptOverwrite = configElement.get('promptOverwrite', 'true').lower() == 'true'
                 if ('promptCloseUnsaved' in configElement.attrib):
-                    self._promptCloseUnsaved = self.readBool(configElement, 'promptCloseUnsaved')
+                    self._promptCloseUnsaved = configElement.get('promptCloseUnsaved', 'true').lower() == 'true'
 
                 # Default drawing properties
                 for diagramElement in configElement.findall('diagramDefaults'):
                     if ('pageWidth' in diagramElement.attrib and 'pageHeight' in diagramElement.attrib):
-                        self._diagram.setDefaultPageSize(QSizeF(self.readFloat(diagramElement, 'pageWidth'),
-                                                                self.readFloat(diagramElement, 'pageHeight')))
+                        self._diagram.setDefaultPageSize(
+                            QSizeF(self._fromSizeStr(diagramElement.get('pageWidth', '100')),
+                                   self._fromSizeStr(diagramElement.get('pageHeight', '100'))))
                     if ('pageMargin' in diagramElement.attrib):
-                        self._diagram.setDefaultPageMargin(self.readFloat(diagramElement, 'pageMargin'))
+                        self._diagram.setDefaultPageMargin(self._fromSizeStr(diagramElement.get('pageMargin', '0')))
                     if ('backgroundColor' in diagramElement.attrib):
                         self._diagram.setDefaultBackgroundBrush(
-                            QBrush(self.readColor(diagramElement, 'backgroundColor')))
+                            QBrush(self._fromColorStr(diagramElement.get('backgroundColor', '#FFFFFF'))))
                     if ('grid' in diagramElement.attrib):
-                        self._diagram.setDefaultGrid(self.readFloat(diagramElement, 'grid'))
+                        self._diagram.setDefaultGrid(self._fromSizeStr(diagramElement.get('grid', '0')))
                     if ('gridVisible' in diagramElement.attrib):
-                        self._diagram.setDefaultGridVisible(self.readBool(diagramElement, 'gridVisible'))
+                        self._diagram.setDefaultGridVisible(
+                            diagramElement.get('gridVisible', 'false').lower() == 'true')
                     if ('gridColor' in diagramElement.attrib):
-                        self._diagram.setDefaultGridBrush(QBrush(self.readColor(diagramElement, 'gridColor')))
+                        self._diagram.setDefaultGridBrush(
+                            QBrush(self._fromColorStr(diagramElement.get('gridColor', '0'))))
                     if ('gridSpacingMajor' in diagramElement.attrib):
-                        self._diagram.setDefaultGridSpacingMajor(self.readInt(diagramElement, 'gridSpacingMajor'))
+                        self._diagram.setDefaultGridSpacingMajor(int(diagramElement.get('gridSpacingMajor', '0')))
                     if ('gridSpacingMinor' in diagramElement.attrib):
-                        self._diagram.setDefaultGridSpacingMinor(self.readInt(diagramElement, 'gridSpacingMinor'))
+                        self._diagram.setDefaultGridSpacingMinor(int(diagramElement.get('gridSpacingMinor', '0')))
 
                 # Default item properties
                 for itemElement in configElement.findall('itemDefaults'):
                     if ('pen' in itemElement.attrib):
-                        self._diagram.setDefaultPen(self.readPen(itemElement, 'pen'))
+                        self._diagram.setDefaultPen(self._readPen(itemElement, 'pen'))
                     if ('brush' in itemElement.attrib):
-                        self._diagram.setDefaultBrush(self.readBrush(itemElement, 'brush'))
+                        self._diagram.setDefaultBrush(self._readBrush(itemElement, 'brush'))
                     if ('startArrow' in itemElement.attrib):
-                        self._diagram.setDefaultStartArrow(self.readArrow(itemElement, 'startArrow'))
+                        self._diagram.setDefaultStartArrow(self._readArrow(itemElement, 'startArrow'))
                     if ('endArrow' in itemElement.attrib):
-                        self._diagram.setDefaultEndArrow(self.readArrow(itemElement, 'endArrow'))
+                        self._diagram.setDefaultEndArrow(self._readArrow(itemElement, 'endArrow'))
                     if ('font' in itemElement.attrib):
-                        self._diagram.setDefaultFont(self.readFont(itemElement, 'font'))
+                        self._diagram.setDefaultFont(self._readFont(itemElement, 'font'))
                     if ('textAlignment' in itemElement.attrib):
-                        self._diagram.setDefaultTextAlignment(self.readAlignment(itemElement, 'textAlignment'))
+                        self._diagram.setDefaultTextAlignment(self._readAlignment(itemElement, 'textAlignment'))
                     if ('text' in itemElement.attrib):
-                        self._diagram.setDefaultTextBrush(self.readBrush(itemElement, 'text'))
+                        self._diagram.setDefaultTextBrush(self._readBrush(itemElement, 'text'))
 
                 # Export settings
                 for exportElement in configElement.findall('exportSettings'):
                     if ('pngSvgExportScale' in exportElement.attrib):
-                        self._pngSvgExportScale = self.readFloat(exportElement, 'pngSvgExportScale')
+                        self._pngSvgExportScale = float(exportElement.get('pngSvgExportScale', '1.0'))
                     if ('odgVsdxExportEntireDocument' in exportElement.attrib):
-                        self._odgVsdxExportEntireDocument = self.readBool(exportElement, 'odgVsdxExportEntireDocument')
+                        self._odgVsdxExportEntireDocument = (
+                            exportElement.get('odgVsdxExportEntireDocument', 'true').lower() == 'true')
                     if ('odgVsdxExportScale' in exportElement.attrib):
-                        self._odgVsdxScale = self.readFloat(exportElement, 'odgVsdxExportScale')
+                        self._odgVsdxScale = float(exportElement.get('odgVsdxExportScale', '1.0'))
                     if ('odgVsdxExportUnits' in exportElement.attrib):
-                        self._odgVsdxUnits = self.readStr(exportElement, 'odgVsdxExportUnits')
+                        self._odgVsdxUnits = exportElement.get('odgVsdxExportUnits', 'in')
 
             self._diagram.clear()
-        except FileNotFoundError:
+        except (FileNotFoundError, ValueError):
             pass
 
     # ==================================================================================================================

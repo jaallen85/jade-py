@@ -262,45 +262,18 @@ class DrawingItem(ABC, DrawingXmlInterface):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        # Write position, rotation, and flipped
-        transformStr = f'translate({self._position.x()},{self._position.y()})'
-        if (self._flipped):
-            transformStr = f'{transformStr} scale(-1,1)'
-        if (self._rotation != 0):
-            transformStr = f'{transformStr} rotate({self._rotation * 90})'
-        element.set('transform', transformStr)
+        element.set('translationX', self._toPositionStr(self._position.x()))
+        element.set('translationY', self._toPositionStr(self._position.y()))
+        if (self.rotation() != 0):
+            element.set('rotation', f'{self._rotation}')
+        if (self.isFlipped()):
+            element.set('flipped', 'true' if (self._flipped) else 'false')
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        # Read position, rotation, and flipped
-        position = QPointF()
-        rotation = 0
-        flipped = False
-
-        transformStr = element.get('transform', '')
-        try:
-            for token in transformStr.split(')'):
-                strippedToken = token.strip()
-                if (strippedToken.startswith('translate(')):
-                    translateCoords = strippedToken[10:].split(',')
-                    x = float(translateCoords[0].strip())
-                    y = float(translateCoords[1].strip())
-                    position = QPointF(x, y)
-                elif (strippedToken.startswith('scale(')):
-                    scaleFactors = strippedToken[6:].split(',')
-                    scaleX = float(scaleFactors[0].strip())
-                    # scaleY = float(scaleFactors[1].strip())
-                    if (scaleX < 0):
-                        flipped = (not flipped)
-                elif (strippedToken.startswith('rotate(')):
-                    rotation = (rotation + int(float(strippedToken[7:].strip()) / 90)) % 4
-        except (KeyError, ValueError):
-            position = QPointF()
-            rotation = 0
-            flipped = False
-
-        self.setPosition(position)
-        self.setRotation(rotation)
-        self.setFlipped(flipped)
+        self.setPosition(QPointF(self._fromPositionStr(element.get('translationX', '0')),
+                                 self._fromPositionStr(element.get('translationY', '0'))))
+        self.setRotation(int(element.get('rotation', '0')))
+        self.setFlipped(element.get('flipped', 'false').lower() == 'true')
 
     # ==================================================================================================================
 

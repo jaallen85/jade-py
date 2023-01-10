@@ -526,21 +526,23 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        self.writeStr(element, 'name', self.name(), writeIfDefault=True)
-        self.writeFloat(element, 'width', self._pageSize.width(), writeIfDefault=True)
-        self.writeFloat(element, 'height', self._pageSize.height(), writeIfDefault=True)
-        self.writeFloat(element, 'margin', self._pageMargin, writeIfDefault=True)
-        self.writeColor(element, 'backgroundColor', self._backgroundBrush.color(), writeIfDefault=True)
+        element.set('name', self.name())
+        element.set('width', self._toSizeStr(self._pageSize.width()))
+        element.set('height', self._toSizeStr(self._pageSize.height()))
+        element.set('margin', self._toSizeStr(self._pageMargin))
+        element.set('backgroundColor', self._toColorStr(self._backgroundBrush.color()))
 
         DrawingItem.writeItemsToXml(element, self._items)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         self.clearItems()
 
-        self.setName(self.readStr(element, 'name'))
-        self.setPageMargin(self.readFloat(element, 'margin'))
-        self.setPageSize(QSizeF(self.readFloat(element, 'width'), self.readFloat(element, 'height')))
-        self.setBackgroundBrush(QBrush(self.readColor(element, 'backgroundColor')))
+        self.setName(element.get('name', self.name()))
+        self.setPageMargin(self._fromSizeStr(element.get('margin', self._toSizeStr(self._pageMargin))))
+        self.setPageSize(QSizeF(self._fromSizeStr(element.get('width', self._toSizeStr(self._pageSize.width()))),
+                                self._fromSizeStr(element.get('height', self._toSizeStr(self._pageSize.height())))))
+        self.setBackgroundBrush(QBrush(self._fromColorStr(
+            element.get('backgroundColor', self._toColorStr(self._backgroundBrush.color())))))
 
         items = DrawingItem.readItemsFromXml(element)
         for item in items:

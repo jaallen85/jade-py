@@ -230,16 +230,16 @@ class DrawingTextEllipseItem(DrawingEllipseItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        self.writeFont(element, 'font', self._font)
-        self.writeBrush(element, 'text', self._textPen.brush())
+        self._writeFont(element, 'font', self._font)
+        self._writeBrush(element, 'text', self._textPen.brush())
 
         element.text = self._caption
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
 
-        self.setFont(self.readFont(element, 'font'))
-        self.setTextBrush(self.readBrush(element, 'text'))
+        self.setFont(self._readFont(element, 'font'))
+        self.setTextBrush(self._readBrush(element, 'text'))
 
         if (isinstance(element.text, str)):
             self.setCaption(element.text)

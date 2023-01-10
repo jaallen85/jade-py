@@ -321,11 +321,11 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        self.writeFloat(element, 'grid', self.grid(), writeIfDefault=True)
-        self.writeBool(element, 'gridVisible', self.isGridVisible(), writeIfDefault=True)
-        self.writeColor(element, 'gridColor', self.gridBrush().color(), writeIfDefault=True)
-        self.writeInt(element, 'gridSpacingMajor', self.gridSpacingMajor())
-        self.writeInt(element, 'gridSpacingMinor', self.gridSpacingMinor())
+        element.set('grid', self._toSizeStr(self.grid()))
+        element.set('gridVisible', 'true' if (self.isGridVisible()) else 'false')
+        element.set('gridColor', self._toColorStr(self.gridBrush().color()))
+        element.set('gridSpacingMajor', f'{self.gridSpacingMajor()}')
+        element.set('gridSpacingMinor', f'{self.gridSpacingMinor()}')
 
         for page in self._pages:
             pageElement = ElementTree.SubElement(element, 'page')
@@ -334,11 +334,11 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
     def readFromXml(self, element: ElementTree.Element) -> None:
         self.clearPages()
 
-        self.setGrid(self.readFloat(element, 'grid'))
-        self.setGridVisible(self.readBool(element, 'gridVisible'))
-        self.setGridBrush(QBrush(self.readColor(element, 'gridColor')))
-        self.setGridSpacingMajor(self.readInt(element, 'gridSpacingMajor'))
-        self.setGridSpacingMinor(self.readInt(element, 'gridSpacingMinor'))
+        self.setGrid(self._fromSizeStr(element.get('grid', '0')))
+        self.setGridVisible(element.get('gridVisible', 'false').lower() == 'true')
+        self.setGridBrush(QBrush(self._fromColorStr(element.get('gridColor', '0'))))
+        self.setGridSpacingMajor(int(element.get('gridSpacingMajor', '0')))
+        self.setGridSpacingMinor(int(element.get('gridSpacingMinor', '0')))
 
         for pageElement in element.findall('page'):
             newPage = DrawingPageWidget()

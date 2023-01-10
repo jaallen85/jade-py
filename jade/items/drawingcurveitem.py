@@ -284,36 +284,36 @@ class DrawingCurveItem(DrawingItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        # Curve
-        self.writeFloat(element, 'x1', self._curve.at(0).x(), writeIfDefault=True)
-        self.writeFloat(element, 'y1', self._curve.at(0).y(), writeIfDefault=True)
-        self.writeFloat(element, 'cx1', self._curve.at(1).x(), writeIfDefault=True)
-        self.writeFloat(element, 'cy1', self._curve.at(1).y(), writeIfDefault=True)
-        self.writeFloat(element, 'cx2', self._curve.at(2).x(), writeIfDefault=True)
-        self.writeFloat(element, 'cy2', self._curve.at(2).y(), writeIfDefault=True)
-        self.writeFloat(element, 'x2', self._curve.at(3).x(), writeIfDefault=True)
-        self.writeFloat(element, 'y2', self._curve.at(3).y(), writeIfDefault=True)
+        element.set('x1', self._toPositionStr(self._curve.at(0).x()))
+        element.set('y1', self._toPositionStr(self._curve.at(0).y()))
+        element.set('cx1', self._toPositionStr(self._curve.at(1).x()))
+        element.set('cy1', self._toPositionStr(self._curve.at(1).y()))
+        element.set('cx2', self._toPositionStr(self._curve.at(2).x()))
+        element.set('cy2', self._toPositionStr(self._curve.at(2).y()))
+        element.set('x2', self._toPositionStr(self._curve.at(3).x()))
+        element.set('y2', self._toPositionStr(self._curve.at(3).y()))
 
-        # Pen and arrows
-        self.writePen(element, 'pen', self._pen)
-        self.writeArrow(element, 'startArrow', self._startArrow)
-        self.writeArrow(element, 'endArrow', self._endArrow)
+        self._writePen(element, 'pen', self._pen)
+        self._writeArrow(element, 'startArrow', self._startArrow)
+        self._writeArrow(element, 'endArrow', self._endArrow)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
 
-        # Line
         curve = QPolygonF()
-        curve.append(QPointF(self.readFloat(element, 'x1'), self.readFloat(element, 'y1')))
-        curve.append(QPointF(self.readFloat(element, 'cx1'), self.readFloat(element, 'cy1')))
-        curve.append(QPointF(self.readFloat(element, 'cx2'), self.readFloat(element, 'cy2')))
-        curve.append(QPointF(self.readFloat(element, 'x2'), self.readFloat(element, 'y2')))
+        curve.append(QPointF(self._fromPositionStr(element.get('x1', '0')),
+                             self._fromPositionStr(element.get('y1', '0'))))
+        curve.append(QPointF(self._fromPositionStr(element.get('cx1', '0')),
+                             self._fromPositionStr(element.get('cy1', '0'))))
+        curve.append(QPointF(self._fromPositionStr(element.get('cx2', '0')),
+                             self._fromPositionStr(element.get('cy2', '0'))))
+        curve.append(QPointF(self._fromPositionStr(element.get('x2', '0')),
+                             self._fromPositionStr(element.get('y2', '0'))))
         self.setCurve(curve)
 
-        # Pen and arrows
-        self.setPen(self.readPen(element, 'pen'))
-        self.setStartArrow(self.readArrow(element, 'startArrow'))
-        self.setEndArrow(self.readArrow(element, 'endArrow'))
+        self.setPen(self._readPen(element, 'pen'))
+        self.setStartArrow(self._readArrow(element, 'startArrow'))
+        self.setEndArrow(self._readArrow(element, 'endArrow'))
 
     # ==================================================================================================================
 

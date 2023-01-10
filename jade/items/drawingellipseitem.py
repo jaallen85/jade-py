@@ -231,23 +231,21 @@ class DrawingEllipseItem(DrawingItem):
     def writeToXml(self, element: ElementTree.Element) -> None:
         super().writeToXml(element)
 
-        # Ellipse
-        self.writeFloat(element, 'left', self._ellipse.left(), writeIfDefault=True)
-        self.writeFloat(element, 'top', self._ellipse.top(), writeIfDefault=True)
-        self.writeFloat(element, 'width', self._ellipse.width(), writeIfDefault=True)
-        self.writeFloat(element, 'height', self._ellipse.height(), writeIfDefault=True)
+        element.set('x', self._toPositionStr(self._ellipse.left()))
+        element.set('y', self._toPositionStr(self._ellipse.top()))
+        element.set('width', self._toSizeStr(self._ellipse.width()))
+        element.set('height', self._toSizeStr(self._ellipse.height()))
 
-        # Pen and brush
-        self.writePen(element, 'pen', self._pen)
-        self.writeBrush(element, 'brush', self._brush)
+        self._writeBrush(element, 'brush', self._brush)
+        self._writePen(element, 'pen', self._pen)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
         super().readFromXml(element)
 
-        # Ellipse
-        self.setEllipse(QRectF(self.readFloat(element, 'left'), self.readFloat(element, 'top'),
-                               self.readFloat(element, 'width'), self.readFloat(element, 'height')))
+        self.setEllipse(QRectF(self._fromPositionStr(element.get('x', '0')),
+                               self._fromPositionStr(element.get('y', '0')),
+                               self._fromSizeStr(element.get('width', '0')),
+                               self._fromSizeStr(element.get('height', '0'))))
 
-        # Pen and brush
-        self.setPen(self.readPen(element, 'pen'))
-        self.setBrush(self.readBrush(element, 'brush'))
+        self.setBrush(self._readBrush(element, 'brush'))
+        self.setPen(self._readPen(element, 'pen'))
