@@ -111,7 +111,7 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
         self._panTimer.setInterval(5)
         self._panTimer.timeout.connect(self._mousePanEvent)     # type: ignore
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.clearItems()
 
     # ==================================================================================================================
@@ -260,7 +260,7 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
 
     # ==================================================================================================================
 
-    def setSelectedItems(self, items: list[DrawingItem]):
+    def setSelectedItems(self, items: list[DrawingItem]) -> None:
         # Assumes each item in items is a member of self._items
         if (self._selectedItems != items):
             for item in self._selectedItems:

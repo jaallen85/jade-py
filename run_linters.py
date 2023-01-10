@@ -28,7 +28,7 @@ print(' ')
 print('-' * 80)
 print('mypy')
 print('-' * 80)
-subprocess.run(['mypy', 'jade'])
+subprocess.run(['mypy', '--disallow-untyped-defs', '--disallow-incomplete-defs', 'jade'])
 print('mypy run complete.')
 
 # pylint

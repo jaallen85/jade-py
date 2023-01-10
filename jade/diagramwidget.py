@@ -421,7 +421,7 @@ class DiagramWidget(DrawingWidget):
                 else:
                     self.setSelectMode()
 
-    def _updateActionsFromMode(self, mode: int):
+    def _updateActionsFromMode(self, mode: int) -> None:
         if (mode == DrawingPageWidget.Mode.SelectMode.value and not self.selectModeAction.isChecked()):
             self.selectModeAction.setChecked(True)
 

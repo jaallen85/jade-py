@@ -422,7 +422,7 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
 
     # ==================================================================================================================
 
-    def setSelectedItems(self, items: list[DrawingItem]):
+    def setSelectedItems(self, items: list[DrawingItem]) -> None:
         if (self._currentPage is not None):
             self._currentPage.setSelectedItems(items)
 

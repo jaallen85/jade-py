@@ -766,7 +766,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         self.addDockWidget(area, dockWidget)
         return dockWidget
 
-    def _addStatusBarLabel(self, text: str, minimumWidthText: str, signal: SignalInstance):
+    def _addStatusBarLabel(self, text: str, minimumWidthText: str, signal: SignalInstance) -> QLabel:
         label = QLabel(text)
         label.setMinimumWidth(QFontMetrics(label.font()).boundingRect(minimumWidthText).width() + 64)
         signal.connect(label.setText)

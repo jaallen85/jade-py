@@ -324,23 +324,23 @@ class DrawingPathItem(DrawingItem):
 
     # ==================================================================================================================
 
-    def _updatePathTransforms(self):
+    def _updatePathTransforms(self) -> None:
         self._transformedPath.clear()
 
         curveDataPoints = []
         for index in range(self._path.elementCount()):
             element = self._path.elementAt(index)
-            match (element.type):
+            match (element.type):   # type: ignore
                 case QPainterPath.ElementType.MoveToElement:
-                    self._transformedPath.moveTo(self.mapFromPath(QPointF(element.x, element.y)))
+                    self._transformedPath.moveTo(self.mapFromPath(QPointF(element.x, element.y)))   # type: ignore
                 case QPainterPath.ElementType.LineToElement:
-                    self._transformedPath.lineTo(self.mapFromPath(QPointF(element.x, element.y)))
+                    self._transformedPath.lineTo(self.mapFromPath(QPointF(element.x, element.y)))   # type: ignore
                 case QPainterPath.ElementType.CurveToElement:
-                    curveDataPoints.append(self.mapFromPath(QPointF(element.x, element.y)))
+                    curveDataPoints.append(self.mapFromPath(QPointF(element.x, element.y)))         # type: ignore
                 case QPainterPath.ElementType.CurveToDataElement:
                     if (len(curveDataPoints) < 2):
-                        curveDataPoints.append(self.mapFromPath(QPointF(element.x, element.y)))
+                        curveDataPoints.append(self.mapFromPath(QPointF(element.x, element.y)))     # type: ignore
                     else:
                         self._transformedPath.cubicTo(curveDataPoints[0], curveDataPoints[1],
-                                                      self.mapFromPath(QPointF(element.x, element.y)))
+                                                      self.mapFromPath(QPointF(element.x, element.y)))  # type: ignore
                         curveDataPoints = []
