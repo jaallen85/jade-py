@@ -239,7 +239,7 @@ class DrawingPolylineItem(DrawingItem):
     def canRemovePoints(self) -> bool:
         return (len(self._points) > 2)
 
-    def insertNewPoint(self, position: QPointF) -> bool:
+    def insertNewPoint(self, position: QPointF) -> None:
         if (len(self._points) >= 2):
             itemPosition = self.mapFromScene(position)
 
@@ -258,10 +258,8 @@ class DrawingPolylineItem(DrawingItem):
             polyline = QPolygonF(self._polyline)
             polyline.insert(insertIndex, itemPosition)
             self.setPolyline(polyline)
-            return True
-        return False
 
-    def removeExistingPoint(self, position: QPointF) -> bool:
+    def removeExistingPoint(self, position: QPointF) -> None:
         if (self.canRemovePoints()):
             point = self._pointNearest(self.mapFromScene(position))
             # The user cannot remove the end points of the polyline
@@ -272,8 +270,6 @@ class DrawingPolylineItem(DrawingItem):
                 polyline = QPolygonF(self._polyline)
                 polyline.takeAt(removeIndex)
                 self.setPolyline(polyline)
-                return True
-        return False
 
     # ==================================================================================================================
 

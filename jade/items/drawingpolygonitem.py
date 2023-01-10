@@ -189,7 +189,7 @@ class DrawingPolygonItem(DrawingItem):
     def canRemovePoints(self) -> bool:
         return (len(self._points) > 3)
 
-    def insertNewPoint(self, position: QPointF) -> bool:
+    def insertNewPoint(self, position: QPointF) -> None:
         if (len(self._points) >= 2):
             itemPosition = self.mapFromScene(position)
 
@@ -208,10 +208,8 @@ class DrawingPolygonItem(DrawingItem):
             polygon = QPolygonF(self._polygon)
             polygon.insert(insertIndex, itemPosition)
             self.setPolygon(polygon)
-            return True
-        return False
 
-    def removeExistingPoint(self, position: QPointF) -> bool:
+    def removeExistingPoint(self, position: QPointF) -> None:
         if (self.canRemovePoints()):
             point = self._pointNearest(self.mapFromScene(position))
             if (point is not None):
@@ -219,8 +217,6 @@ class DrawingPolygonItem(DrawingItem):
                 polygon = QPolygonF(self._polygon)
                 polygon.takeAt(removeIndex)
                 self.setPolygon(polygon)
-                return True
-        return False
 
     # ==================================================================================================================
 

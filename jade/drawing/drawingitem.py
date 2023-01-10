@@ -201,33 +201,33 @@ class DrawingItem(ABC, DrawingXmlInterface):
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
         point.setPosition(self.mapFromScene(position))
 
-    def rotate(self, position: QPointF) -> None:
+    def rotate(self, center: QPointF) -> None:
         # Calculate new position of item
-        difference = self._position - position
-        self.setPosition(QPointF(position.x() - difference.y(), position.y() + difference.x()))
+        difference = self._position - center
+        self.setPosition(QPointF(center.x() - difference.y(), center.y() + difference.x()))
 
         # Update orientation
         self.setRotation(self._rotation + 1)
 
-    def rotateBack(self, position: QPointF) -> None:
+    def rotateBack(self, center: QPointF) -> None:
         # Calculate new position of item
-        difference = self._position - position
-        self.setPosition(QPointF(position.x() + difference.y(), position.y() - difference.x()))
+        difference = self._position - center
+        self.setPosition(QPointF(center.x() + difference.y(), center.y() - difference.x()))
 
         # Update orientation
         self.setRotation(self._rotation - 1)
 
-    def flipHorizontal(self, position: QPointF) -> None:
+    def flipHorizontal(self, center: QPointF) -> None:
         # Calculate new position of item
-        self.setPosition(QPointF(2 * position.x() - self._position.x(), self._position.y()))
+        self.setPosition(QPointF(2 * center.x() - self._position.x(), self._position.y()))
 
         # Update orientation
         self.setFlipped(not self._flipped)
 
-    def flipVertical(self, position: QPointF) -> None:
-        self.rotate(position)
-        self.rotate(position)
-        self.flipHorizontal(position)
+    def flipVertical(self, center: QPointF) -> None:
+        self.rotate(center)
+        self.rotate(center)
+        self.flipHorizontal(center)
 
     # ==================================================================================================================
 
@@ -237,11 +237,11 @@ class DrawingItem(ABC, DrawingXmlInterface):
     def canRemovePoints(self) -> bool:
         return False
 
-    def insertNewPoint(self, position: QPointF) -> bool:
-        return False
+    def insertNewPoint(self, position: QPointF) -> None:
+        pass
 
-    def removeExistingPoint(self, position: QPointF) -> bool:
-        return False
+    def removeExistingPoint(self, position: QPointF) -> None:
+        pass
 
     # ==================================================================================================================
 
@@ -307,14 +307,14 @@ class DrawingItem(ABC, DrawingXmlInterface):
 
             angle = math.atan2(position.y() - otherPosition.y(), position.x() - otherPosition.x())
             targetAngleDegrees = round(angle * 180 / math.pi / 45) * 45
-            targetAngle = targetAngleDegrees * math.pi / 180
+            targetAngleRadians = targetAngleDegrees * math.pi / 180
 
             length = max(abs(delta.x()), abs(delta.y()))
             if (abs(targetAngleDegrees % 90) == 45):
                 length = length * math.sqrt(2)
 
-            return QPointF(otherPosition.x() + length * math.cos(targetAngle),
-                           otherPosition.y() + length * math.sin(targetAngle))
+            return QPointF(otherPosition.x() + length * math.cos(targetAngleRadians),
+                           otherPosition.y() + length * math.sin(targetAngleRadians))
 
         return QPointF(position)
 
@@ -339,19 +339,19 @@ class DrawingItem(ABC, DrawingXmlInterface):
 
     def _pointNearest(self, position: QPointF) -> DrawingItemPoint | None:
         if (len(self._points) > 0):
-            point = self._points[0]
+            nearestPoint = self._points[0]
 
-            vec = point.position() - position
+            vec = nearestPoint.position() - position
             minimumDistanceSquared = vec.x() * vec.x() + vec.y() * vec.y()
 
-            for itemPoint in self._points[1:]:
-                vec = itemPoint.position() - position
+            for point in self._points[1:]:
+                vec = point.position() - position
                 distanceSquared = vec.x() * vec.x() + vec.y() * vec.y()
                 if (distanceSquared < minimumDistanceSquared):
-                    point = itemPoint
+                    nearestPoint = point
                     minimumDistanceSquared = distanceSquared
 
-            return point
+            return nearestPoint
         return None
 
     # ==================================================================================================================
