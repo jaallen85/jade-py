@@ -33,6 +33,8 @@ from .pagesbrowser import PagesBrowser
 from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
 
+# Todo: should lines, curves, and polylines ignore position, rotation, and flipped transforms?  what about other items?
+
 
 class MainWindow(QMainWindow, DrawingXmlInterface):
     def __init__(self) -> None:

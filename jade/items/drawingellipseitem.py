@@ -183,11 +183,12 @@ class DrawingEllipseItem(DrawingItem):
     # ==================================================================================================================
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
-        if (snapTo45Degrees and len(self._points) >= 8):
-            position = self._snapResizeTo45Degrees(point, position, self._points[DrawingEllipseItem.PointIndex.TopLeft],
-                                                   self._points[DrawingEllipseItem.PointIndex.BottomRight])
-
         if (point in self._points):
+            if (snapTo45Degrees and len(self._points) >= 8):
+                position = self._snapResizeTo45Degrees(point, position,
+                                                       self._points[DrawingEllipseItem.PointIndex.TopLeft],
+                                                       self._points[DrawingEllipseItem.PointIndex.BottomRight])
+
             position = self.mapFromScene(position)
             ellipse = QRectF(self._ellipse)
             match (self._points.index(point)):

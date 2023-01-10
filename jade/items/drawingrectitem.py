@@ -191,11 +191,12 @@ class DrawingRectItem(DrawingItem):
     # ==================================================================================================================
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
-        if (snapTo45Degrees and len(self._points) >= 8):
-            position = self._snapResizeTo45Degrees(point, position, self._points[DrawingRectItem.PointIndex.TopLeft],
-                                                   self._points[DrawingRectItem.PointIndex.BottomRight])
-
         if (point in self._points):
+            if (snapTo45Degrees and len(self._points) >= 8):
+                position = self._snapResizeTo45Degrees(point, position,
+                                                       self._points[DrawingRectItem.PointIndex.TopLeft],
+                                                       self._points[DrawingRectItem.PointIndex.BottomRight])
+
             position = self.mapFromScene(position)
             rect = QRectF(self._rect)
             match (self._points.index(point)):

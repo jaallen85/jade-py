@@ -208,11 +208,12 @@ class DrawingLineItem(DrawingItem):
     # ==================================================================================================================
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
-        if (snapTo45Degrees and len(self._points) >= 3):
-            position = self._snapResizeTo45Degrees(point, position, self._points[DrawingLineItem.PointIndex.StartPoint],
-                                                   self._points[DrawingLineItem.PointIndex.EndPoint])
-
         if (point in self._points):
+            if (snapTo45Degrees and len(self._points) >= 3):
+                position = self._snapResizeTo45Degrees(point, position,
+                                                       self._points[DrawingLineItem.PointIndex.StartPoint],
+                                                       self._points[DrawingLineItem.PointIndex.EndPoint])
+
             position = self.mapFromScene(position)
             line = QLineF(self._line)
             match (self._points.index(point)):

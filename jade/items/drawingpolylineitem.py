@@ -213,10 +213,10 @@ class DrawingPolylineItem(DrawingItem):
     # ==================================================================================================================
 
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
-        if (snapTo45Degrees and len(self._points) == 2):
-            position = self._snapResizeTo45Degrees(point, position, self._points[0], self._points[-1])
-
         if (point in self._points):
+            if (snapTo45Degrees and len(self._points) == 2):
+                position = self._snapResizeTo45Degrees(point, position, self._points[0], self._points[-1])
+
             pointIndex = self._points.index(point)
             position = self.mapFromScene(position)
 
