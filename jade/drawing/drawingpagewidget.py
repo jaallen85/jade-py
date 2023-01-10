@@ -20,8 +20,8 @@ from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QPoint, QPointF, QRectF, Signal
 from PySide6.QtGui import QCursor, QMouseEvent, QUndoCommand
 from PySide6.QtWidgets import QApplication
+from .drawinggroupitem import DrawingGroupItem
 from .drawingitem import DrawingItem
-from .drawingitemgroup import DrawingItemGroup
 from .drawingitempoint import DrawingItemPoint
 from .drawingpageview import DrawingPageView
 
@@ -373,7 +373,7 @@ class DrawingPageWidget(DrawingPageView):
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) > 1):
             itemsToRemove = self._selectedItems.copy()
 
-            itemGroup = DrawingItemGroup()
+            itemGroup = DrawingGroupItem()
 
             # Put the group position equal to the position of the last item and adjust each item's position accordingly
             items = DrawingItem.copyItems(itemsToRemove)
@@ -393,7 +393,7 @@ class DrawingPageWidget(DrawingPageView):
     def ungroupCurrentItem(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) == 1):
             itemGroup = self._selectedItems[0]
-            if (isinstance(itemGroup, DrawingItemGroup)):
+            if (isinstance(itemGroup, DrawingGroupItem)):
                 itemsToAdd = DrawingItem.copyItems(itemGroup.items())
                 for item in itemsToAdd:
                     # Apply the group's position/transform to each item

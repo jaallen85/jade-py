@@ -18,8 +18,8 @@ from xml.etree import ElementTree
 from PySide6.QtCore import Qt, QLineF, QRectF
 from PySide6.QtGui import QBrush, QColor, QFont, QPainterPath, QPen, QPolygonF
 from ..drawing.drawingarrow import DrawingArrow
+from ..drawing.drawinggroupitem import DrawingGroupItem
 from ..drawing.drawingitem import DrawingItem
-from ..drawing.drawingitemgroup import DrawingItemGroup
 from ..drawing.drawingpagewidget import DrawingPageWidget
 from ..items.drawingcurveitem import DrawingCurveItem
 from ..items.drawingellipseitem import DrawingEllipseItem
@@ -78,7 +78,7 @@ class SvgWriter:
             elif (isinstance(item, DrawingPolylineItem)):
                 self._writeArrow(element, item.startArrow(), item.pen())
                 self._writeArrow(element, item.endArrow(), item.pen())
-            elif (isinstance(item, DrawingItemGroup)):
+            elif (isinstance(item, DrawingGroupItem)):
                 self._writeArrows(element, item.items())
 
     def _writeArrow(self, element: ElementTree.Element, arrow: DrawingArrow, pen: QPen) -> None:
@@ -187,7 +187,7 @@ class SvgWriter:
                 self._writeTextItem(element, item)
             elif (isinstance(item, DrawingPathItem)):
                 self._writePathItem(element, item)
-            elif (isinstance(item, DrawingItemGroup)):
+            elif (isinstance(item, DrawingGroupItem)):
                 self._writeGroupItem(element, item)
 
     def _writeLineItem(self, element: ElementTree.Element, item: DrawingLineItem) -> None:
@@ -345,7 +345,7 @@ class SvgWriter:
 
         self._writePenAndBrush(pathElement, QBrush(Qt.GlobalColor.transparent), item.pen())
 
-    def _writeGroupItem(self, element: ElementTree.Element, item: DrawingItemGroup) -> None:
+    def _writeGroupItem(self, element: ElementTree.Element, item: DrawingGroupItem) -> None:
         groupElement = ElementTree.SubElement(element, 'g')
         self._writeTransform(groupElement, item)
         self._writeItems(groupElement, item.items())

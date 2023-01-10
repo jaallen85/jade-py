@@ -1,4 +1,4 @@
-# drawingitemgroup.py
+# drawinggroupitem.py
 # Copyright (C) 2022  Jason Allen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,7 @@ from .drawingitem import DrawingItem
 from .drawingitempoint import DrawingItemPoint
 
 
-class DrawingItemGroup(DrawingItem):
+class DrawingGroupItem(DrawingItem):
     class PointIndex(IntEnum):
         TopLeft = 0
         TopMiddle = 1
@@ -44,8 +44,8 @@ class DrawingItemGroup(DrawingItem):
         for _ in range(8):
             self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.NoType))
 
-    def __copy__(self) -> 'DrawingItemGroup':
-        copiedItem = DrawingItemGroup()
+    def __copy__(self) -> 'DrawingGroupItem':
+        copiedItem = DrawingGroupItem()
         copiedItem._copyBaseClassValues(self)
         copiedItem.setItems(DrawingItem.copyItems(self.items()))
         return copiedItem
@@ -72,14 +72,14 @@ class DrawingItemGroup(DrawingItem):
         if (len(self._points) >= 8):
             rect = self.boundingRect()
             center = rect.center()
-            self._points[DrawingItemGroup.PointIndex.TopLeft].setPosition(QPointF(rect.left(), rect.top()))
-            self._points[DrawingItemGroup.PointIndex.TopMiddle].setPosition(QPointF(center.x(), rect.top()))
-            self._points[DrawingItemGroup.PointIndex.TopRight].setPosition(QPointF(rect.right(), rect.top()))
-            self._points[DrawingItemGroup.PointIndex.MiddleRight].setPosition(QPointF(rect.right(), center.y()))
-            self._points[DrawingItemGroup.PointIndex.BottomRight].setPosition(QPointF(rect.right(), rect.bottom()))
-            self._points[DrawingItemGroup.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), rect.bottom()))
-            self._points[DrawingItemGroup.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
-            self._points[DrawingItemGroup.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
+            self._points[DrawingGroupItem.PointIndex.TopLeft].setPosition(QPointF(rect.left(), rect.top()))
+            self._points[DrawingGroupItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), rect.top()))
+            self._points[DrawingGroupItem.PointIndex.TopRight].setPosition(QPointF(rect.right(), rect.top()))
+            self._points[DrawingGroupItem.PointIndex.MiddleRight].setPosition(QPointF(rect.right(), center.y()))
+            self._points[DrawingGroupItem.PointIndex.BottomRight].setPosition(QPointF(rect.right(), rect.bottom()))
+            self._points[DrawingGroupItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), rect.bottom()))
+            self._points[DrawingGroupItem.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
+            self._points[DrawingGroupItem.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
 
     def items(self) -> list[DrawingItem]:
         return self._items

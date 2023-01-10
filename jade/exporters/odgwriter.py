@@ -20,8 +20,8 @@ from zipfile import ZipFile
 from PySide6.QtCore import Qt, QLineF, QMarginsF, QPointF, QRectF, QSizeF
 from PySide6.QtGui import QBrush, QColor, QFont, QPainterPath, QPen, QPolygonF
 from ..drawing.drawingarrow import DrawingArrow
+from ..drawing.drawinggroupitem import DrawingGroupItem
 from ..drawing.drawingitem import DrawingItem
-from ..drawing.drawingitemgroup import DrawingItemGroup
 from ..drawing.drawingpagewidget import DrawingPageWidget
 from ..items.drawingcurveitem import DrawingCurveItem
 from ..items.drawingellipseitem import DrawingEllipseItem
@@ -289,7 +289,7 @@ class OdgWriter:
                 self._writeTextItem(pageElement, automaticStylesElement, item)
             elif (isinstance(item, DrawingPathItem)):
                 self._writePathItem(pageElement, automaticStylesElement, item)
-            elif (isinstance(item, DrawingItemGroup)):
+            elif (isinstance(item, DrawingGroupItem)):
                 self._writeGroupItem(pageElement, automaticStylesElement, item)
 
     def _writeLineItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
@@ -533,7 +533,7 @@ class OdgWriter:
                                 pen=item.pen())
 
     def _writeGroupItem(self, pageElement: ElementTree.Element, automaticStylesElement: ElementTree.Element,
-                        item: DrawingItemGroup) -> None:
+                        item: DrawingGroupItem) -> None:
         groupElement = ElementTree.SubElement(pageElement, 'draw:g')
 
         # draw:g element does not support the draw:transform attribute, so we must apply the group transform to each

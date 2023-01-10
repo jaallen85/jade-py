@@ -20,8 +20,8 @@ from PySide6.QtCore import Qt, QPoint, QSizeF, Signal
 from PySide6.QtGui import QAction, QActionGroup, QBrush, QColor, QFont, QIcon, QKeySequence, QPen
 from PySide6.QtWidgets import QMenu
 from .drawing.drawingarrow import DrawingArrow
+from .drawing.drawinggroupitem import DrawingGroupItem
 from .drawing.drawingitem import DrawingItem
-from .drawing.drawingitemgroup import DrawingItemGroup
 from .drawing.drawingpagewidget import DrawingPageWidget
 from .drawing.drawingwidget import DrawingWidget
 from .items.drawingcurveitem import DrawingCurveItem
@@ -242,7 +242,7 @@ class DiagramWidget(DrawingWidget):
         self.placeTextRectAction: QAction = self._addPlaceAction(DrawingTextRectItem(), 'icons:text-rect.png')
         self.placeTextEllipseAction: QAction = self._addPlaceAction(DrawingTextEllipseItem(), 'icons:text-ellipse.png')
         DrawingItem.registerFactoryItem(DrawingPathItem())
-        DrawingItem.registerFactoryItem(DrawingItemGroup())
+        DrawingItem.registerFactoryItem(DrawingGroupItem())
 
         self.electricActions: list[QAction] = self._addPathActions(ElectricItems.create())
         self.logicActions: list[QAction] = self._addPathActions(LogicItems.create())
@@ -432,7 +432,7 @@ class DiagramWidget(DrawingWidget):
         canRemovePoints = False
         if (len(items) == 1):
             item = items[0]
-            canUngroup = isinstance(item, DrawingItemGroup)
+            canUngroup = isinstance(item, DrawingGroupItem)
             canInsertPoints = item.canInsertPoints()
             canRemovePoints = item.canRemovePoints()
 

@@ -20,8 +20,8 @@ from zipfile import ZipFile
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF, QSizeF
 from PySide6.QtGui import QBrush, QColor, QPainterPath, QPen, QPolygonF
 from ..drawing.drawingarrow import DrawingArrow
+from ..drawing.drawinggroupitem import DrawingGroupItem
 from ..drawing.drawingitem import DrawingItem
-from ..drawing.drawingitemgroup import DrawingItemGroup
 from ..drawing.drawingpagewidget import DrawingPageWidget
 from ..diagramwidget import DiagramWidget
 from ..items.drawingcurveitem import DrawingCurveItem
@@ -475,7 +475,7 @@ class VsdxWriter:
                 self._writeTextItem(element, page, item)
             elif (isinstance(item, DrawingPathItem)):
                 self._writePathItem(element, page, item)
-            elif (isinstance(item, DrawingItemGroup)):
+            elif (isinstance(item, DrawingGroupItem)):
                 self._writeGroupItem(element, page, item)
 
         if (increaseDepth):
@@ -755,7 +755,7 @@ class VsdxWriter:
                     else:
                         curvePoints.append(QPointF(positionX, positionY))
 
-    def _writeGroupItem(self, element: ElementTree.Element, page: DrawingPageWidget, item: DrawingItemGroup) -> None:
+    def _writeGroupItem(self, element: ElementTree.Element, page: DrawingPageWidget, item: DrawingGroupItem) -> None:
         pass
 
     # ==================================================================================================================
