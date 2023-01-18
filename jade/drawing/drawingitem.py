@@ -355,7 +355,7 @@ class DrawingItem(ABC, DrawingXmlInterface):
 
     @staticmethod
     def copyItems(items: list['DrawingItem']) -> list['DrawingItem']:
-        copiedItems = []
+        copiedItems: list[DrawingItem] = []
 
         # Copy items
         for item in items:
@@ -366,7 +366,7 @@ class DrawingItem(ABC, DrawingXmlInterface):
             for pointIndex, point in enumerate(item.points()):
                 for targetPoint in point.connections():
                     targetItem = targetPoint.item()
-                    if (targetItem in items):
+                    if (isinstance(targetItem, DrawingItem) and targetItem in items):
                         # There is a connection here that must be maintained in the copied items
                         targetItemIndex = items.index(targetItem)
                         targetItemPointIndex = targetItem.points().index(targetPoint)
@@ -410,7 +410,7 @@ class DrawingItem(ABC, DrawingXmlInterface):
 
     @staticmethod
     def readItemsFromXml(element: ElementTree.Element) -> list['DrawingItem']:
-        items = []
+        items: list[DrawingItem] = []
 
         # Read items from XML
         for itemElement in element:
