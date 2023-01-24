@@ -37,7 +37,9 @@ class DrawingTextItem(DrawingItem):
 
     def __copy__(self) -> 'DrawingTextItem':
         copiedItem = DrawingTextItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setCaption(self.caption())
         copiedItem.setFont(self.font())
         copiedItem.setAlignment(self.alignment())
@@ -197,7 +199,7 @@ class DrawingTextItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
 
         self._writeFont(element, 'font', self._font)
         self._writeAlignment(element, 'textAlignment', self._alignment)
@@ -206,7 +208,7 @@ class DrawingTextItem(DrawingItem):
         element.text = self._caption
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
 
         self.setFont(self._readFont(element, 'font'))
         self.setAlignment(self._readAlignment(element, 'textAlignment'))

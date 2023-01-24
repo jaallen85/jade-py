@@ -265,6 +265,14 @@ class DrawingPageWidget(DrawingPageView):
                 self._pushUndoCommand(self._resizeItemCommand(point, position, snapTo45Degrees=False, finalResize=True,
                                                               place=True, disconnect=False))
 
+    def resizeCurrentItem2(self, point1: DrawingItemPoint, position1: QPointF,
+                           point2: DrawingItemPoint, position2: QPointF) -> None:
+        if (self._mode == DrawingPageWidget.Mode.SelectMode):
+            if (len(self._selectedItems) == 1):
+                self._pushUndoCommand(self._resizeItemCommand2(point1, position1, point2, position2,
+                                                               snapTo45Degrees=False, finalResize=True,
+                                                               place=True, disconnect=False))
+
     # ==================================================================================================================
 
     def rotateCurrentItems(self) -> None:
@@ -619,6 +627,31 @@ class DrawingPageWidget(DrawingPageView):
         if (place):
             self._placeItems([point.item()], resizeCommand)
         resizeCommand.undo()
+        return resizeCommand
+
+    def _resizeItemCommand2(self, point1: DrawingItemPoint, position1: QPointF,
+                            point2: DrawingItemPoint, position2: QPointF, snapTo45Degrees: bool, finalResize: bool,
+                            place: bool, disconnect: bool) -> 'DrawingItemsUndoCommand':
+        # Assume that point1 and point2 are members of the same valid item which is in turn a member of self.items()
+        resizeCommand = DrawingItemsUndoCommand(self, [point1.item()], 'Resize Item')
+
+        resizeCommand1 = DrawingResizeItemCommand(self, point1, position1, snapTo45Degrees, finalResize)
+        resizeCommand2 = DrawingResizeItemCommand(self, point2, position2, snapTo45Degrees, finalResize)
+        resizeCommand.addChild(resizeCommand1)
+        resizeCommand.addChild(resizeCommand2)
+
+        resizeCommand1.redo()
+        resizeCommand2.redo()
+        if (disconnect):
+            self._disconnectAll(point1, resizeCommand)
+            self._disconnectAll(point2, resizeCommand)
+        self._tryToMaintainConnections([point1.item()], True, not point1.isFree(), point1, resizeCommand)
+        self._tryToMaintainConnections([point2.item()], True, not point2.isFree(), point2, resizeCommand)
+        if (place):
+            self._placeItems([point1.item()], resizeCommand)
+        resizeCommand2.undo()
+        resizeCommand1.undo()
+
         return resizeCommand
 
     def _rotateItemsCommand(self, items: list[DrawingItem],

@@ -33,7 +33,9 @@ class DrawingTextEllipseItem(DrawingEllipseItem):
 
     def __copy__(self) -> 'DrawingTextEllipseItem':
         copiedItem = DrawingTextEllipseItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setEllipse(self.ellipse())
         copiedItem.setBrush(self.brush())
         copiedItem.setPen(self.pen())
@@ -136,8 +138,10 @@ class DrawingTextEllipseItem(DrawingEllipseItem):
     def property(self, name: str) -> typing.Any:
         if (name == 'position'):
             return self.position()
+        if (name == 'size'):
+            return self.ellipse().size()
         if (name == 'ellipse'):
-            return self.mapRectToScene(self.ellipse())
+            return self.ellipse()
         if (name == 'pen'):
             return self.pen()
         if (name == 'penStyle'):
@@ -220,11 +224,7 @@ class DrawingTextEllipseItem(DrawingEllipseItem):
     # ==================================================================================================================
 
     def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
-        size = 8 * grid
-        if (size <= 0):
-            size = sceneRect.width() / 40
-
-        self.setEllipse(QRectF(-size, -size / 2, 2 * size, size))
+        super().placeCreateEvent(sceneRect, grid)
         self.setCaption('Label')
 
     # ==================================================================================================================

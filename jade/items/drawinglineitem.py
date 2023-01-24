@@ -48,7 +48,9 @@ class DrawingLineItem(DrawingItem):
 
     def __copy__(self) -> 'DrawingLineItem':
         copiedItem = DrawingLineItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setLine(self.line())
         copiedItem.setPen(self.pen())
         copiedItem.setStartArrow(self.startArrow())
@@ -68,11 +70,16 @@ class DrawingLineItem(DrawingItem):
     def setLine(self, line: QLineF) -> None:
         self._line = QLineF(line)
 
+        # Put the item's position at the center of the line
+        offset = line.center()
+        self.setPosition(self.mapToScene(offset))
+        self._line.translate(-offset)
+
         # Set point positions to match self._line
         if (len(self._points) >= 3):
-            self._points[DrawingLineItem.PointIndex.StartPoint].setPosition(line.p1())
-            self._points[DrawingLineItem.PointIndex.MidPoint].setPosition(line.center())
-            self._points[DrawingLineItem.PointIndex.EndPoint].setPosition(line.p2())
+            self._points[DrawingLineItem.PointIndex.StartPoint].setPosition(self._line.p1())
+            self._points[DrawingLineItem.PointIndex.MidPoint].setPosition(self._line.center())
+            self._points[DrawingLineItem.PointIndex.EndPoint].setPosition(self._line.p2())
 
     def line(self) -> QLineF:
         return self._line
@@ -139,7 +146,7 @@ class DrawingLineItem(DrawingItem):
         if (name == 'position'):
             return self.position()
         if (name == 'line'):
-            return QLineF(self.mapToScene(self._line.p1()), self.mapToScene(self._line.p2()))
+            return self.line()
         if (name == 'pen'):
             return self.pen()
         if (name == 'penStyle'):
@@ -215,20 +222,14 @@ class DrawingLineItem(DrawingItem):
                 position = self._snapResizeTo45Degrees(point, position,
                                                        self._points[DrawingLineItem.PointIndex.StartPoint],
                                                        self._points[DrawingLineItem.PointIndex.EndPoint])
-
             position = self.mapFromScene(position)
+
             line = QLineF(self._line)
             match (self._points.index(point)):
                 case DrawingLineItem.PointIndex.StartPoint:
                     line.setP1(position)
                 case DrawingLineItem.PointIndex.EndPoint:
                     line.setP2(position)
-
-            # Keep the item's position as the center of the line
-            center = line.center()
-            self.setPosition(self.mapToScene(center))
-            line.translate(-center)
-
             self.setLine(line)
 
     # ==================================================================================================================
@@ -245,7 +246,7 @@ class DrawingLineItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
 
         element.set('x1', self._toPositionStr(self._line.x1()))
         element.set('y1', self._toPositionStr(self._line.y1()))
@@ -257,7 +258,7 @@ class DrawingLineItem(DrawingItem):
         self._writeArrow(element, 'endArrow', self._endArrow)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
 
         self.setLine(QLineF(self._fromPositionStr(element.get('x1', '0')),
                             self._fromPositionStr(element.get('y1', '0')),

@@ -53,7 +53,9 @@ class DrawingCurveItem(DrawingItem):
 
     def __copy__(self) -> 'DrawingCurveItem':
         copiedItem = DrawingCurveItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setCurve(self.curve())
         copiedItem.setPen(self.pen())
         copiedItem.setStartArrow(self.startArrow())
@@ -73,6 +75,12 @@ class DrawingCurveItem(DrawingItem):
     def setCurve(self, curve: QPolygonF) -> None:
         if (curve.size() == 4):
             self._curve = QPolygonF(curve)
+
+            # Put the item's position at the center of the curve
+            offset = QLineF(curve.at(DrawingCurveItem.PointIndex.StartPoint),
+                            curve.at(DrawingCurveItem.PointIndex.EndPoint)).center()
+            self.setPosition(self.mapToScene(offset))
+            self._curve.translate(-offset)
 
             # Update curve path
             self._curvePath.clear()
@@ -147,8 +155,10 @@ class DrawingCurveItem(DrawingItem):
             self.setEndArrow(arrow)
 
     def property(self, name: str) -> typing.Any:
+        if (name == 'position'):
+            return self.position()
         if (name == 'curve'):
-            return self.mapPolygonToScene(self.curve())
+            return self.curve()
         if (name == 'pen'):
             return self.pen()
         if (name == 'penStyle'):
@@ -260,12 +270,6 @@ class DrawingCurveItem(DrawingItem):
                 curve.takeAt(DrawingCurveItem.PointIndex.EndControlPoint)
                 curve.insert(DrawingCurveItem.PointIndex.EndControlPoint, position + originalEndControlOffset)
 
-            # Keep the item's position at the center of the curve
-            center = QLineF(curve.at(DrawingCurveItem.PointIndex.StartPoint),
-                            curve.at(DrawingCurveItem.PointIndex.EndPoint)).center()
-            self.setPosition(self.mapToScene(center))
-            curve.translate(-center)
-
             self.setCurve(curve)
 
     # ==================================================================================================================
@@ -285,7 +289,7 @@ class DrawingCurveItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
 
         element.set('x1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartPoint).x()))
         element.set('y1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartPoint).y()))
@@ -301,7 +305,7 @@ class DrawingCurveItem(DrawingItem):
         self._writeArrow(element, 'endArrow', self._endArrow)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
 
         curve = QPolygonF()
         curve.append(QPointF(self._fromPositionStr(element.get('x1', '0')),

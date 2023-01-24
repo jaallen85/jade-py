@@ -453,6 +453,11 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
         if (self._currentPage is not None):
             self._currentPage.resizeCurrentItem(point, position)
 
+    def resizeCurrentItem2(self, point1: DrawingItemPoint, position1: QPointF,
+                           point2: DrawingItemPoint, position2: QPointF) -> None:
+        if (self._currentPage is not None):
+            self._currentPage.resizeCurrentItem2(point1, position1, point2, position2)
+
     # ==================================================================================================================
 
     def rotateCurrentItems(self) -> None:

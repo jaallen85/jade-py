@@ -50,7 +50,9 @@ class DrawingRectItem(DrawingItem):
 
     def __copy__(self) -> 'DrawingRectItem':
         copiedItem = DrawingRectItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setRect(self.rect())
         copiedItem.setCornerRadius(self.cornerRadius())
         copiedItem.setBrush(self.brush())
@@ -68,19 +70,25 @@ class DrawingRectItem(DrawingItem):
     # ==================================================================================================================
 
     def setRect(self, rect: QRectF) -> None:
-        self._rect = QRectF(rect)
+        if (rect.width() >= 0 and rect.height() >= 0):
+            self._rect = QRectF(rect)
 
-        # Set point positions to match self._rect
-        if (len(self._points) >= 8):
-            center = self._rect.center()
-            self._points[DrawingRectItem.PointIndex.TopLeft].setPosition(QPointF(rect.left(), rect.top()))
-            self._points[DrawingRectItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), rect.top()))
-            self._points[DrawingRectItem.PointIndex.TopRight].setPosition(QPointF(rect.right(), rect.top()))
-            self._points[DrawingRectItem.PointIndex.MiddleRight].setPosition(QPointF(rect.right(), center.y()))
-            self._points[DrawingRectItem.PointIndex.BottomRight].setPosition(QPointF(rect.right(), rect.bottom()))
-            self._points[DrawingRectItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), rect.bottom()))
-            self._points[DrawingRectItem.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
-            self._points[DrawingRectItem.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
+            # Put the item's position at the center of the rect
+            offset = rect.center()
+            self.setPosition(self.mapToScene(offset))
+            self._rect.translate(-offset)
+
+            # Set point positions to match self._rect
+            if (len(self._points) >= 8):
+                center = self._rect.center()
+                self._points[DrawingRectItem.PointIndex.TopLeft].setPosition(QPointF(self._rect.left(), self._rect.top()))          # noqa
+                self._points[DrawingRectItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), self._rect.top()))
+                self._points[DrawingRectItem.PointIndex.TopRight].setPosition(QPointF(self._rect.right(), self._rect.top()))        # noqa
+                self._points[DrawingRectItem.PointIndex.MiddleRight].setPosition(QPointF(self._rect.right(), center.y()))           # noqa
+                self._points[DrawingRectItem.PointIndex.BottomRight].setPosition(QPointF(self._rect.right(), self._rect.bottom()))  # noqa
+                self._points[DrawingRectItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), self._rect.bottom()))         # noqa
+                self._points[DrawingRectItem.PointIndex.BottomLeft].setPosition(QPointF(self._rect.left(), self._rect.bottom()))    # noqa
+                self._points[DrawingRectItem.PointIndex.MiddleLeft].setPosition(QPointF(self._rect.left(), center.y()))
 
     def setCornerRadius(self, radius: float) -> None:
         self._cornerRadius = radius
@@ -132,8 +140,10 @@ class DrawingRectItem(DrawingItem):
     def property(self, name: str) -> typing.Any:
         if (name == 'position'):
             return self.position()
+        if (name == 'size'):
+            return self.rect().size()
         if (name == 'rect'):
-            return self.mapRectToScene(self.rect())
+            return self.rect()
         if (name == 'cornerRadius'):
             return self.cornerRadius()
         if (name == 'pen'):
@@ -196,38 +206,48 @@ class DrawingRectItem(DrawingItem):
                 position = self._snapResizeTo45Degrees(point, position,
                                                        self._points[DrawingRectItem.PointIndex.TopLeft],
                                                        self._points[DrawingRectItem.PointIndex.BottomRight])
-
             position = self.mapFromScene(position)
-            rect = QRectF(self._rect)
-            match (self._points.index(point)):
-                case DrawingRectItem.PointIndex.TopLeft:
-                    rect.setTopLeft(position)
-                case DrawingRectItem.PointIndex.TopMiddle:
-                    rect.setTop(position.y())
-                case DrawingRectItem.PointIndex.TopRight:
-                    rect.setTopRight(position)
-                case DrawingRectItem.PointIndex.MiddleRight:
-                    rect.setRight(position.x())
-                case DrawingRectItem.PointIndex.BottomRight:
-                    rect.setBottomRight(position)
-                case DrawingRectItem.PointIndex.BottomMiddle:
-                    rect.setBottom(position.y())
-                case DrawingRectItem.PointIndex.BottomLeft:
-                    rect.setBottomLeft(position)
-                case DrawingRectItem.PointIndex.MiddleLeft:
-                    rect.setLeft(position.x())
 
-            # Keep the item's position as the center of the rect
-            center = rect.center()
-            self.setPosition(self.mapToScene(center))
-            rect.translate(-center)
+            rect = QRectF(self._rect)
+            pointIndex = self._points.index(point)
+
+            # Ensure that rect.width() >= 0
+            if (pointIndex in (DrawingRectItem.PointIndex.TopLeft, DrawingRectItem.PointIndex.MiddleLeft,
+                               DrawingRectItem.PointIndex.BottomLeft)):
+                if (position.x() > rect.right()):
+                    rect.setLeft(rect.right())
+                else:
+                    rect.setLeft(position.x())
+            elif (pointIndex in (DrawingRectItem.PointIndex.TopRight, DrawingRectItem.PointIndex.MiddleRight,
+                                 DrawingRectItem.PointIndex.BottomRight)):
+                if (position.x() < rect.left()):
+                    rect.setRight(rect.left())
+                else:
+                    rect.setRight(position.x())
+
+            # Ensure that rect.height() >= 0
+            if (pointIndex in (DrawingRectItem.PointIndex.TopLeft, DrawingRectItem.PointIndex.TopMiddle,
+                               DrawingRectItem.PointIndex.TopRight)):
+                if (position.y() > rect.bottom()):
+                    rect.setTop(rect.bottom())
+                else:
+                    rect.setTop(position.y())
+            elif (pointIndex in (DrawingRectItem.PointIndex.BottomLeft, DrawingRectItem.PointIndex.BottomMiddle,
+                                 DrawingRectItem.PointIndex.BottomRight)):
+                if (position.y() < rect.top()):
+                    rect.setBottom(rect.top())
+                else:
+                    rect.setBottom(position.y())
 
             self.setRect(rect)
 
     # ==================================================================================================================
 
     def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
-        self.setRect(QRectF())
+        size = 8 * grid
+        if (size <= 0):
+            size = sceneRect.width() / 40
+        self.setRect(QRectF(-size, -size / 2, 2 * size, size))
 
     def placeResizeStartPoint(self) -> DrawingItemPoint | None:
         return self._points[DrawingRectItem.PointIndex.TopLeft] if (len(self._points) >= 8) else None
@@ -238,7 +258,7 @@ class DrawingRectItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
 
         element.set('x', self._toPositionStr(self._rect.left()))
         element.set('y', self._toPositionStr(self._rect.top()))
@@ -252,12 +272,13 @@ class DrawingRectItem(DrawingItem):
         self._writePen(element, 'pen', self._pen)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
 
         self.setRect(QRectF(self._fromPositionStr(element.get('x', '0')),
                             self._fromPositionStr(element.get('y', '0')),
                             self._fromSizeStr(element.get('width', '0')),
                             self._fromSizeStr(element.get('height', '0'))))
+
         self.setCornerRadius(self._fromSizeStr(element.get('cornerRadius', '0')))
 
         self.setBrush(self._readBrush(element, 'brush'))

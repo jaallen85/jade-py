@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from xml.etree import ElementTree
-from PySide6.QtCore import Qt, QPointF
+from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import QBrush, QColor, QFont, QPainterPath, QPen, QPolygonF
 from .drawingarrow import DrawingArrow
 
@@ -196,6 +196,21 @@ class DrawingXmlInterface:
             if (len(text) == 9):
                 color.setAlpha(int(text[7:9], 16))
         return color
+
+    # ==================================================================================================================
+
+    def _toViewBoxStr(self, rect: QRectF) -> str:
+        return (f'{self._toPositionStr(rect.left())} {self._toPositionStr(rect.top())} '
+                f'{self._toSizeStr(rect.width())} {self._toSizeStr(rect.height())}')
+
+    def _fromViewBoxStr(self, text: str) -> QRectF:
+        try:
+            tokens = text.split(' ')
+            return QRectF(self._fromPositionStr(tokens[0]), self._fromPositionStr(tokens[1]),
+                          self._fromSizeStr(tokens[2]), self._fromSizeStr(tokens[3]))
+        except (KeyError, ValueError):
+            pass
+        return QRectF()
 
     # ==================================================================================================================
 

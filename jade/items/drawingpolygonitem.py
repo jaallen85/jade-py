@@ -36,7 +36,9 @@ class DrawingPolygonItem(DrawingItem):
 
     def __copy__(self) -> 'DrawingPolygonItem':
         copiedItem = DrawingPolygonItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setPolygon(self.polygon())
         copiedItem.setBrush(self.brush())
         copiedItem.setPen(self.pen())
@@ -55,6 +57,11 @@ class DrawingPolygonItem(DrawingItem):
     def setPolygon(self, polygon: QPolygonF) -> None:
         if (polygon.size() >= 3):
             self._polygon = QPolygonF(polygon)
+
+            # Put the item's position at the center of the polygon
+            offset = polygon.boundingRect().center()
+            self.setPosition(self.mapToScene(offset))
+            self._polygon.translate(-offset)
 
             # Ensure that len(self._points) == self._polygon.size()
             while (len(self._points) < self._polygon.size()):
@@ -108,8 +115,10 @@ class DrawingPolygonItem(DrawingItem):
             self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
+        if (name == 'position'):
+            return self.position()
         if (name == 'polygon'):
-            return self.mapPolygonToScene(self.polygon())
+            return self.polygon()
         if (name == 'pen'):
             return self.pen()
         if (name == 'penStyle'):
@@ -174,11 +183,6 @@ class DrawingPolygonItem(DrawingItem):
                 polygon.takeAt(pointIndex)
                 polygon.insert(pointIndex, position)
 
-            # Keep the item's position at the center of the polygon
-            center = polygon.boundingRect().center()
-            self.setPosition(self.mapToScene(center))
-            polygon.translate(-center)
-
             self.setPolygon(polygon)
 
     # ==================================================================================================================
@@ -234,7 +238,7 @@ class DrawingPolygonItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
 
         element.set('points', self._toPointsStr(self._polygon))
 
@@ -242,7 +246,7 @@ class DrawingPolygonItem(DrawingItem):
         self._writePen(element, 'pen', self._pen)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
 
         self.setPolygon(self._fromPointsStr(element.get('points', '')))
 

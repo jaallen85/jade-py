@@ -46,7 +46,9 @@ class DrawingGroupItem(DrawingItem):
 
     def __copy__(self) -> 'DrawingGroupItem':
         copiedItem = DrawingGroupItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setItems(DrawingItem.copyItems(self.items()))
         return copiedItem
 
@@ -123,9 +125,9 @@ class DrawingGroupItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
         DrawingItem.writeItemsToXml(element, self._items)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
         self.setItems(DrawingItem.readItemsFromXml(element))

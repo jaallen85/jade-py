@@ -69,6 +69,7 @@ class PropertiesBrowser(QStackedWidget):
 
         self._singleItemsPropertiesWidget.itemMoved.connect(self._diagram.moveCurrentItem)
         self._singleItemsPropertiesWidget.itemResized.connect(self._diagram.resizeCurrentItem)
+        self._singleItemsPropertiesWidget.itemResized2.connect(self._diagram.resizeCurrentItem2)
         self._singleItemsPropertiesWidget.itemPropertyChanged.connect(self._diagram.updateCurrentItemsProperty)
 
     # ==================================================================================================================

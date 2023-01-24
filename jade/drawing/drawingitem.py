@@ -48,13 +48,6 @@ class DrawingItem(ABC, DrawingXmlInterface):
 
     # ==================================================================================================================
 
-    def _copyBaseClassValues(self, otherItem: 'DrawingItem') -> None:
-        self.setPosition(otherItem.position())
-        self.setRotation(otherItem.rotation())
-        self.setFlipped(otherItem.isFlipped())
-
-    # ==================================================================================================================
-
     @abstractmethod
     def key(self) -> str:
         return ''
@@ -253,19 +246,13 @@ class DrawingItem(ABC, DrawingXmlInterface):
 
     # ==================================================================================================================
 
+    @abstractmethod
     def writeToXml(self, element: ElementTree.Element) -> None:
-        element.set('translationX', self._toPositionStr(self._position.x()))
-        element.set('translationY', self._toPositionStr(self._position.y()))
-        if (self.rotation() != 0):
-            element.set('rotation', f'{self._rotation}')
-        if (self.isFlipped()):
-            element.set('flipped', 'true' if (self._flipped) else 'false')
+        pass
 
+    @abstractmethod
     def readFromXml(self, element: ElementTree.Element) -> None:
-        self.setPosition(QPointF(self._fromPositionStr(element.get('translationX', '0')),
-                                 self._fromPositionStr(element.get('translationY', '0'))))
-        self.setRotation(int(element.get('rotation', '0')))
-        self.setFlipped(element.get('flipped', 'false').lower() == 'true')
+        pass
 
     # ==================================================================================================================
 
@@ -350,6 +337,31 @@ class DrawingItem(ABC, DrawingXmlInterface):
 
             return nearestPoint
         return None
+
+    # ==================================================================================================================
+
+    def _writeTransform(self, element: ElementTree.Element) -> None:
+        transformStr = f'translate({self._toPositionStr(self._position.x())},{self._toPositionStr(self._position.y())})'
+        if (self._flipped):
+            transformStr = transformStr + ' scale(-1,1)'
+        if (self._rotation != 0):
+            transformStr = transformStr + f' rotate({self._rotation * 90})'
+        element.set('transform', transformStr)
+
+    def _readTransform(self, element: ElementTree.Element) -> None:
+        try:
+            for token in element.get('transform', '').split(')'):
+                strippedToken = token.strip()
+                if (strippedToken.startswith('translate(')):
+                    coords = strippedToken[10:].split(',')
+                    self.setPosition(QPointF(self.position().x() + self._fromPositionStr(coords[0]),
+                                             self.position().y() + self._fromPositionStr(coords[1])))
+                elif (strippedToken.startswith('scale(')):
+                    self.setFlipped(not self.isFlipped())
+                elif (strippedToken.startswith('rotate(')):
+                    self.setRotation(self.rotation() + int(float(strippedToken[7:]) / 90))
+        except (KeyError, ValueError):
+            pass
 
     # ==================================================================================================================
 

@@ -39,7 +39,9 @@ class DrawingPolylineItem(DrawingItem):
 
     def __copy__(self) -> 'DrawingPolylineItem':
         copiedItem = DrawingPolylineItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setPolyline(self.polyline())
         copiedItem.setPen(self.pen())
         copiedItem.setStartArrow(self.startArrow())
@@ -59,6 +61,11 @@ class DrawingPolylineItem(DrawingItem):
     def setPolyline(self, polyline: QPolygonF) -> None:
         if (polyline.size() >= 2):
             self._polyline = QPolygonF(polyline)
+
+            # Put the item's position at the center of the polyline
+            offset = polyline.boundingRect().center()
+            self.setPosition(self.mapToScene(offset))
+            self._polyline.translate(-offset)
 
             # Ensure that len(self._points) == self._polyline.size()
             while (len(self._points) < self._polyline.size()):
@@ -134,8 +141,10 @@ class DrawingPolylineItem(DrawingItem):
             self.setEndArrow(arrow)
 
     def property(self, name: str) -> typing.Any:
+        if (name == 'position'):
+            return self.position()
         if (name == 'polyline'):
-            return self.mapPolygonToScene(self.polyline())
+            return self.polyline()
         if (name == 'pen'):
             return self.pen()
         if (name == 'penStyle'):
@@ -225,11 +234,6 @@ class DrawingPolylineItem(DrawingItem):
                 polyline.takeAt(pointIndex)
                 polyline.insert(pointIndex, position)
 
-            # Keep the item's position at the center of the polyline
-            center = polyline.boundingRect().center()
-            self.setPosition(self.mapToScene(center))
-            polyline.translate(-center)
-
             self.setPolyline(polyline)
 
     # ==================================================================================================================
@@ -289,7 +293,7 @@ class DrawingPolylineItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
 
         element.set('points', self._toPointsStr(self._polyline))
 
@@ -298,7 +302,7 @@ class DrawingPolylineItem(DrawingItem):
         self._writeArrow(element, 'endArrow', self._endArrow)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
 
         self.setPolyline(self._fromPointsStr(element.get('points', '')))
 

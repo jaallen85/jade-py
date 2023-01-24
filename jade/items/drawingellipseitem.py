@@ -44,7 +44,6 @@ class DrawingEllipseItem(DrawingItem):
         self._brush: QBrush = QBrush()
         self._pen: QPen = QPen()
 
-        self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.ControlAndConnection))
         self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.Control))
         self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.ControlAndConnection))
         self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.Control))
@@ -52,10 +51,13 @@ class DrawingEllipseItem(DrawingItem):
         self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.Control))
         self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.ControlAndConnection))
         self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.Control))
+        self.addPoint(DrawingItemPoint(QPointF(0, 0), DrawingItemPoint.Type.ControlAndConnection))
 
     def __copy__(self) -> 'DrawingEllipseItem':
         copiedItem = DrawingEllipseItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setEllipse(self.ellipse())
         copiedItem.setBrush(self.brush())
         copiedItem.setPen(self.pen())
@@ -72,19 +74,25 @@ class DrawingEllipseItem(DrawingItem):
     # ==================================================================================================================
 
     def setEllipse(self, ellipse: QRectF) -> None:
-        self._ellipse = QRectF(ellipse)
+        if (ellipse.width() >= 0 and ellipse.height() >= 0):
+            self._ellipse = QRectF(ellipse)
 
-        # Set point positions to match self._ellipse
-        if (len(self._points) >= 8):
-            center = self._ellipse.center()
-            self._points[DrawingEllipseItem.PointIndex.TopLeft].setPosition(QPointF(ellipse.left(), ellipse.top()))
-            self._points[DrawingEllipseItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), ellipse.top()))
-            self._points[DrawingEllipseItem.PointIndex.TopRight].setPosition(QPointF(ellipse.right(), ellipse.top()))
-            self._points[DrawingEllipseItem.PointIndex.MiddleRight].setPosition(QPointF(ellipse.right(), center.y()))
-            self._points[DrawingEllipseItem.PointIndex.BottomRight].setPosition(QPointF(ellipse.right(), ellipse.bottom()))     # noqa
-            self._points[DrawingEllipseItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), ellipse.bottom()))
-            self._points[DrawingEllipseItem.PointIndex.BottomLeft].setPosition(QPointF(ellipse.left(), ellipse.bottom()))       # noqa
-            self._points[DrawingEllipseItem.PointIndex.MiddleLeft].setPosition(QPointF(ellipse.left(), center.y()))
+            # Put the item's position at the center of the ellipse
+            offset = ellipse.center()
+            self.setPosition(self.mapToScene(offset))
+            self._ellipse.translate(-offset)
+
+            # Set point positions to match self._ellipse
+            if (len(self._points) >= 8):
+                center = self._ellipse.center()
+                self._points[DrawingEllipseItem.PointIndex.TopLeft].setPosition(QPointF(self._ellipse.left(), self._ellipse.top()))         # noqa
+                self._points[DrawingEllipseItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), self._ellipse.top()))                 # noqa
+                self._points[DrawingEllipseItem.PointIndex.TopRight].setPosition(QPointF(self._ellipse.right(), self._ellipse.top()))       # noqa
+                self._points[DrawingEllipseItem.PointIndex.MiddleRight].setPosition(QPointF(self._ellipse.right(), center.y()))             # noqa
+                self._points[DrawingEllipseItem.PointIndex.BottomRight].setPosition(QPointF(self._ellipse.right(), self._ellipse.bottom())) # noqa
+                self._points[DrawingEllipseItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), self._ellipse.bottom()))           # noqa
+                self._points[DrawingEllipseItem.PointIndex.BottomLeft].setPosition(QPointF(self._ellipse.left(), self._ellipse.bottom()))   # noqa
+                self._points[DrawingEllipseItem.PointIndex.MiddleLeft].setPosition(QPointF(self._ellipse.left(), center.y()))               # noqa
 
     def ellipse(self) -> QRectF:
         return self._ellipse
@@ -128,8 +136,10 @@ class DrawingEllipseItem(DrawingItem):
     def property(self, name: str) -> typing.Any:
         if (name == 'position'):
             return self.position()
+        if (name == 'size'):
+            return self.ellipse().size()
         if (name == 'ellipse'):
-            return self.mapRectToScene(self.ellipse())
+            return self.ellipse()
         if (name == 'pen'):
             return self.pen()
         if (name == 'penStyle'):
@@ -192,36 +202,47 @@ class DrawingEllipseItem(DrawingItem):
                                                        self._points[DrawingEllipseItem.PointIndex.BottomRight])
 
             position = self.mapFromScene(position)
-            ellipse = QRectF(self._ellipse)
-            match (self._points.index(point)):
-                case DrawingEllipseItem.PointIndex.TopLeft:
-                    ellipse.setTopLeft(position)
-                case DrawingEllipseItem.PointIndex.TopMiddle:
-                    ellipse.setTop(position.y())
-                case DrawingEllipseItem.PointIndex.TopRight:
-                    ellipse.setTopRight(position)
-                case DrawingEllipseItem.PointIndex.MiddleRight:
-                    ellipse.setRight(position.x())
-                case DrawingEllipseItem.PointIndex.BottomRight:
-                    ellipse.setBottomRight(position)
-                case DrawingEllipseItem.PointIndex.BottomMiddle:
-                    ellipse.setBottom(position.y())
-                case DrawingEllipseItem.PointIndex.BottomLeft:
-                    ellipse.setBottomLeft(position)
-                case DrawingEllipseItem.PointIndex.MiddleLeft:
-                    ellipse.setLeft(position.x())
 
-            # Keep the item's position as the center of the ellipse
-            center = ellipse.center()
-            self.setPosition(self.mapToScene(center))
-            ellipse.translate(-center)
+            ellipse = QRectF(self._ellipse)
+            pointIndex = self._points.index(point)
+
+            # Ensure that ellipse.width() >= 0
+            if (pointIndex in (DrawingEllipseItem.PointIndex.TopLeft, DrawingEllipseItem.PointIndex.MiddleLeft,
+                               DrawingEllipseItem.PointIndex.BottomLeft)):
+                if (position.x() > ellipse.right()):
+                    ellipse.setLeft(ellipse.right())
+                else:
+                    ellipse.setLeft(position.x())
+            elif (pointIndex in (DrawingEllipseItem.PointIndex.TopRight, DrawingEllipseItem.PointIndex.MiddleRight,
+                                 DrawingEllipseItem.PointIndex.BottomRight)):
+                if (position.x() < ellipse.left()):
+                    ellipse.setRight(ellipse.left())
+                else:
+                    ellipse.setRight(position.x())
+
+            # Ensure that ellipse.height() >= 0
+            if (pointIndex in (DrawingEllipseItem.PointIndex.TopLeft, DrawingEllipseItem.PointIndex.TopMiddle,
+                               DrawingEllipseItem.PointIndex.TopRight)):
+                if (position.y() > ellipse.bottom()):
+                    ellipse.setTop(ellipse.bottom())
+                else:
+                    ellipse.setTop(position.y())
+            elif (pointIndex in (DrawingEllipseItem.PointIndex.BottomLeft, DrawingEllipseItem.PointIndex.BottomMiddle,
+                                 DrawingEllipseItem.PointIndex.BottomRight)):
+                if (position.y() < ellipse.top()):
+                    ellipse.setBottom(ellipse.top())
+                else:
+                    ellipse.setBottom(position.y())
 
             self.setEllipse(ellipse)
 
     # ==================================================================================================================
 
     def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
-        self.setEllipse(QRectF())
+        size = 8 * grid
+        if (size <= 0):
+            size = sceneRect.width() / 40
+        self.setEllipse(QRectF(-size, -size / 2, 2 * size, size))
 
     def placeResizeStartPoint(self) -> DrawingItemPoint | None:
         return self._points[DrawingEllipseItem.PointIndex.TopLeft] if (len(self._points) >= 8) else None
@@ -232,7 +253,7 @@ class DrawingEllipseItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
 
         element.set('x', self._toPositionStr(self._ellipse.left()))
         element.set('y', self._toPositionStr(self._ellipse.top()))
@@ -243,7 +264,7 @@ class DrawingEllipseItem(DrawingItem):
         self._writePen(element, 'pen', self._pen)
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
 
         self.setEllipse(QRectF(self._fromPositionStr(element.get('x', '0')),
                                self._fromPositionStr(element.get('y', '0')),

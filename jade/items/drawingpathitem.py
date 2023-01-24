@@ -55,7 +55,9 @@ class DrawingPathItem(DrawingItem):
 
     def __copy__(self) -> 'DrawingPathItem':
         copiedItem = DrawingPathItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setPathName(self.pathName())
         copiedItem.setPath(self.path(), self.pathRect())
 
@@ -84,7 +86,7 @@ class DrawingPathItem(DrawingItem):
     def setPath(self, path: QPainterPath, pathRect: QRectF) -> None:
         self._path = QPainterPath(path)
         self._pathRect = QRectF(pathRect)
-        self._updatePathTransforms()
+        self._updateTransformedPath()
 
     def pathName(self) -> str:
         return self._pathName
@@ -129,24 +131,32 @@ class DrawingPathItem(DrawingItem):
     # ==================================================================================================================
 
     def setRect(self, rect: QRectF) -> None:
-        self._rect = QRectF(rect)
+        if (rect.width() >= 0 and rect.height() >= 0):
+            self._rect = QRectF(rect)
 
-        # Set point positions to match self._rect
-        if (len(self._points) >= 8):
-            center = self._rect.center()
-            self._points[DrawingPathItem.PointIndex.TopLeft].setPosition(QPointF(rect.left(), rect.top()))
-            self._points[DrawingPathItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), rect.top()))
-            self._points[DrawingPathItem.PointIndex.TopRight].setPosition(QPointF(rect.right(), rect.top()))
-            self._points[DrawingPathItem.PointIndex.MiddleRight].setPosition(QPointF(rect.right(), center.y()))
-            self._points[DrawingPathItem.PointIndex.BottomRight].setPosition(QPointF(rect.right(), rect.bottom()))
-            self._points[DrawingPathItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), rect.bottom()))
-            self._points[DrawingPathItem.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
-            self._points[DrawingPathItem.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
+            # Put the item's position at the path origin
+            offset = self.mapFromPath(QPointF(0, 0))
+            self.setPosition(self.mapToScene(offset))
+            self._rect.translate(-offset)
 
-            self._updatePathTransforms()
+            # Set point positions to match self._rect
+            if (len(self._points) >= 8):
+                center = self._rect.center()
+                self._points[DrawingPathItem.PointIndex.TopLeft].setPosition(QPointF(self._rect.left(), self._rect.top()))          # noqa
+                self._points[DrawingPathItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), self._rect.top()))
+                self._points[DrawingPathItem.PointIndex.TopRight].setPosition(QPointF(self._rect.right(), self._rect.top()))        # noqa
+                self._points[DrawingPathItem.PointIndex.MiddleRight].setPosition(QPointF(self._rect.right(), center.y()))           # noqa
+                self._points[DrawingPathItem.PointIndex.BottomRight].setPosition(QPointF(self._rect.right(), self._rect.bottom()))  # noqa
+                self._points[DrawingPathItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), self._rect.bottom()))         # noqa
+                self._points[DrawingPathItem.PointIndex.BottomLeft].setPosition(QPointF(self._rect.left(), self._rect.bottom()))    # noqa
+                self._points[DrawingPathItem.PointIndex.MiddleLeft].setPosition(QPointF(self._rect.left(), center.y()))
 
+            # Set connection point positions based on self._rect
             for connectionPoint, pathPosition in self._additionalPathConnectionPoints.items():
                 connectionPoint.setPosition(self.mapFromPath(pathPosition))
+
+            # Update the transformed path based on self._rect
+            self._updateTransformedPath()
 
     def rect(self) -> QRectF:
         return self._rect
@@ -178,8 +188,12 @@ class DrawingPathItem(DrawingItem):
             self.setPen(pen)
 
     def property(self, name: str) -> typing.Any:
+        if (name == 'position'):
+            return self.position()
+        if (name == 'size'):
+            return self.rect().size()
         if (name == 'rect'):
-            return self.mapRectToScene(self.rect())
+            return self.rect()
         if (name == 'pen'):
             return self.pen()
         if (name == 'penStyle'):
@@ -193,15 +207,19 @@ class DrawingPathItem(DrawingItem):
     # ==================================================================================================================
 
     def mapToPath(self, position: QPointF) -> QPointF:
-        return QPointF((position.x() - self._rect.left()) / self._rect.width() * self._pathRect.width() + self._pathRect.left(),    # noqa
-	                   (position.y() - self._rect.top()) / self._rect.height() * self._pathRect.height() + self._pathRect.top())    # noqa
+        if (self._rect.width() != 0 and self._rect.height() != 0):
+            return QPointF((position.x() - self._rect.left()) / self._rect.width() * self._pathRect.width() + self._pathRect.left(),    # noqa
+                           (position.y() - self._rect.top()) / self._rect.height() * self._pathRect.height() + self._pathRect.top())    # noqa
+        return QPointF(position)
 
     def mapRectToPath(self, rect: QRectF) -> QRectF:
         return QRectF(self.mapToPath(rect.topLeft()), self.mapToPath(rect.bottomRight()))
 
     def mapFromPath(self, position: QPointF) -> QPointF:
-        return QPointF((position.x() - self._pathRect.left()) / self._pathRect.width() * self._rect.width() + self._rect.left(),    # noqa
-	                   (position.y() - self._pathRect.top()) / self._pathRect.height() * self._rect.height() + self._rect.top())    # noqa
+        if (self._pathRect.width() != 0 and self._pathRect.height() != 0):
+            return QPointF((position.x() - self._pathRect.left()) / self._pathRect.width() * self._rect.width() + self._rect.left(),    # noqa
+                           (position.y() - self._pathRect.top()) / self._pathRect.height() * self._rect.height() + self._rect.top())    # noqa
+        return QPointF(position)
 
     def mapRectFromPath(self, rect: QRectF) -> QRectF:
         return QRectF(self.mapFromPath(rect.topLeft()), self.mapFromPath(rect.bottomRight()))
@@ -239,29 +257,37 @@ class DrawingPathItem(DrawingItem):
     def resize(self, point: DrawingItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
         if (point in self._points):
             position = self.mapFromScene(position)
-            rect = QRectF(self._rect)
-            match (self._points.index(point)):
-                case DrawingPathItem.PointIndex.TopLeft:
-                    rect.setTopLeft(position)
-                case DrawingPathItem.PointIndex.TopMiddle:
-                    rect.setTop(position.y())
-                case DrawingPathItem.PointIndex.TopRight:
-                    rect.setTopRight(position)
-                case DrawingPathItem.PointIndex.MiddleRight:
-                    rect.setRight(position.x())
-                case DrawingPathItem.PointIndex.BottomRight:
-                    rect.setBottomRight(position)
-                case DrawingPathItem.PointIndex.BottomMiddle:
-                    rect.setBottom(position.y())
-                case DrawingPathItem.PointIndex.BottomLeft:
-                    rect.setBottomLeft(position)
-                case DrawingPathItem.PointIndex.MiddleLeft:
-                    rect.setLeft(position.x())
 
-            # Keep the item's position as the center of the rect
-            center = rect.center()
-            self.setPosition(self.mapToScene(center))
-            rect.translate(-center)
+            rect = QRectF(self._rect)
+            pointIndex = self._points.index(point)
+
+            # Ensure that rect.width() >= 0
+            if (pointIndex in (DrawingPathItem.PointIndex.TopLeft, DrawingPathItem.PointIndex.MiddleLeft,
+                               DrawingPathItem.PointIndex.BottomLeft)):
+                if (position.x() > rect.right()):
+                    rect.setLeft(rect.right())
+                else:
+                    rect.setLeft(position.x())
+            elif (pointIndex in (DrawingPathItem.PointIndex.TopRight, DrawingPathItem.PointIndex.MiddleRight,
+                                 DrawingPathItem.PointIndex.BottomRight)):
+                if (position.x() < rect.left()):
+                    rect.setRight(rect.left())
+                else:
+                    rect.setRight(position.x())
+
+            # Ensure that rect.height() >= 0
+            if (pointIndex in (DrawingPathItem.PointIndex.TopLeft, DrawingPathItem.PointIndex.TopMiddle,
+                               DrawingPathItem.PointIndex.TopRight)):
+                if (position.y() > rect.bottom()):
+                    rect.setTop(rect.bottom())
+                else:
+                    rect.setTop(position.y())
+            elif (pointIndex in (DrawingPathItem.PointIndex.BottomLeft, DrawingPathItem.PointIndex.BottomMiddle,
+                                 DrawingPathItem.PointIndex.BottomRight)):
+                if (position.y() < rect.top()):
+                    rect.setBottom(rect.top())
+                else:
+                    rect.setBottom(position.y())
 
             self.setRect(rect)
 
@@ -277,7 +303,7 @@ class DrawingPathItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        super().writeToXml(element)
+        self._writeTransform(element)
 
         element.set('pathName', self._pathName)
 
@@ -288,40 +314,33 @@ class DrawingPathItem(DrawingItem):
 
         self._writePen(element, 'pen', self._pen)
 
-        element.set('pathLeft', self._toPositionStr(self._pathRect.left()))
-        element.set('pathTop', self._toPositionStr(self._pathRect.top()))
-        element.set('pathWidth', self._toSizeStr(self._pathRect.width()))
-        element.set('pathHeight', self._toSizeStr(self._pathRect.height()))
-
+        element.set('viewBox', self._toViewBoxStr(self._pathRect))
         element.set('d', self._toPathStr(self._path))
 
         element.set('connectionPoints', self._toPointsStr(self.connectionPoints()))
 
     def readFromXml(self, element: ElementTree.Element) -> None:
-        super().readFromXml(element)
+        self._readTransform(element)
 
         self.setPathName(element.get('pathName', ''))
+
+        self.setPen(self._readPen(element, 'pen'))
+
+        self.setPath(self._fromPathStr(element.get('d', '')),
+                     self._fromViewBoxStr(element.get('viewBox', '0 0 0 0')))
+
+        connectionPoints = self._fromPointsStr(element.get('connectionPoints', ''))
+        for index in range(connectionPoints.size()):
+            self.addConnectionPoint(connectionPoints.at(index))
 
         self.setRect(QRectF(self._fromPositionStr(element.get('x', '0')),
                             self._fromPositionStr(element.get('y', '0')),
                             self._fromSizeStr(element.get('width', '0')),
                             self._fromSizeStr(element.get('height', '0'))))
 
-        self.setPen(self._readPen(element, 'pen'))
-
-        self.setPath(self._fromPathStr(element.get('d', '')),
-                     QRectF(self._fromPositionStr(element.get('pathLeft', '0')),
-                            self._fromPositionStr(element.get('pathTop', '0')),
-                            self._fromSizeStr(element.get('pathWidth', '0')),
-                            self._fromSizeStr(element.get('pathHeight', '0'))))
-
-        connectionPoints = self._fromPointsStr(element.get('connectionPoints', ''))
-        for index in range(connectionPoints.size()):
-            self.addConnectionPoint(connectionPoints.at(index))
-
     # ==================================================================================================================
 
-    def _updatePathTransforms(self) -> None:
+    def _updateTransformedPath(self) -> None:
         self._transformedPath.clear()
 
         curveDataPoints = []

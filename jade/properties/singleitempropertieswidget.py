@@ -14,19 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from PySide6.QtCore import Qt, QLineF, QPointF, QRectF, Signal
+from PySide6.QtCore import Qt, QLineF, QPointF, QRectF, QSizeF, Signal
 from PySide6.QtGui import QBrush, QColor, QFont, QFontMetrics, QIcon, QPen, QPolygonF
 from PySide6.QtWidgets import (QComboBox, QFontComboBox, QFormLayout, QFrame, QGroupBox, QHBoxLayout, QPlainTextEdit,
                                QToolButton, QVBoxLayout, QWidget)
 from ..drawing.drawingarrow import DrawingArrow
 from ..drawing.drawingitem import DrawingItem
 from ..drawing.drawingitempoint import DrawingItemPoint
-from .helperwidgets import ColorWidget, PositionWidget, SizeEdit
+from .helperwidgets import ColorWidget, PositionWidget, SizeEdit, SizeWidget
 
 
 class SingleItemPropertiesWidget(QWidget):
     itemMoved = Signal(QPointF)
     itemResized = Signal(DrawingItemPoint, QPointF)
+    itemResized2 = Signal(DrawingItemPoint, QPointF, DrawingItemPoint, QPointF)
     itemPropertyChanged = Signal(str, object)
 
     def __init__(self) -> None:
@@ -37,7 +38,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._labelWidth: int = QFontMetrics(super().font()).boundingRect("Minor Grid Spacing:").width() + 8
 
         layout = QVBoxLayout()
-        layout.addWidget(self._createPositionGroup())
+        layout.addWidget(self._createPositionAndSizeGroup())
         layout.addWidget(self._createLineGroup())
         layout.addWidget(self._createCurveGroup())
         layout.addWidget(self._createRectGroup())
@@ -50,21 +51,25 @@ class SingleItemPropertiesWidget(QWidget):
         layout.addWidget(QWidget(), 100)
         self.setLayout(layout)
 
-    def _createPositionGroup(self) -> QGroupBox:
+    def _createPositionAndSizeGroup(self) -> QGroupBox:
         self._positionWidget: PositionWidget = PositionWidget()
         self._positionWidget.positionChanged.connect(self._handlePositionChange)
 
-        self._positionGroup: QGroupBox = QGroupBox('Position')
-        self._positionLayout: QFormLayout = QFormLayout()
-        self._positionLayout.addRow('Position:', self._positionWidget)
-        self._positionLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
-        self._positionLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self._positionLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self._positionLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
-        self._positionGroup.setLayout(self._positionLayout)
-        self._positionGroup.setVisible(False)
+        self._sizeWidget: SizeWidget = SizeWidget()
+        self._sizeWidget.sizeChanged.connect(self._handleSizeChange)
 
-        return self._positionGroup
+        self._positionAndSizeGroup: QGroupBox = QGroupBox('Position')
+        self._positionAndSizeLayout: QFormLayout = QFormLayout()
+        self._positionAndSizeLayout.addRow('Position:', self._positionWidget)
+        self._positionAndSizeLayout.addRow('Size:', self._sizeWidget)
+        self._positionAndSizeLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        self._positionAndSizeLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._positionAndSizeLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self._positionAndSizeLayout.itemAt(0, QFormLayout.ItemRole.LabelRole).widget().setMinimumWidth(self._labelWidth)
+        self._positionAndSizeGroup.setLayout(self._positionAndSizeLayout)
+        self._positionAndSizeGroup.setVisible(False)
+
+        return self._positionAndSizeGroup
 
     def _createLineGroup(self) -> QGroupBox:
         self._lineStartWidget: PositionWidget = PositionWidget()
@@ -481,7 +486,7 @@ class SingleItemPropertiesWidget(QWidget):
     def setItem(self, item: DrawingItem) -> None:
         self._item = item
         self.blockSignals(True)
-        self._updatePositionGroup()
+        self._updatePositionAndSizeGroup()
         self._updateLineGroup()
         self._updateCurveGroup()
         self._updateRectGroup()
@@ -493,9 +498,10 @@ class SingleItemPropertiesWidget(QWidget):
         self._updateTextGroup()
         self.blockSignals(False)
 
-    def _updatePositionGroup(self) -> None:
+    def _updatePositionAndSizeGroup(self) -> None:
         if (self._item is not None):
             position = self._item.property('position')
+            size = self._item.property('size')
 
             # Position
             showPosition = False
@@ -503,10 +509,18 @@ class SingleItemPropertiesWidget(QWidget):
                 showPosition = True
                 self._positionWidget.setPosition(position)
 
+            # Size
+            showSize = False
+            if (isinstance(size, QSizeF)):
+                showSize = True
+                self._sizeWidget.setSize(size)
+
             # Set position group visibility
-            self._positionGroup.setVisible(showPosition)
+            self._positionAndSizeLayout.setRowVisible(self._positionWidget, showPosition)
+            self._positionAndSizeLayout.setRowVisible(self._sizeWidget, showSize)
+            self._positionAndSizeGroup.setVisible(showPosition or showSize)
         else:
-            self._positionGroup.setVisible(False)
+            self._positionAndSizeGroup.setVisible(False)
 
     def _updateLineGroup(self) -> None:
         if (self._item is not None):
@@ -516,8 +530,8 @@ class SingleItemPropertiesWidget(QWidget):
             showLine = False
             if (isinstance(line, QLineF)):
                 showLine = True
-                self._lineStartWidget.setPosition(line.p1())
-                self._lineEndWidget.setPosition(line.p2())
+                self._lineStartWidget.setPosition(self._item.mapToScene(line.p1()))
+                self._lineEndWidget.setPosition(self._item.mapToScene(line.p2()))
 
             # Set line group visibility
             self._lineGroup.setVisible(showLine)
@@ -532,10 +546,10 @@ class SingleItemPropertiesWidget(QWidget):
             showCurve = False
             if (isinstance(curve, QPolygonF) and curve.size() >= 4):
                 showCurve = True
-                self._curveStartWidget.setPosition(curve.at(0))
-                self._curveStartControlWidget.setPosition(curve.at(1))
-                self._curveEndControlWidget.setPosition(curve.at(2))
-                self._curveEndWidget.setPosition(curve.at(3))
+                self._curveStartWidget.setPosition(self._item.mapToScene(curve.at(0)))
+                self._curveStartControlWidget.setPosition(self._item.mapToScene(curve.at(1)))
+                self._curveEndControlWidget.setPosition(self._item.mapToScene(curve.at(2)))
+                self._curveEndWidget.setPosition(self._item.mapToScene(curve.at(3)))
 
             # Set curve group visibility
             self._curveGroup.setVisible(showCurve)
@@ -551,8 +565,8 @@ class SingleItemPropertiesWidget(QWidget):
             showRect = False
             if (isinstance(rect, QRectF)):
                 showRect = True
-                self._rectTopLeftWidget.setPosition(rect.topLeft())
-                self._rectBottomRightWidget.setPosition(rect.bottomRight())
+                self._rectTopLeftWidget.setPosition(self._item.mapToScene(rect.topLeft()))
+                self._rectBottomRightWidget.setPosition(self._item.mapToScene(rect.bottomRight()))
 
             # Corner radius
             showCornerRadius = False
@@ -576,8 +590,8 @@ class SingleItemPropertiesWidget(QWidget):
             showEllipse = False
             if (isinstance(ellipse, QRectF)):
                 showEllipse = True
-                self._ellipseTopLeftWidget.setPosition(ellipse.topLeft())
-                self._ellipseBottomRightWidget.setPosition(ellipse.bottomRight())
+                self._ellipseTopLeftWidget.setPosition(self._item.mapToScene(ellipse.topLeft()))
+                self._ellipseBottomRightWidget.setPosition(self._item.mapToScene(ellipse.bottomRight()))
 
             # Set ellipse group visibility
             self._ellipseGroup.setVisible(showEllipse)
@@ -611,7 +625,7 @@ class SingleItemPropertiesWidget(QWidget):
                         self._polygonWidgets.append(newPolygonWidget)
 
                 for index in range(polygon.size()):
-                    self._polygonWidgets[index].setPosition(polygon.at(index))
+                    self._polygonWidgets[index].setPosition(self._item.mapToScene(polygon.at(index)))
 
             # Set polygon group visibility
             self._polygonGroup.setVisible(showPolygon)
@@ -645,7 +659,7 @@ class SingleItemPropertiesWidget(QWidget):
                         self._polylineWidgets.append(newPolylineWidget)
 
                 for index in range(polyline.size()):
-                    self._polylineWidgets[index].setPosition(polyline.at(index))
+                    self._polylineWidgets[index].setPosition(self._item.mapToScene(polyline.at(index)))
 
             # Set polyline group visibility
             self._polylineGroup.setVisible(showPolyline)
@@ -751,6 +765,11 @@ class SingleItemPropertiesWidget(QWidget):
 
     def _handlePositionChange(self, position: QPointF) -> None:
         self.itemMoved.emit(position)
+
+    def _handleSizeChange(self, size: QSizeF) -> None:
+        if (isinstance(self._item, DrawingItem)):
+            self.itemResized2.emit(self._item.placeResizeStartPoint(), self._item.mapToScene(QPointF(-size.width() / 2, -size.height() / 2)),
+                                   self._item.placeResizeEndPoint(), self._item.mapToScene(QPointF(size.width() / 2, size.height() / 2)))
 
     # ==================================================================================================================
 

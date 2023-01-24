@@ -33,7 +33,9 @@ class DrawingTextRectItem(DrawingRectItem):
 
     def __copy__(self) -> 'DrawingTextRectItem':
         copiedItem = DrawingTextRectItem()
-        copiedItem._copyBaseClassValues(self)
+        copiedItem.setPosition(self.position())
+        copiedItem.setRotation(self.rotation())
+        copiedItem.setFlipped(self.isFlipped())
         copiedItem.setRect(self.rect())
         copiedItem.setCornerRadius(self.cornerRadius())
         copiedItem.setBrush(self.brush())
@@ -137,8 +139,10 @@ class DrawingTextRectItem(DrawingRectItem):
     def property(self, name: str) -> typing.Any:
         if (name == 'position'):
             return self.position()
+        if (name == 'size'):
+            return self.rect().size()
         if (name == 'rect'):
-            return self.mapRectToScene(self.rect())
+            return self.rect()
         if (name == 'cornerRadius'):
             return self.cornerRadius()
         if (name == 'pen'):
@@ -223,11 +227,7 @@ class DrawingTextRectItem(DrawingRectItem):
     # ==================================================================================================================
 
     def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
-        size = 8 * grid
-        if (size <= 0):
-            size = sceneRect.width() / 40
-
-        self.setRect(QRectF(-size, -size / 2, 2 * size, size))
+        super().placeCreateEvent(sceneRect, grid)
         self.setCaption('Label')
 
     # ==================================================================================================================
