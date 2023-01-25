@@ -373,8 +373,6 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
                     self.setSelectedItems(command.items())
                 else:
                     self.setSelectedItems([])
-            else:
-                self.setSelectedItems([])
 
             self._undoStack.undo()
         else:
@@ -393,8 +391,6 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
                     self.setSelectedItems(command.items())
                 else:
                     self.setSelectedItems([])
-            else:
-                self.setSelectedItems([])
 
             self._undoStack.redo()
         else:

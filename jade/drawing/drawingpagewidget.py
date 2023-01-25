@@ -76,8 +76,6 @@ class DrawingPageWidget(DrawingPageView):
     def _reorderItems(self, items: list[DrawingItem]) -> None:
         # Assumes that all members of self.items() are present in items with no extras
         self._items = items
-        if (self._mode == DrawingPageWidget.Mode.SelectMode):
-            self.setSelectedItems(items)
         self.viewport().update()
 
     def moveItems(self, items: list[DrawingItem], positions: dict[DrawingItem, QPointF]) -> None:
@@ -336,7 +334,7 @@ class DrawingPageWidget(DrawingPageView):
                 itemsOrdered.remove(item)
                 itemsOrdered.insert(itemIndex + 1, item)
 
-            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered))
+            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered, self._selectedItems.copy()))
 
     def sendCurrentItemsBackward(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) > 0):
@@ -349,7 +347,7 @@ class DrawingPageWidget(DrawingPageView):
                 itemsOrdered.remove(item)
                 itemsOrdered.insert(itemIndex - 1, item)
 
-            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered))
+            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered, self._selectedItems.copy()))
 
     def bringCurrentItemsToFront(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) > 0):
@@ -361,7 +359,7 @@ class DrawingPageWidget(DrawingPageView):
                 itemsOrdered.remove(item)
                 itemsOrdered.append(item)
 
-            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered))
+            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered, self._selectedItems.copy()))
 
     def sendCurrentItemsToBack(self) -> None:
         if (self._mode == DrawingPageWidget.Mode.SelectMode and len(self._selectedItems) > 0):
@@ -373,7 +371,7 @@ class DrawingPageWidget(DrawingPageView):
                 itemsOrdered.remove(item)
                 itemsOrdered.insert(0, item)
 
-            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered))
+            self._pushUndoCommand(self._reorderItemsCommand(itemsOrdered, self._selectedItems.copy()))
 
     # ==================================================================================================================
 
@@ -600,9 +598,10 @@ class DrawingPageWidget(DrawingPageView):
         removeCommand.undo()
         return removeCommand
 
-    def _reorderItemsCommand(self, items: list[DrawingItem]) -> 'DrawingReorderItemsCommand':
+    def _reorderItemsCommand(self, items: list[DrawingItem],
+                             selectedItems: list[DrawingItem]) -> 'DrawingReorderItemsCommand':
         # Assumes that all members of self.items() are present in items with no extras
-        return DrawingReorderItemsCommand(self, items)
+        return DrawingReorderItemsCommand(self, items, selectedItems)
 
     def _moveItemsCommand(self, items: list[DrawingItem], positions: dict[DrawingItem, QPointF], finalMove: bool,
                           place: bool) -> 'DrawingMoveItemsCommand':
@@ -909,23 +908,23 @@ class DrawingRemoveItemsCommand(DrawingPageUndoCommand):
 
 # ======================================================================================================================
 
-class DrawingReorderItemsCommand(DrawingPageUndoCommand):
-    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem]) -> None:
-        super().__init__(page, 'Reorder Items')
+class DrawingReorderItemsCommand(DrawingItemsUndoCommand):
+    def __init__(self, page: DrawingPageWidget, items: list[DrawingItem], selectedItems: list[DrawingItem]) -> None:
+        super().__init__(page, selectedItems, 'Reorder Items')
 
         # Assumes each item in items is a member of page.items() and no items have been added or removed
-        self._items: list[DrawingItem] = items
-        self._originalItems: list[DrawingItem] = self.page().items()
+        self._itemOrder: list[DrawingItem] = items
+        self._originalItemOrder: list[DrawingItem] = self.page().items()
 
     def redo(self) -> None:
         # pylint: disable-next=W0212
-        self.page()._reorderItems(self._items)
+        self.page()._reorderItems(self._itemOrder)
         super().redo()
 
     def undo(self) -> None:
         super().undo()
         # pylint: disable-next=W0212
-        self.page()._reorderItems(self._originalItems)
+        self.page()._reorderItems(self._originalItemOrder)
 
 
 # ======================================================================================================================
