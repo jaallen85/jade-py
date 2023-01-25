@@ -143,8 +143,6 @@ class DrawingLineItem(DrawingItem):
             self.setEndArrow(arrow)
 
     def property(self, name: str) -> typing.Any:
-        if (name == 'position'):
-            return self.position()
         if (name == 'line'):
             return self.line()
         if (name == 'pen'):
@@ -246,12 +244,12 @@ class DrawingLineItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        self._writeTransform(element)
-
-        element.set('x1', self._toPositionStr(self._line.x1()))
-        element.set('y1', self._toPositionStr(self._line.y1()))
-        element.set('x2', self._toPositionStr(self._line.x2()))
-        element.set('y2', self._toPositionStr(self._line.y2()))
+        p1 = self.mapToScene(self._line.p1())
+        p2 = self.mapToScene(self._line.p2())
+        element.set('x1', self._toPositionStr(p1.x()))
+        element.set('y1', self._toPositionStr(p1.y()))
+        element.set('x2', self._toPositionStr(p2.x()))
+        element.set('y2', self._toPositionStr(p2.y()))
 
         self._writePen(element, 'pen', self._pen)
         self._writeArrow(element, 'startArrow', self._startArrow)

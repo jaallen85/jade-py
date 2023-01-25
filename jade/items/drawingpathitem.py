@@ -188,10 +188,6 @@ class DrawingPathItem(DrawingItem):
             self.setPen(pen)
 
     def property(self, name: str) -> typing.Any:
-        if (name == 'position'):
-            return self.position()
-        if (name == 'size'):
-            return self.rect().size()
         if (name == 'rect'):
             return self.rect()
         if (name == 'pen'):
@@ -303,14 +299,20 @@ class DrawingPathItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        self._writeTransform(element)
-
         element.set('pathName', self._pathName)
 
-        element.set('x', self._toPositionStr(self._rect.left()))
-        element.set('y', self._toPositionStr(self._rect.top()))
-        element.set('width', self._toSizeStr(self._rect.width()))
-        element.set('height', self._toSizeStr(self._rect.height()))
+        if (self.rotation() == 0 and not self.isFlipped()):
+            rect = self.mapRectToScene(self._rect)
+            element.set('x', self._toPositionStr(rect.left()))
+            element.set('y', self._toPositionStr(rect.top()))
+            element.set('width', self._toSizeStr(rect.width()))
+            element.set('height', self._toSizeStr(rect.height()))
+        else:
+            self._writeTransform(element)
+            element.set('x', self._toPositionStr(self._rect.left()))
+            element.set('y', self._toPositionStr(self._rect.top()))
+            element.set('width', self._toSizeStr(self._rect.width()))
+            element.set('height', self._toSizeStr(self._rect.height()))
 
         self._writePen(element, 'pen', self._pen)
 

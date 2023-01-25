@@ -134,10 +134,6 @@ class DrawingEllipseItem(DrawingItem):
             self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
-        if (name == 'position'):
-            return self.position()
-        if (name == 'size'):
-            return self.ellipse().size()
         if (name == 'ellipse'):
             return self.ellipse()
         if (name == 'pen'):
@@ -253,12 +249,18 @@ class DrawingEllipseItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        self._writeTransform(element)
-
-        element.set('x', self._toPositionStr(self._ellipse.left()))
-        element.set('y', self._toPositionStr(self._ellipse.top()))
-        element.set('width', self._toSizeStr(self._ellipse.width()))
-        element.set('height', self._toSizeStr(self._ellipse.height()))
+        if (self.rotation() == 0 and not self.isFlipped()):
+            ellipse = self.mapRectToScene(self._ellipse)
+            element.set('x', self._toPositionStr(ellipse.left()))
+            element.set('y', self._toPositionStr(ellipse.top()))
+            element.set('width', self._toSizeStr(ellipse.width()))
+            element.set('height', self._toSizeStr(ellipse.height()))
+        else:
+            self._writeTransform(element)
+            element.set('x', self._toPositionStr(self._ellipse.left()))
+            element.set('y', self._toPositionStr(self._ellipse.top()))
+            element.set('width', self._toSizeStr(self._ellipse.width()))
+            element.set('height', self._toSizeStr(self._ellipse.height()))
 
         self._writeBrush(element, 'brush', self._brush)
         self._writePen(element, 'pen', self._pen)

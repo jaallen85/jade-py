@@ -136,10 +136,6 @@ class DrawingTextEllipseItem(DrawingEllipseItem):
             self.setTextBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
-        if (name == 'position'):
-            return self.position()
-        if (name == 'size'):
-            return self.ellipse().size()
         if (name == 'ellipse'):
             return self.ellipse()
         if (name == 'pen'):

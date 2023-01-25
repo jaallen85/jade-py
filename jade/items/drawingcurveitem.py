@@ -155,8 +155,6 @@ class DrawingCurveItem(DrawingItem):
             self.setEndArrow(arrow)
 
     def property(self, name: str) -> typing.Any:
-        if (name == 'position'):
-            return self.position()
         if (name == 'curve'):
             return self.curve()
         if (name == 'pen'):
@@ -289,16 +287,19 @@ class DrawingCurveItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        self._writeTransform(element)
-
-        element.set('x1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartPoint).x()))
-        element.set('y1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartPoint).y()))
-        element.set('cx1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartControlPoint).x()))
-        element.set('cy1', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.StartControlPoint).y()))
-        element.set('cx2', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.EndControlPoint).x()))
-        element.set('cy2', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.EndControlPoint).y()))
-        element.set('x2', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.EndPoint).x()))
-        element.set('y2', self._toPositionStr(self._curve.at(DrawingCurveItem.PointIndex.EndPoint).y()))
+        if (self._curve.size() == 4):
+            p1 = self.mapToScene(self._curve.at(DrawingCurveItem.PointIndex.StartPoint))
+            cp1 = self.mapToScene(self._curve.at(DrawingCurveItem.PointIndex.StartControlPoint))
+            cp2 = self.mapToScene(self._curve.at(DrawingCurveItem.PointIndex.EndControlPoint))
+            p2 = self.mapToScene(self._curve.at(DrawingCurveItem.PointIndex.EndPoint))
+            element.set('x1', self._toPositionStr(p1.x()))
+            element.set('y1', self._toPositionStr(p1.y()))
+            element.set('cx1', self._toPositionStr(cp1.x()))
+            element.set('cy1', self._toPositionStr(cp1.y()))
+            element.set('cx2', self._toPositionStr(cp2.x()))
+            element.set('cy2', self._toPositionStr(cp2.y()))
+            element.set('x2', self._toPositionStr(p2.x()))
+            element.set('y2', self._toPositionStr(p2.y()))
 
         self._writePen(element, 'pen', self._pen)
         self._writeArrow(element, 'startArrow', self._startArrow)

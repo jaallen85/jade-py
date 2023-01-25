@@ -137,10 +137,6 @@ class DrawingTextRectItem(DrawingRectItem):
             self.setTextBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
-        if (name == 'position'):
-            return self.position()
-        if (name == 'size'):
-            return self.rect().size()
         if (name == 'rect'):
             return self.rect()
         if (name == 'cornerRadius'):

@@ -115,8 +115,6 @@ class DrawingPolygonItem(DrawingItem):
             self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> typing.Any:
-        if (name == 'position'):
-            return self.position()
         if (name == 'polygon'):
             return self.polygon()
         if (name == 'pen'):
@@ -238,9 +236,12 @@ class DrawingPolygonItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        self._writeTransform(element)
-
-        element.set('points', self._toPointsStr(self._polygon))
+        if (self.rotation() == 0 and not self.isFlipped()):
+            polygon = self.mapPolygonToScene(self._polygon)
+            element.set('points', self._toPointsStr(polygon))
+        else:
+            self._writeTransform(element)
+            element.set('points', self._toPointsStr(self._polygon))
 
         self._writeBrush(element, 'brush', self._brush)
         self._writePen(element, 'pen', self._pen)

@@ -141,8 +141,6 @@ class DrawingPolylineItem(DrawingItem):
             self.setEndArrow(arrow)
 
     def property(self, name: str) -> typing.Any:
-        if (name == 'position'):
-            return self.position()
         if (name == 'polyline'):
             return self.polyline()
         if (name == 'pen'):
@@ -293,9 +291,7 @@ class DrawingPolylineItem(DrawingItem):
     # ==================================================================================================================
 
     def writeToXml(self, element: ElementTree.Element) -> None:
-        self._writeTransform(element)
-
-        element.set('points', self._toPointsStr(self._polyline))
+        element.set('points', self._toPointsStr(self.mapPolygonToScene(self._polyline)))
 
         self._writePen(element, 'pen', self._pen)
         self._writeArrow(element, 'startArrow', self._startArrow)

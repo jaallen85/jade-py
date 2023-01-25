@@ -120,19 +120,19 @@ class SingleItemPropertiesWidget(QWidget):
         return self._curveGroup
 
     def _createRectGroup(self) -> QGroupBox:
-        self._rectTopLeftWidget: PositionWidget = PositionWidget()
-        self._rectTopLeftWidget.positionChanged.connect(self._handleRectTopLeftChange)
+        self._rectPositionWidget: PositionWidget = PositionWidget()
+        self._rectPositionWidget.positionChanged.connect(self._handleRectPositionChange)
 
-        self._rectBottomRightWidget: PositionWidget = PositionWidget()
-        self._rectBottomRightWidget.positionChanged.connect(self._handleRectBottomRightChange)
+        self._rectSizeWidget: SizeWidget = SizeWidget()
+        self._rectSizeWidget.sizeChanged.connect(self._handleRectSizeChange)
 
         self._rectCornerRadiusEdit: SizeEdit = SizeEdit()
         self._rectCornerRadiusEdit.sizeChanged.connect(self._handleRectCornerRadiusChange)
 
         self._rectGroup: QGroupBox = QGroupBox('Rect')
         self._rectLayout: QFormLayout = QFormLayout()
-        self._rectLayout.addRow('Top-Left:', self._rectTopLeftWidget)
-        self._rectLayout.addRow('Bottom-Right:', self._rectBottomRightWidget)
+        self._rectLayout.addRow('Position:', self._rectPositionWidget)
+        self._rectLayout.addRow('Size:', self._rectSizeWidget)
         self._rectLayout.addRow('Corner Radius:', self._rectCornerRadiusEdit)
         self._rectLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
         self._rectLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -144,16 +144,16 @@ class SingleItemPropertiesWidget(QWidget):
         return self._rectGroup
 
     def _createEllipseGroup(self) -> QGroupBox:
-        self._ellipseTopLeftWidget: PositionWidget = PositionWidget()
-        self._ellipseTopLeftWidget.positionChanged.connect(self._handleEllipseTopLeftChange)
+        self._ellipsePositionWidget: PositionWidget = PositionWidget()
+        self._ellipsePositionWidget.positionChanged.connect(self._handleEllipsePositionChange)
 
-        self._ellipseBottomRightWidget: PositionWidget = PositionWidget()
-        self._ellipseBottomRightWidget.positionChanged.connect(self._handleEllipseBottomRightChange)
+        self._ellipseSizeWidget: SizeWidget = SizeWidget()
+        self._ellipseSizeWidget.sizeChanged.connect(self._handleEllipseSizeChange)
 
         self._ellipseGroup: QGroupBox = QGroupBox('Ellipse')
         self._ellipseLayout: QFormLayout = QFormLayout()
-        self._ellipseLayout.addRow('Top-Left:', self._ellipseTopLeftWidget)
-        self._ellipseLayout.addRow('Bottom-Right:', self._ellipseBottomRightWidget)
+        self._ellipseLayout.addRow('Position:', self._ellipsePositionWidget)
+        self._ellipseLayout.addRow('Size:', self._ellipseSizeWidget)
         self._ellipseLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
         self._ellipseLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._ellipseLayout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
@@ -565,8 +565,11 @@ class SingleItemPropertiesWidget(QWidget):
             showRect = False
             if (isinstance(rect, QRectF)):
                 showRect = True
-                self._rectTopLeftWidget.setPosition(self._item.mapToScene(rect.topLeft()))
-                self._rectBottomRightWidget.setPosition(self._item.mapToScene(rect.bottomRight()))
+                self._rectPositionWidget.setPosition(self._item.mapToScene(rect.center()))
+                size = rect.size()
+                if (self._item.rotation() in (1, 3)):
+                    size = QSizeF(size.height(), size.width())
+                self._rectSizeWidget.setSize(size)
 
             # Corner radius
             showCornerRadius = False
@@ -575,10 +578,12 @@ class SingleItemPropertiesWidget(QWidget):
                 self._rectCornerRadiusEdit.setSize(cornerRadius)
 
             # Set rect group visibility
-            self._rectLayout.setRowVisible(self._rectTopLeftWidget, showRect)
-            self._rectLayout.setRowVisible(self._rectBottomRightWidget, showRect)
+            self._rectLayout.setRowVisible(self._rectPositionWidget, showRect)
+            self._rectLayout.setRowVisible(self._rectSizeWidget, showRect)
             self._rectLayout.setRowVisible(self._rectCornerRadiusEdit, showCornerRadius)
             self._rectGroup.setVisible(showRect or showCornerRadius)
+
+            self._rectGroup.setTitle(self._item.prettyName() if self._item.key() == 'path' else 'Rect')
         else:
             self._rectGroup.setVisible(False)
 
@@ -590,8 +595,11 @@ class SingleItemPropertiesWidget(QWidget):
             showEllipse = False
             if (isinstance(ellipse, QRectF)):
                 showEllipse = True
-                self._ellipseTopLeftWidget.setPosition(self._item.mapToScene(ellipse.topLeft()))
-                self._ellipseBottomRightWidget.setPosition(self._item.mapToScene(ellipse.bottomRight()))
+                self._ellipsePositionWidget.setPosition(self._item.mapToScene(ellipse.center()))
+                size = ellipse.size()
+                if (self._item.rotation() in (1, 3)):
+                    size = QSizeF(size.height(), size.width())
+                self._ellipseSizeWidget.setSize(size)
 
             # Set ellipse group visibility
             self._ellipseGroup.setVisible(showEllipse)
@@ -768,8 +776,10 @@ class SingleItemPropertiesWidget(QWidget):
 
     def _handleSizeChange(self, size: QSizeF) -> None:
         if (isinstance(self._item, DrawingItem)):
-            self.itemResized2.emit(self._item.placeResizeStartPoint(), self._item.mapToScene(QPointF(-size.width() / 2, -size.height() / 2)),
-                                   self._item.placeResizeEndPoint(), self._item.mapToScene(QPointF(size.width() / 2, size.height() / 2)))
+            self.itemResized2.emit(self._item.placeResizeStartPoint(),
+                                   self._item.mapToScene(QPointF(-size.width() / 2, -size.height() / 2)),
+                                   self._item.placeResizeEndPoint(),
+                                   self._item.mapToScene(QPointF(size.width() / 2, size.height() / 2)))
 
     # ==================================================================================================================
 
@@ -809,26 +819,28 @@ class SingleItemPropertiesWidget(QWidget):
 
     # ==================================================================================================================
 
-    def _handleRectTopLeftChange(self, position: QPointF) -> None:
-        if (self._item is not None):
-            self.itemResized.emit(self._item.placeResizeStartPoint(), position)
+    def _handleRectPositionChange(self, position: QPointF) -> None:
+        self.itemMoved.emit(position)
 
-    def _handleRectBottomRightChange(self, position: QPointF) -> None:
-        if (self._item is not None):
-            self.itemResized.emit(self._item.placeResizeEndPoint(), position)
+    def _handleRectSizeChange(self, size: QSizeF) -> None:
+        if (isinstance(self._item, DrawingItem)):
+            if (self._item.rotation() in (1, 3)):
+                size = QSizeF(size.height(), size.width())
+            self.itemResized2.emit(self._item.placeResizeStartPoint(),
+                                   self._item.mapToScene(QPointF(-size.width() / 2, -size.height() / 2)),
+                                   self._item.placeResizeEndPoint(),
+                                   self._item.mapToScene(QPointF(size.width() / 2, size.height() / 2)))
 
     def _handleRectCornerRadiusChange(self, size: float) -> None:
         self.itemPropertyChanged.emit('cornerRadius', size)
 
     # ==================================================================================================================
 
-    def _handleEllipseTopLeftChange(self, position: QPointF) -> None:
-        if (self._item is not None):
-            self.itemResized.emit(self._item.placeResizeStartPoint(), position)
+    def _handleEllipsePositionChange(self, position: QPointF) -> None:
+        self._handleRectPositionChange(position)
 
-    def _handleEllipseBottomRightChange(self, position: QPointF) -> None:
-        if (self._item is not None):
-            self.itemResized.emit(self._item.placeResizeEndPoint(), position)
+    def _handleEllipseSizeChange(self, size: QSizeF) -> None:
+        self._handleRectSizeChange(size)
 
     # ==================================================================================================================
 
