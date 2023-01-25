@@ -565,7 +565,7 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         if (not event.spontaneous()):
-            self._diagram.zoomFit()
+            self._diagram.zoomFitAll()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.closeDrawing()
@@ -585,12 +585,6 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
 
     def _setDrawingVisible(self, visible: bool) -> None:
         self._diagram.setVisible(visible)
-
-        # Update drawing
-        if (visible):
-            self._diagram.zoomFit()
-        else:
-            self._diagram.clear()
 
         # Update dock widget visibility
         if (visible):
@@ -612,6 +606,12 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         self._exportVsdxAction.setEnabled(visible)
 
         self._diagram.setActionsEnabled(visible)
+
+        # Update drawing
+        if (visible):
+            self._diagram.zoomFitAll()
+        else:
+            self._diagram.clear()
 
     def _setFilePath(self, path: str) -> None:
         self._filePath = path

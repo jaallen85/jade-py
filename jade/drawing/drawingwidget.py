@@ -352,7 +352,11 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
             newPage.readFromXml(pageElement)
 
             self.addPage(newPage)
-            self.zoomFit()
+
+        if (len(self._pages) > 0):
+            self.setCurrentPage(self._pages[0])
+        else:
+            self.setCurrentPage(None)
 
     # ==================================================================================================================
 
@@ -576,6 +580,13 @@ class DrawingWidget(QWidget, DrawingXmlInterface):
     def zoomFit(self) -> None:
         if (self._currentPage is not None):
             self._currentPage.zoomFit()
+
+    def zoomFitAll(self) -> None:
+        currentPage = self.currentPage()
+        for page in self._pages:
+            self.setCurrentPage(page)
+            page.zoomFit()
+        self.setCurrentPage(currentPage)
 
     def scale(self) -> float:
         if (self._currentPage is not None):

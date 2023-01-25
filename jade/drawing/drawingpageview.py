@@ -572,25 +572,33 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
             self._drawRubberBand(painter, self._selectRubberBandRect)
             self._drawRubberBand(painter, self._zoomRubberBandRect)
 
-    def _drawBackground(self, painter: QPainter, forceHideGrid: bool) -> None:
+    def _drawBackground(self, painter: QPainter, export: bool) -> None:
         bgColor = self._backgroundBrush.color()
         pageBorderColor = QColor(255 - bgColor.red(), 255 - bgColor.green(), 255 - bgColor.blue())
         contentBorderColor = QColor(128, 128, 128)
 
-        # Draw background
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing, False)
-        painter.setBackground(self._backgroundBrush)
-        painter.setBrush(self._backgroundBrush)
-        painter.setPen(QPen(QBrush(pageBorderColor), 0))
-        painter.drawRect(self.pageRect())
+        if (not export):
+            # Draw background
+            painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing, False)
+            painter.setBackground(self._backgroundBrush)
+            painter.setBrush(self._backgroundBrush)
+            painter.setPen(QPen(QBrush(pageBorderColor), 0))
+            painter.drawRect(self.pageRect())
 
-        # Draw content border
-        painter.setBrush(QBrush(Qt.GlobalColor.transparent))
-        painter.setPen(QPen(QBrush(contentBorderColor), 0))
-        painter.drawRect(self.contentRect())
+            # Draw content border
+            painter.setBrush(QBrush(Qt.GlobalColor.transparent))
+            painter.setPen(QPen(QBrush(contentBorderColor), 0))
+            painter.drawRect(self.contentRect())
+        else:
+            # Draw background
+            painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing, False)
+            painter.setBackground(self._backgroundBrush)
+            painter.setBrush(self._backgroundBrush)
+            painter.setPen(QPen(Qt.PenStyle.NoPen))
+            painter.drawRect(self.pageRect())
 
         # Draw grid
-        if (not forceHideGrid and self._gridVisible and self._grid > 0):
+        if (not export and self._gridVisible and self._grid > 0):
             gridRect = self.contentRect()
 
             # Minor grid lines
@@ -640,9 +648,9 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
             item.paint(painter)
 
             # For shape testing
-            painter.setBrush(QBrush(QColor(255, 0, 255, 128)))
-            painter.setPen(QPen(Qt.PenStyle.NoPen))
-            painter.drawPath(self._itemAdjustedShape(item))
+            # painter.setBrush(QBrush(QColor(255, 0, 255, 128)))
+            # painter.setPen(QPen(Qt.PenStyle.NoPen))
+            # painter.drawPath(self._itemAdjustedShape(item))
 
             painter.setTransform(item.transformInverse(), True)
             painter.translate(-item.position())
