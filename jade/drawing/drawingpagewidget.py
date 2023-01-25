@@ -568,7 +568,7 @@ class DrawingPageWidget(DrawingPageView):
     def _placeModeLeftMouseReleaseEvent(self, event: QMouseEvent) -> None:
         if (len(self._placeModeItems) > 0 or (len(self._placeModeItems) == 1 and self._placeModeItems[0].isValid())):
             # Place the items within the scene.
-            self._pushUndoCommand(self._addItemsCommand(self._placeModeItems, place=(len(self._placeModeItems) == 1)))
+            self._pushUndoCommand(self._addItemsCommand(self._placeModeItems, place=True))
 
             # Create a new set of place items
             newItems = DrawingItem.copyItems(self._placeModeItems)

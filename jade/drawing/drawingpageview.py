@@ -675,19 +675,18 @@ class DrawingPageView(QAbstractScrollArea, DrawingXmlInterface):
 
     def _drawHotpoints(self, painter: QPainter, items: list[DrawingItem]) -> None:
         if (len(items) > 0):
-            hotpointItem = items[0]
-
             painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing, False)
             painter.setBrush(QBrush(QColor(255, 128, 0, 192)))
             painter.setPen(QPen(Qt.PenStyle.NoPen))
 
-            for point in hotpointItem.points():
-                for otherItem in self._items:
-                    for otherPoint in otherItem.points():
-                        if (self._shouldConnect(point, otherPoint)):
-                            rect = self._pointRect(point)
-                            rect.adjust(-rect.width(), -rect.height(), rect.width(), rect.height())
-                            painter.drawEllipse(rect)
+            for item in items:
+                for point in item.points():
+                    for otherItem in self._items:
+                        for otherPoint in otherItem.points():
+                            if (self._shouldConnect(point, otherPoint)):
+                                rect = self._pointRect(point)
+                                rect.adjust(-rect.width(), -rect.height(), rect.width(), rect.height())
+                                painter.drawEllipse(rect)
 
     def _drawRubberBand(self, painter: QPainter, rect: QRect) -> None:
         if (rect.width() > 0 and rect.height() > 0):
