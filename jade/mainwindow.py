@@ -17,7 +17,7 @@
 import os
 import typing
 from xml.etree import ElementTree
-from PySide6.QtCore import Qt, QSize, QSizeF, SignalInstance
+from PySide6.QtCore import Qt, QByteArray, QSize, QSizeF, SignalInstance
 from PySide6.QtGui import (QAction, QBrush, QCloseEvent, QFontMetrics, QIcon, QImage, QKeySequence, QPainter,
                            QShowEvent)
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QDockWidget, QHBoxLayout, QLabel, QMainWindow,
@@ -33,6 +33,9 @@ from .pagesbrowser import PagesBrowser
 from .preferencesdialog import PreferencesDialog
 from .propertiesbrowser import PropertiesBrowser
 
+
+# Todo: add duplicate page feature
+# Todo: test out exporters
 
 class MainWindow(QMainWindow, DrawingXmlInterface):
     def __init__(self) -> None:
@@ -648,6 +651,8 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
         configElement.set('workingDir', self._workingDir)
         configElement.set('promptOverwrite', 'true' if (self._promptOverwrite) else 'false')
         configElement.set('promptCloseUnsaved', 'true' if (self._promptCloseUnsaved) else 'false')
+        configElement.set('windowGeometry', self.saveGeometry().toHex().toStdString())
+        configElement.set('windowState', self.saveState().toHex().toStdString())
 
         # Default drawing properties
         diagramElement = ElementTree.SubElement(configElement, 'diagramDefaults')
@@ -695,6 +700,12 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
                     self._promptOverwrite = configElement.get('promptOverwrite', 'true').lower() == 'true'
                 if ('promptCloseUnsaved' in configElement.attrib):
                     self._promptCloseUnsaved = configElement.get('promptCloseUnsaved', 'true').lower() == 'true'
+                if ('windowGeometry' in configElement.attrib):
+                    self.restoreGeometry(
+                        QByteArray.fromHex(QByteArray.fromStdString(configElement.get('windowGeometry', ''))))
+                if ('windowState' in configElement.attrib):
+                    self.restoreState(
+                        QByteArray.fromHex(QByteArray.fromStdString(configElement.get('windowState', ''))))
 
                 # Default drawing properties
                 for diagramElement in configElement.findall('diagramDefaults'):
@@ -722,19 +733,19 @@ class MainWindow(QMainWindow, DrawingXmlInterface):
 
                 # Default item properties
                 for itemElement in configElement.findall('itemDefaults'):
-                    if ('pen' in itemElement.attrib):
+                    if ('penWidth' in itemElement.attrib):
                         self._diagram.setDefaultPen(self._readPen(itemElement, 'pen'))
-                    if ('brush' in itemElement.attrib):
+                    if ('brushColor' in itemElement.attrib):
                         self._diagram.setDefaultBrush(self._readBrush(itemElement, 'brush'))
-                    if ('startArrow' in itemElement.attrib):
+                    if ('startArrowSize' in itemElement.attrib):
                         self._diagram.setDefaultStartArrow(self._readArrow(itemElement, 'startArrow'))
-                    if ('endArrow' in itemElement.attrib):
+                    if ('endArrowSize' in itemElement.attrib):
                         self._diagram.setDefaultEndArrow(self._readArrow(itemElement, 'endArrow'))
-                    if ('font' in itemElement.attrib):
+                    if ('fontSize' in itemElement.attrib):
                         self._diagram.setDefaultFont(self._readFont(itemElement, 'font'))
-                    if ('textAlignment' in itemElement.attrib):
+                    if ('textAlignmentHorizontal' in itemElement.attrib):
                         self._diagram.setDefaultTextAlignment(self._readAlignment(itemElement, 'textAlignment'))
-                    if ('text' in itemElement.attrib):
+                    if ('textColor' in itemElement.attrib):
                         self._diagram.setDefaultTextBrush(self._readBrush(itemElement, 'text'))
 
                 # Export settings
