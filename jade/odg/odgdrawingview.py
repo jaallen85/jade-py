@@ -13,3 +13,50 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QAbstractScrollArea
+from .odgitem import OdgItem
+
+
+class OdgDrawingView(QAbstractScrollArea):
+    scaleChanged = Signal(float)
+    modeChanged = Signal(int)
+    modeTextChanged = Signal(str)
+    mouseInfoChanged = Signal(str)
+
+    # ==================================================================================================================
+
+    def selectAll(self) -> None:
+        pass
+
+    def selectNone(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def setScale(self, scale: float) -> None:
+        pass
+
+    def zoomIn(self) -> None:
+        pass
+
+    def zoomOut(self) -> None:
+        pass
+
+    def zoomFit(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def setSelectMode(self) -> None:
+        pass
+
+    def setScrollMode(self) -> None:
+        pass
+
+    def setZoomMode(self) -> None:
+        pass
+
+    def setPlaceMode(self, items: list[OdgItem]) -> None:
+        pass

@@ -13,3 +13,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import os
+import sys
+from PySide6.QtCore import QDir
+from PySide6.QtWidgets import QApplication
+from jade.mainwindow import MainWindow
+
+app = QApplication(sys.argv)
+QDir.addSearchPath('icons', os.path.join(sys.path[0], 'icons'))
+
+window = MainWindow()
+window.show()
+
+app.exec()

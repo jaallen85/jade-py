@@ -13,3 +13,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from PySide6.QtWidgets import QWidget
+from .drawingwidget import DrawingWidget
+
+
+class PagesBrowser(QWidget):
+    def __init__(self, drawing: DrawingWidget) -> None:
+        super().__init__()
+        self._drawing: DrawingWidget = drawing

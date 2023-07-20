@@ -13,3 +13,84 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from PySide6.QtCore import Signal
+from .odgdrawingview import OdgDrawingView
+
+
+class OdgDrawingWidget(OdgDrawingView):
+    cleanTextChanged = Signal(str)
+
+    # ==================================================================================================================
+
+    def undo(self) -> None:
+        pass
+
+    def redo(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def cut(self) -> None:
+        pass
+
+    def copy(self) -> None:
+        pass
+
+    def paste(self) -> None:
+        pass
+
+    def delete(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def rotateCurrentItems(self) -> None:
+        pass
+
+    def rotateBackCurrentItems(self) -> None:
+        pass
+
+    def flipCurrentItemsHorizontal(self) -> None:
+        pass
+
+    def flipCurrentItemsVertical(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def bringCurrentItemsForward(self) -> None:
+        pass
+
+    def sendCurrentItemsBackward(self) -> None:
+        pass
+
+    def bringCurrentItemsToFront(self) -> None:
+        pass
+
+    def sendCurrentItemsToBack(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def groupCurrentItems(self) -> None:
+        pass
+
+    def ungroupCurrentItem(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def insertNewItemPoint(self) -> None:
+        pass
+
+    def removeCurrentItemPoint(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def insertNewPage(self) -> None:
+        pass
+
+    def removeCurrentPage(self) -> None:
+        pass
