@@ -18,6 +18,7 @@ from typing import Callable
 from PySide6.QtCore import Qt, QSize, SignalInstance
 from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
 from PySide6.QtWidgets import QApplication, QComboBox, QDockWidget, QHBoxLayout, QLabel, QMainWindow, QToolBar, QWidget
+from .odg.odgunits import OdgUnits
 from .drawingwidget import DrawingWidget
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
@@ -42,7 +43,7 @@ class MainWindow(QMainWindow):
                                                                 Qt.DockWidgetArea.RightDockWidgetArea)
 
         self._stylesBrowser: StylesBrowser = StylesBrowser(self._drawing)
-        self._stylesDock: QDockWidget = self._addDockWidget('Styles', self._propertiesBrowser,
+        self._stylesDock: QDockWidget = self._addDockWidget('Styles', self._stylesBrowser,
                                                             Qt.DockWidgetArea.RightDockWidgetArea)
         self.tabifyDockWidget(self._propertiesDock, self._stylesDock)
 
@@ -102,7 +103,7 @@ class MainWindow(QMainWindow):
         self._viewStylesAction: QAction = self._addAction('Styles...', self._stylesDock.show,
                                                           'icons:view-list-tree.png')
         self._viewPagesAction: QAction = self._addAction('Pages...', self._pagesDock.show,
-                                                          'icons:view-list-text.png')
+                                                         'icons:view-list-text.png')
 
         self._aboutAction: QAction = self._addAction('About...', self.about, 'icons:help-about.png')
         self._aboutQtAction: QAction = self._addAction('About Qt...', QApplication.aboutQt)
@@ -282,6 +283,7 @@ class MainWindow(QMainWindow):
 
     def closeDrawing(self) -> None:
         self._drawing.hide()
+        self._drawing.clear()
 
     # ==================================================================================================================
 
@@ -322,7 +324,7 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def _setZoomComboText(self, scale: float) -> None:
-        self._zoomCombo.setCurrentText(f'{scale * 100:.2f}%')
+        self._zoomCombo.setCurrentText(f'{scale * OdgUnits.convert(0.5, self._drawing.units(), OdgUnits.Inches):.2f}%')
 
     def _setZoomLevel(self, text: str) -> None:
         if (text == 'Fit to Page'):
