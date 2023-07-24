@@ -14,18 +14,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from abc import ABC, abstractmethod
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor, QPen
 from .odgmarker import OdgMarker
 from .odgunits import OdgUnits
 
 
-class OdgItemStyle:
+class OdgItemStyleBase(ABC):
     def __init__(self, name: str) -> None:
         self._name: str = name
 
         self._parent: OdgItemStyle | None = None
-        self._children: list[OdgItemStyle] = []
 
         self._penStyle: Qt.PenStyle | None = None
         self._penWidth: float | None = None
@@ -39,9 +39,6 @@ class OdgItemStyle:
         self._endMarkerStyle: OdgMarker.Style | None = None
         self._endMarkerSize: float | None = None
 
-    def __del__(self) -> None:
-        self.clear()
-
     # ==================================================================================================================
 
     def setName(self, name: str) -> None:
@@ -52,20 +49,12 @@ class OdgItemStyle:
 
     # ==================================================================================================================
 
+    @abstractmethod
     def setParent(self, parent: 'OdgItemStyle | None') -> None:
-        if (isinstance(self._parent, OdgItemStyle) and self in self._parent.children()):
-            # pylint: disable-next=W0212
-            self._parent._children.remove(self)
-        self._parent = parent
-        if (isinstance(self._parent, OdgItemStyle) and self not in self._parent.children()):
-            # pylint: disable-next=W0212
-            self._parent._children.append(self)
+        pass
 
     def parent(self) -> 'OdgItemStyle | None':
         return self._parent
-
-    def children(self) -> 'list[OdgItemStyle]':
-        return self._children
 
     # ==================================================================================================================
 
@@ -146,15 +135,6 @@ class OdgItemStyle:
             self._startMarkerSize = self._startMarkerSize * scale
         if (isinstance(self._endMarkerSize, float)):
             self._endMarkerSize = self._endMarkerSize * scale
-
-    def sort(self, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
-        self._children = sorted(self._children, key=(lambda x: x.name()),
-                                reverse=(order == Qt.SortOrder.DescendingOrder))
-        for child in self._children:
-            child.sort(order)
-
-    def clear(self) -> None:
-        del self._children[:]
 
     # ==================================================================================================================
 
@@ -245,6 +225,60 @@ class OdgItemStyle:
             return self._parent.lookupEndMarkerSize()
         return 0.0
 
+
+# ======================================================================================================================
+# ======================================================================================================================
+# ======================================================================================================================
+
+class OdgItemStyle(OdgItemStyleBase):
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self._children: list[OdgItemStyle] = []
+
+    def __del__(self) -> None:
+        self.clearChildren()
+
+    # ==================================================================================================================
+
+    def setParent(self, parent: 'OdgItemStyle | None') -> None:
+        if (isinstance(self._parent, OdgItemStyle)):
+            self._parent.removeChild(self)
+        self._parent = parent
+        if (isinstance(self._parent, OdgItemStyle)):
+            self._parent.addChild(self)
+
+    def addChild(self, style: 'OdgItemStyle') -> None:
+        self.insertChild(len(self._children), style)
+
+    def insertChild(self, index: int, style: 'OdgItemStyle') -> None:
+        if (style not in self._children):
+            self._children.insert(index, style)
+            # pylint: disable-next=W0212
+            style._parent = self
+
+    def removeChild(self, style: 'OdgItemStyle') -> None:
+        if (style in self._children):
+            self._children.remove(style)
+            # pylint: disable-next=W0212
+            style._parent = None
+
+    def clearChildren(self) -> None:
+        while (len(self._children) > 0):
+            style = self._children[-1]
+            self.removeChild(style)
+            del style
+
+    def children(self) -> 'list[OdgItemStyle]':
+        return self._children
+
+    # ==================================================================================================================
+
+    def sort(self, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
+        self._children = sorted(self._children, key=(lambda x: x.name()),
+                                reverse=(order == Qt.SortOrder.DescendingOrder))
+        for child in self._children:
+            child.sort(order)
+
     # ==================================================================================================================
 
     @classmethod
@@ -271,6 +305,6 @@ class OdgItemStyle:
 # ======================================================================================================================
 # ======================================================================================================================
 
-class OdgItemAutomaticStyle(OdgItemStyle):
+class OdgItemAutomaticStyle(OdgItemStyleBase):
     def setParent(self, parent: OdgItemStyle | None) -> None:
         self._parent = parent

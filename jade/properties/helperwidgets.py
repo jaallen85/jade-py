@@ -25,7 +25,7 @@ from ..odg.odgunits import OdgUnits
 class UnitsCombo(QComboBox):
     unitsChanged = Signal(OdgUnits)
 
-    def __init__(self, units: OdgUnits) -> None:
+    def __init__(self, units: OdgUnits = OdgUnits.Millimeters) -> None:
         super().__init__()
         self._units: OdgUnits = units
         self.addItems(['Millimeters', 'Inches'])
@@ -48,7 +48,8 @@ class UnitsCombo(QComboBox):
 class LengthEdit(QLineEdit):
     lengthChanged = Signal(float)
 
-    def __init__(self, length: float, units: OdgUnits, lengthMustBeNonNegative: bool = False) -> None:
+    def __init__(self, length: float = 0, units: OdgUnits = OdgUnits.Millimeters,
+                 lengthMustBeNonNegative: bool = False) -> None:
         super().__init__()
         self._length: float = 0 if (lengthMustBeNonNegative and length < 0) else length
         self._units: OdgUnits = units
@@ -62,7 +63,7 @@ class LengthEdit(QLineEdit):
             self._length = length
             self._updateText()
             if (lengthChanged):
-                self.lengthChanged.emit(self.length)
+                self.lengthChanged.emit(self._length)
         else:
             self.setText(self._cachedText)
 
@@ -120,7 +121,7 @@ class LengthEdit(QLineEdit):
 class PositionWidget(QWidget):
     positionChanged = Signal(QPointF)
 
-    def __init__(self, position: QPointF, units: OdgUnits) -> None:
+    def __init__(self, position: QPointF = QPointF(0, 0), units: OdgUnits = OdgUnits.Millimeters) -> None:
         super().__init__()
         self._xEdit: LengthEdit = LengthEdit(position.x(), units, lengthMustBeNonNegative=False)
         self._yEdit: LengthEdit = LengthEdit(position.y(), units, lengthMustBeNonNegative=False)
@@ -158,7 +159,8 @@ class PositionWidget(QWidget):
 class SizeWidget(QWidget):
     sizeChanged = Signal(QSizeF)
 
-    def __init__(self, size: QSizeF, units: OdgUnits, sizeMustBeNonNegative: bool = False) -> None:
+    def __init__(self, size: QSizeF = QSizeF(0, 0), units: OdgUnits = OdgUnits.Millimeters,
+                 sizeMustBeNonNegative: bool = False) -> None:
         super().__init__()
         self._widthEdit: LengthEdit = LengthEdit(size.width(), units, sizeMustBeNonNegative)
         self._heightEdit: LengthEdit = LengthEdit(size.height(), units, sizeMustBeNonNegative)

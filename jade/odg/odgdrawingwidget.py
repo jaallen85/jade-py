@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from enum import IntEnum
+from typing import Any
 from PySide6.QtCore import Qt, QPointF, QRectF, Signal
 from PySide6.QtGui import QCursor, QMouseEvent, QUndoCommand, QUndoStack
 from .odgdrawingview import OdgDrawingView
@@ -28,6 +29,7 @@ class OdgDrawingWidget(OdgDrawingView):
     cleanChanged = Signal(bool)
     cleanTextChanged = Signal(str)
 
+    currentPagePropertyChanged = Signal(str, object)
     currentItemsPropertyChanged = Signal(list)
 
     # ==================================================================================================================
@@ -112,7 +114,6 @@ class OdgDrawingWidget(OdgDrawingView):
             self.viewport().update()
 
     def rotateItems(self, items: list[OdgItem], position: QPointF) -> None:
-        # Assumes each item in items is a member of self.items()
         for item in items:
             item.rotate(position)
 
@@ -126,7 +127,6 @@ class OdgDrawingWidget(OdgDrawingView):
         self.viewport().update()
 
     def rotateBackItems(self, items: list[OdgItem], position: QPointF) -> None:
-        # Assumes each item in items is a member of self.items()
         for item in items:
             item.rotateBack(position)
 
@@ -140,7 +140,6 @@ class OdgDrawingWidget(OdgDrawingView):
         self.viewport().update()
 
     def flipItemsHorizontal(self, items: list[OdgItem], position: QPointF) -> None:
-        # Assumes each item in items is a member of self.items()
         for item in items:
             item.flipHorizontal(position)
 
@@ -154,7 +153,6 @@ class OdgDrawingWidget(OdgDrawingView):
         self.viewport().update()
 
     def flipItemsVertical(self, items: list[OdgItem], position: QPointF) -> None:
-        # Assumes each item in items is a member of self.items()
         for item in items:
             item.flipVertical(position)
 
@@ -168,7 +166,6 @@ class OdgDrawingWidget(OdgDrawingView):
         self.viewport().update()
 
     def insertItemPoint(self, item: OdgItem, position: QPointF) -> None:
-        # Assumes the item is a member of self.items()
         item.insertNewPoint(position)
 
         if (self._mode == OdgDrawingWidget.Mode.SelectMode and len(self._selectedItems) == 1 and
@@ -181,7 +178,6 @@ class OdgDrawingWidget(OdgDrawingView):
         self.viewport().update()
 
     def removeItemPoint(self, item: OdgItem, position: QPointF) -> None:
-        # Assumes the item is a member of self.items()
         item.removeExistingPoint(position)
 
         if (self._mode == OdgDrawingWidget.Mode.SelectMode and len(self._selectedItems) == 1 and
@@ -190,6 +186,34 @@ class OdgDrawingWidget(OdgDrawingView):
         elif (self._mode == OdgDrawingWidget.Mode.PlaceMode and len(self._placeModeItems) == 1 and
                 item in self._placeModeItems):
             self.currentItemsPropertyChanged.emit(self._placeModeItems)
+
+        self.viewport().update()
+
+    def setPageProperty(self, page: OdgPage, name: str, value: Any) -> None:
+        page.setProperty(name, value)
+
+        if (self._currentPage == page):
+            self.currentPagePropertyChanged.emit(name, value)
+
+        self.viewport().update()
+
+    def setItemsProperty(self, items: list[OdgItem], name: str, value: Any) -> None:
+        for item in items:
+            item.setProperty(name, value)
+
+        if ((self._mode == OdgDrawingWidget.Mode.SelectMode and items == self._selectedItems) or
+                (self._mode == OdgDrawingWidget.Mode.PlaceMode and items == self._placeModeItems)):
+            self.currentItemsPropertyChanged.emit(items)
+
+        self.viewport().update()
+
+    def setItemsPropertyDict(self, items: list[OdgItem], name: str, values: dict[OdgItem, Any]) -> None:
+        for item in items:
+            item.setProperty(name, values[item])
+
+        if ((self._mode == OdgDrawingWidget.Mode.SelectMode and items == self._selectedItems) or
+                (self._mode == OdgDrawingWidget.Mode.PlaceMode and items == self._placeModeItems)):
+            self.currentItemsPropertyChanged.emit(items)
 
         self.viewport().update()
 
@@ -489,7 +513,7 @@ class OdgDrawingWidget(OdgDrawingView):
         nameIsUnique = False
         while (not nameIsUnique):
             self._newPageCount = self._newPageCount + 1
-            name = f'Page{self._newPageCount}'
+            name = f'Page {self._newPageCount}'
             nameIsUnique = True
             for page in self._pages:
                 if (name == page.name()):
@@ -510,7 +534,20 @@ class OdgDrawingWidget(OdgDrawingView):
 
     def renameCurrentPage(self, name: str) -> None:
         if (isinstance(self._currentPage, OdgPage)):
-            self._currentPage.setName(name)
+            self._pushUndoCommand(OdgSetPagePropertyCommand(self, self._currentPage, 'name', name))
+
+    # ==================================================================================================================
+
+    def updateProperty(self, name: str, value: Any) -> None:
+        self._pushUndoCommand(OdgSetDrawingPropertyCommand(self, name, value))
+
+    def updateCurrentItemsProperty(self, name: str, value: Any) -> None:
+        if (self._mode == OdgDrawingWidget.Mode.SelectMode):
+            if (len(self._selectedItems) > 0):
+                self._pushUndoCommand(OdgSetItemsPropertyCommand(self, self._selectedItems, name, value))
+        elif (self._mode == OdgDrawingWidget.Mode.PlaceMode):
+            if (len(self._placeModeItems) > 0):
+                self.setItemsProperty(self._placeModeItems, name, value)
 
     # ==================================================================================================================
 
@@ -1318,3 +1355,87 @@ class OdgItemPointDisconnectCommand(OdgUndoCommand):
         super().undo()
         self._point1.addConnection(self._point2)
         self._point2.addConnection(self._point1)
+
+
+# ======================================================================================================================
+
+class OdgSetItemsPropertyCommand(OdgItemsUndoCommand):
+    def __init__(self, drawing: OdgDrawingWidget, items: list[OdgItem], name: str, value: Any) -> None:
+        super().__init__(drawing, items, 'Set Items Property')
+
+        self._name: str = name
+        self._value: Any = value
+
+        self._originalValues: dict[OdgItem, Any] = {}
+        for item in self._items:
+            self._originalValues[item] = item.property(name)
+
+    def name(self) -> str:
+        return self._name
+
+    def value(self) -> Any:
+        return self._value
+
+    def id(self) -> int:
+        return OdgItemsUndoCommand.Id.SetItemsPropertyId
+
+    def mergeWith(self, command: QUndoCommand) -> bool:
+        if (isinstance(command, OdgSetItemsPropertyCommand) and self.drawing() == command.drawing()):
+            if (len(self.items()) == 1 and len(command.items()) == 1 and self.items()[0] == command.items()[0] and
+                    self.name() == 'caption' and command.name() == 'caption'):
+                self._value = command.value()
+                self.mergeChildren(command)
+                return True
+        return False
+
+    def redo(self) -> None:
+        self._drawing.setItemsProperty(self._items, self._name, self._value)
+        super().redo()
+
+    def undo(self) -> None:
+        super().undo()
+        self._drawing.setItemsPropertyDict(self._items, self._name, self._originalValues)
+
+
+# ======================================================================================================================
+
+class OdgSetPagePropertyCommand(OdgDrawingUndoCommand):
+    def __init__(self, drawing: OdgDrawingWidget, page: OdgPage, name: str, value: Any) -> None:
+        super().__init__(drawing, 'Set Page Property')
+
+        self._page: OdgPage = page
+        self._name: str = name
+        self._value: Any = value
+
+        self._originalValue: Any = self._page.property(self._name)
+
+    def redo(self) -> None:
+        self._drawing.setPageProperty(self._page, self._name, self._value)
+        super().redo()
+
+    def undo(self) -> None:
+        super().undo()
+        self._drawing.setPageProperty(self._page, self._name, self._originalValue)
+
+
+# ======================================================================================================================
+
+class OdgSetDrawingPropertyCommand(OdgDrawingUndoCommand):
+    def __init__(self, drawing: OdgDrawingWidget, name: str, value: Any) -> None:
+        super().__init__(drawing, 'Set Property')
+
+        self._name: str = name
+        self._value: Any = value
+
+        self._originalValue: Any = self._drawing.property(self._name)
+
+        if (self._name == 'sceneRect'):
+            self._viewRect = QRectF()
+
+    def redo(self) -> None:
+        self._drawing.setProperty(self._name, self._value)
+        super().redo()
+
+    def undo(self) -> None:
+        super().undo()
+        self._drawing.setProperty(self._name, self._originalValue)

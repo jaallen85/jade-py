@@ -15,11 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Any
+from PySide6.QtCore import QObject, Signal
 from .odgitem import OdgItem
 
 
-class OdgPage:
+class OdgPage(QObject):
+    propertyChanged = Signal(str, object)
+
     def __init__(self, name: str) -> None:
+        super().__init__()
         self._parent: Any = None
         self._name: str = name
         self._items: list[OdgItem] = []
@@ -35,10 +39,27 @@ class OdgPage:
     # ==================================================================================================================
 
     def setName(self, name: str) -> None:
-        self._name = name
+        if (self._name != name):
+            self._name = name
+            self.propertyChanged.emit('name', self._name)
 
     def name(self) -> str:
         return self._name
+
+    # ==================================================================================================================
+
+    def setProperty(self, name: str, value: Any) -> bool:
+        match (name):
+            case 'name':
+                if (isinstance(value, str)):
+                    self.setName(value)
+        return True
+
+    def property(self, name: str) -> Any:
+        match (name):
+            case 'name':
+                return self.name()
+        return None
 
     # ==================================================================================================================
 

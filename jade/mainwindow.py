@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 from typing import Callable
 from PySide6.QtCore import Qt, QSize, SignalInstance
 from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
@@ -28,6 +29,12 @@ from .stylesbrowser import StylesBrowser
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+
+        self._filePath: str = ''
+        self._newDrawingCount: int = 0
+        self._pagesDockVisibleOnClose: bool = True
+        self._propertiesDockVisibleOnClose: bool = True
+        self._stylesDockVisibleOnClose: bool = True
 
         # Central widget
         self._drawing: DrawingWidget = DrawingWidget()
@@ -270,12 +277,20 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def newDrawing(self) -> None:
+        # Close any open drawing first
+        self.closeDrawing()
+
+        # Create a new drawing only if there is no open drawing (i.e. close was successful or unneeded)
+        if (not self.isDrawingVisible()):
+            self._drawing.createNew()
+            self._newDrawingCount = self._newDrawingCount + 1
+            self._setFilePath(f'Untitled {self._newDrawingCount}')
+            self._setDrawingVisible(True)
+
+    def openDrawing(self, path: str = '') -> None:
         pass
 
-    def _openDrawing(self) -> None:
-        pass
-
-    def _saveDrawing(self) -> None:
+    def saveDrawing(self, path: str = '') -> None:
         pass
 
     def saveDrawingAs(self) -> None:
@@ -284,6 +299,12 @@ class MainWindow(QMainWindow):
     def closeDrawing(self) -> None:
         self._drawing.hide()
         self._drawing.clear()
+
+    def _openDrawing(self) -> None:
+        self.openDrawing()
+
+    def _saveDrawing(self) -> None:
+        self.saveDrawing()
 
     # ==================================================================================================================
 
@@ -303,14 +324,56 @@ class MainWindow(QMainWindow):
 
     # ==================================================================================================================
 
+    def _setDrawingVisible(self, visible: bool) -> None:
+        self._drawing.setVisible(visible)
+
+        # Update dock widget visibility
+        if (visible):
+            self._pagesDock.setVisible(self._pagesDockVisibleOnClose)
+            self._propertiesDock.setVisible(self._propertiesDockVisibleOnClose)
+            self._stylesDock.setVisible(self._stylesDockVisibleOnClose)
+        else:
+            self._pagesDockVisibleOnClose = self._pagesDock.isVisibleTo(self)
+            self._propertiesDockVisibleOnClose = self._propertiesDock.isVisibleTo(self)
+            self._stylesDockVisibleOnClose = self._stylesDock.isVisibleTo(self)
+            self._pagesDock.setVisible(False)
+            self._propertiesDock.setVisible(False)
+            self._stylesDock.setVisible(False)
+
+        # Update actions
+        self._saveAction.setEnabled(visible)
+        self._saveAsAction.setEnabled(visible)
+        self._closeAction.setEnabled(visible)
+        self._exportPngAction.setEnabled(visible)
+        self._exportSvgAction.setEnabled(visible)
+
+        self._drawing.setActionsEnabled(visible)
+
+        # Update drawing
+        if (visible):
+            self._drawing.zoomFit()
+        else:
+            self._drawing.clear()
+
+    def _setFilePath(self, path: str) -> None:
+        self._filePath = path
+
+        # Update window title
+        fileName = os.path.basename(self._filePath)
+        self.setWindowTitle('Jade' if (len(fileName) == 0) else f'{fileName} - Jade')
+
     def isDrawingVisible(self) -> bool:
         return self._drawing.isVisible()
+
+    def filePath(self) -> str:
+        return self._filePath
 
     # ==================================================================================================================
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         if (not event.spontaneous()):
+            self._propertiesDock.raise_()
             self._drawing.zoomFit()
 
     def closeEvent(self, event: QCloseEvent) -> None:
@@ -324,7 +387,7 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def _setZoomComboText(self, scale: float) -> None:
-        self._zoomCombo.setCurrentText(f'{scale * OdgUnits.convert(0.5, self._drawing.units(), OdgUnits.Inches):.2f}%')
+        self._zoomCombo.setCurrentText(f'{scale / OdgUnits.convert(2, self._drawing.units(), OdgUnits.Inches):.2f}%')
 
     def _setZoomLevel(self, text: str) -> None:
         if (text == 'Fit to Page'):

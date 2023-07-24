@@ -16,6 +16,7 @@
 
 import math
 from enum import Enum, IntEnum
+from typing import Any
 from PySide6.QtCore import Qt, QLineF, QMarginsF, QPoint, QPointF, QRect, QRectF, QSizeF, QTimer, Signal
 from PySide6.QtGui import (QBrush, QColor, QCursor, QMouseEvent, QPainter, QPainterPath, QPaintEvent, QPalette, QPen,
                            QResizeEvent, QTransform, QWheelEvent)
@@ -49,6 +50,8 @@ class OdgDrawingView(QAbstractScrollArea):
         RubberBand = 4
 
     # ==================================================================================================================
+
+    propertyChanged = Signal(str, object)
 
     pageInserted = Signal(OdgPage, int)
     pageRemoved = Signal(OdgPage, int)
@@ -125,24 +128,6 @@ class OdgDrawingView(QAbstractScrollArea):
         self._panTimer.setInterval(5)
         self._panTimer.timeout.connect(self._mousePanEvent)     # type: ignore
 
-        # Final setup
-        self.addPage(OdgPage('Page 1'))
-
-        child2 = OdgItemStyle('Red')
-        child2.setParent(self._itemStylesTree)
-
-        child1 = OdgItemStyle('Blue')
-        child1.setParent(self._itemStylesTree)
-
-        child3 = OdgItemStyle('Green')
-        child3.setParent(self._itemStylesTree)
-
-        blueChild2 = OdgItemStyle('Blue Rect')
-        blueChild2.setParent(child1)
-
-        blueChild1 = OdgItemStyle('Blue Line')
-        blueChild1.setParent(child1)
-
     def __del__(self) -> None:
         self.clearPages()
         self.clearItemStyles()
@@ -170,6 +155,10 @@ class OdgDrawingView(QAbstractScrollArea):
                 for item in page.items():
                     item.scale(scaleFactor)
 
+            self.propertyChanged.emit('units', self._units)
+
+            self.setScale(self.scale() / scaleFactor)
+
     def units(self) -> OdgUnits:
         return self._units
 
@@ -178,17 +167,20 @@ class OdgDrawingView(QAbstractScrollArea):
     def setPageSize(self, size: QSizeF) -> None:
         if (self._pageSize != size and size.width() > 0 and size.height() > 0):
             self._pageSize = QSizeF(size)
+            self.propertyChanged.emit('pageSize', self._pageSize)
             self.zoomFit()
 
     def setPageMargins(self, margins: QMarginsF) -> None:
         if (self._pageMargins != margins and (margins.left() >= 0 and margins.top() >= 0 and
                                               margins.right() >= 0 and margins.bottom() >= 0)):
             self._pageMargins = QMarginsF(margins)
+            self.propertyChanged.emit('pageMargins', self._pageMargins)
             self.zoomFit()
 
     def setBackgroundColor(self, color: QColor) -> None:
         if (self._backgroundColor != color):
             self._backgroundColor = QColor(color)
+            self.propertyChanged.emit('backgroundColor', self._backgroundColor)
             self.viewport().update()
 
     def pageSize(self) -> QSizeF:
@@ -213,26 +205,31 @@ class OdgDrawingView(QAbstractScrollArea):
     def setGrid(self, grid: float) -> None:
         if (self._grid != grid and grid >= 0):
             self._grid = grid
+            self.propertyChanged.emit('grid', self._grid)
             self.viewport().update()
 
     def setGridVisible(self, visible: bool) -> None:
         if (self._gridVisible != visible):
             self._gridVisible = visible
+            self.propertyChanged.emit('gridVisible', self._gridVisible)
             self.viewport().update()
 
     def setGridColor(self, color: QColor) -> None:
         if (self._gridColor != color):
             self._gridColor = QColor(color)
+            self.propertyChanged.emit('gridColor', self._gridColor)
             self.viewport().update()
 
     def setGridSpacingMajor(self, spacing: int) -> None:
         if (self._gridSpacingMajor != spacing and spacing >= 0):
             self._gridSpacingMajor = spacing
+            self.propertyChanged.emit('gridSpacingMajor', self._gridSpacingMajor)
             self.viewport().update()
 
     def setGridSpacingMinor(self, spacing: int) -> None:
         if (self._gridSpacingMinor != spacing and spacing >= 0):
             self._gridSpacingMinor = spacing
+            self.propertyChanged.emit('gridSpacingMinor', self._gridSpacingMinor)
             self.viewport().update()
 
     def grid(self) -> float:
@@ -258,8 +255,63 @@ class OdgDrawingView(QAbstractScrollArea):
 
     # ==================================================================================================================
 
+    def setProperty(self, name: str, value: Any) -> bool:
+        match (name):
+            case 'units':
+                if (isinstance(value, OdgUnits)):
+                    self.setUnits(value)
+            case 'pageSize':
+                if (isinstance(value, QSizeF)):
+                    self.setPageSize(value)
+            case 'pageMargins':
+                if (isinstance(value, QMarginsF)):
+                    self.setPageMargins(value)
+            case 'backgroundColor':
+                if (isinstance(value, QColor)):
+                    self.setBackgroundColor(value)
+            case 'grid':
+                if (isinstance(value, float)):
+                    self.setGrid(value)
+            case 'gridVisible':
+                if (isinstance(value, bool)):
+                    self.setGridVisible(value)
+            case 'gridColor':
+                if (isinstance(value, QColor)):
+                    self.setGridColor(value)
+            case 'gridSpacingMajor':
+                if (isinstance(value, int)):
+                    self.setGridSpacingMajor(value)
+            case 'gridSpacingMinor':
+                if (isinstance(value, int)):
+                    self.setGridSpacingMinor(value)
+        return True
+
+    def property(self, name: str) -> Any:
+        match (name):
+            case 'units':
+                return self.units()
+            case 'pageSize':
+                return self.pageSize()
+            case 'pageMargins':
+                return self.pageMargins()
+            case 'backgroundColor':
+                return self.backgroundColor()
+            case 'grid':
+                return self.grid()
+            case 'gridVisible':
+                return self.isGridVisible()
+            case 'gridColor':
+                return self.gridColor()
+            case 'gridSpacingMajor':
+                return self.gridSpacingMajor()
+            case 'gridSpacingMinor':
+                return self.gridSpacingMinor()
+        return None
+
+    # ==================================================================================================================
+
     def clearItemStyles(self) -> None:
-        self._itemStylesTree.clear()
+        self._itemStylesTree.clearChildren()
 
     def defaultItemStyle(self) -> OdgItemStyle:
         return self._itemStylesTree

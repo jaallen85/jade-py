@@ -1,4 +1,4 @@
-# main.py
+# singleitempropertieswidget.py
 # Copyright (C) 2023  Jason Allen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,20 +14,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
-import sys
-from PySide6.QtCore import QDir
-from PySide6.QtWidgets import QApplication
-from jade.mainwindow import MainWindow
+from PySide6.QtCore import QPointF, Signal
+from PySide6.QtWidgets import QWidget
+from ..odg.odgitem import OdgItem
+from ..odg.odgitempoint import OdgItemPoint
 
-app = QApplication(sys.argv)
-QDir.addSearchPath('icons', os.path.join(sys.path[0], 'icons'))
 
-window = MainWindow()
-if (len(app.arguments()) > 1):
-    window.openDrawing(app.arguments()[1])
-else:
-    window.newDrawing()
-window.show()
+class SingleItemPropertiesWidget(QWidget):
+    itemMoved = Signal(QPointF)
+    itemResized = Signal(OdgItemPoint, QPointF)
+    itemResized2 = Signal(OdgItemPoint, QPointF, OdgItemPoint, QPointF)
+    itemPropertyChanged = Signal(str, object)
 
-app.exec()
+    def __init__(self) -> None:
+        super().__init__()
+
+    # ==================================================================================================================
+
+    def setItem(self, item: OdgItem) -> None:
+        pass
