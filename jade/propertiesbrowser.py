@@ -51,11 +51,15 @@ class PropertiesBrowser(QStackedWidget):
         self._multipleItemsPropertiesScroll.setWidgetResizable(True)
         self.addWidget(self._multipleItemsPropertiesScroll)
 
+        self._multipleItemsPropertiesWidget.setUnits(self._drawing.units())
+
         self._singleItemsPropertiesWidget: SingleItemPropertiesWidget = SingleItemPropertiesWidget()
         self._singleItemsPropertiesScroll: QScrollArea = QScrollArea()
         self._singleItemsPropertiesScroll.setWidget(self._singleItemsPropertiesWidget)
         self._singleItemsPropertiesScroll.setWidgetResizable(True)
         self.addWidget(self._singleItemsPropertiesScroll)
+
+        self._singleItemsPropertiesWidget.setUnits(self._drawing.units())
 
         self._drawing.propertyChanged.connect(self.setDrawingProperty)
         self._drawing.currentItemsChanged.connect(self.setItems)
@@ -72,6 +76,9 @@ class PropertiesBrowser(QStackedWidget):
         self._singleItemsPropertiesWidget.itemPropertyChanged.connect(self._drawing.updateCurrentItemsProperty)
 
         self.setMinimumSize(300, 10)
+
+        self._drawingPropertiesWidget.unitsChanged.connect(self._multipleItemsPropertiesWidget.setUnits)
+        self._drawingPropertiesWidget.unitsChanged.connect(self._singleItemsPropertiesWidget.setUnits)
 
     # ==================================================================================================================
 

@@ -64,7 +64,7 @@ class OdgMarker:
             pathStroker.setJoinStyle(Qt.PenJoinStyle.BevelJoin)
             shape = pathStroker.createStroke(transformedPath)
 
-            # The final shape includes both the outline and the interior of the arrow
+            # The final shape includes both the outline and the interior of the marker
             shape = shape.united(transformedPath)
         return shape
 
@@ -81,7 +81,7 @@ class OdgMarker:
             # Set brush
             painter.setBrush(pen.brush())
 
-            # Draw arrow
+            # Draw marker
             painter.translate(position)
             painter.rotate(angle)
             painter.drawPath(self._path())

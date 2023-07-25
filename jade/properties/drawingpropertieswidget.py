@@ -24,6 +24,7 @@ from .helperwidgets import ColorWidget, LengthEdit, SizeWidget, UnitsCombo
 
 class DrawingPropertiesWidget(QWidget):
     drawingPropertyChanged = Signal(str, object)
+    unitsChanged = Signal(OdgUnits)
 
     def __init__(self) -> None:
         super().__init__()
@@ -44,6 +45,7 @@ class DrawingPropertiesWidget(QWidget):
     def _createPageGroup(self, labelWidth: int) -> QGroupBox:
         self._unitsCombo: UnitsCombo = UnitsCombo()
         self._unitsCombo.unitsChanged.connect(self._handleUnitsChange)
+        self._unitsCombo.unitsChanged.connect(self.unitsChanged)
 
         self._pageSizeWidget: SizeWidget = SizeWidget()
         self._pageSizeWidget.sizeChanged.connect(self._handlePageSizeChange)

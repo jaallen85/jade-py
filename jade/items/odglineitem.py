@@ -18,9 +18,10 @@ import math
 from enum import IntEnum
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
-from PySide6.QtGui import QBrush, QPainter, QPainterPath
+from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath
 from ..odg.odgitem import OdgItem
 from ..odg.odgitempoint import OdgItemPoint
+from ..odg.odgmarker import OdgMarker
 from ..odg.odgreader import OdgReader
 from ..odg.odgwriter import OdgWriter
 
@@ -84,11 +85,38 @@ class OdgLineItem(OdgItem):
     # ==================================================================================================================
 
     def setProperty(self, name: str, value: Any) -> None:
-        pass
+        if (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
+            self._style.setPenStyleIfUnique(Qt.PenStyle(value))
+        elif (name == 'penWidth' and isinstance(value, float)):
+            self._style.setPenWidthIfUnique(value)
+        elif (name == 'penColor' and isinstance(value, QColor)):
+            self._style.setPenColorIfUnique(value)
+        elif (name == 'startMarkerStyle' and isinstance(value, OdgMarker.Style)):
+            self._style.setStartMarkerStyleIfUnique(OdgMarker.Style(value))
+        elif (name == 'startMarkerSize' and isinstance(value, float)):
+            self._style.setStartMarkerSizeIfUnique(value)
+        elif (name == 'endMarkerStyle' and isinstance(value, OdgMarker.Style)):
+            self._style.setEndMarkerStyleIfUnique(OdgMarker.Style(value))
+        elif (name == 'endMarkerSize' and isinstance(value, float)):
+            self._style.setEndMarkerSizeIfUnique(value)
 
     def property(self, name: str) -> Any:
         if (name == 'line'):
             return self.line()
+        if (name == 'penStyle'):
+            return self._style.lookupPenStyle()
+        if (name == 'penWidth'):
+            return self._style.lookupPenWidth()
+        if (name == 'penColor'):
+            return self._style.lookupPenColor()
+        if (name == 'startMarkerStyle'):
+            return self._style.lookupStartMarkerStyle()
+        if (name == 'startMarkerSize'):
+            return self._style.lookupStartMarkerSize()
+        if (name == 'endMarkerStyle'):
+            return self._style.lookupEndMarkerStyle()
+        if (name == 'endMarkerSize'):
+            return self._style.lookupEndMarkerSize()
         return None
 
     # ==================================================================================================================

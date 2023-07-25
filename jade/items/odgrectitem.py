@@ -17,7 +17,7 @@
 from enum import IntEnum
 from typing import Any
 from PySide6.QtCore import Qt, QPointF, QRectF
-from PySide6.QtGui import QPainter, QPainterPath
+from PySide6.QtGui import QColor, QPainter, QPainterPath
 from ..odg.odgitem import OdgItem
 from ..odg.odgitempoint import OdgItemPoint
 from ..odg.odgreader import OdgReader
@@ -104,12 +104,28 @@ class OdgRectItem(OdgItem):
     def setProperty(self, name: str, value: Any) -> None:
         if (name == 'cornerRadius' and isinstance(value, float)):
             self.setCornerRadius(value)
+        elif (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
+            self._style.setPenStyleIfUnique(Qt.PenStyle(value))
+        elif (name == 'penWidth' and isinstance(value, float)):
+            self._style.setPenWidthIfUnique(value)
+        elif (name == 'penColor' and isinstance(value, QColor)):
+            self._style.setPenColorIfUnique(value)
+        elif (name == 'brushColor' and isinstance(value, QColor)):
+            self._style.setBrushColorIfUnique(value)
 
     def property(self, name: str) -> Any:
         if (name == 'rect'):
             return self.rect()
         if (name == 'cornerRadius'):
             return self.cornerRadius()
+        if (name == 'penStyle'):
+            return self._style.lookupPenStyle()
+        if (name == 'penWidth'):
+            return self._style.lookupPenWidth()
+        if (name == 'penColor'):
+            return self._style.lookupPenColor()
+        if (name == 'brushColor'):
+            return self._style.lookupBrushColor()
         return None
 
     # ==================================================================================================================

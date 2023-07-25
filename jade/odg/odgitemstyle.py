@@ -225,6 +225,70 @@ class OdgItemStyleBase(ABC):
             return self._parent.lookupEndMarkerSize()
         return 0.0
 
+    # ==================================================================================================================
+
+    def setPenStyleIfUnique(self, style: Qt.PenStyle) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupPenStyle() == style):
+            self._penStyle = None
+        else:
+            self._penStyle = style
+
+    def setPenWidthIfUnique(self, width: float) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupPenWidth() == width):
+            self._penWidth = None
+        else:
+            self._penWidth = width
+
+    def setPenColorIfUnique(self, color: QColor) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupPenColor() == color):
+            self._penColor = None
+        else:
+            self._penColor = QColor(color)
+
+    def setPenCapStyleIfUnique(self, style: Qt.PenCapStyle) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupPenCapStyle() == style):
+            self._penCapStyle = None
+        else:
+            self._penCapStyle = style
+
+    def setPenJoinStyleIfUnique(self, style: Qt.PenJoinStyle) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupPenJoinStyle() == style):
+            self._penJoinStyle = None
+        else:
+            self._penJoinStyle = style
+
+    def setBrushColorIfUnique(self, color: QColor) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupBrushColor() == color):
+            self._brushColor = None
+        else:
+            self._brushColor = QColor(color)
+
+    # ==================================================================================================================
+
+    def setStartMarkerStyleIfUnique(self, style: OdgMarker.Style) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupStartMarkerStyle() == style):
+            self._startMarkerStyle = None
+        else:
+            self._startMarkerStyle = style
+
+    def setStartMarkerSizeIfUnique(self, size: float) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupStartMarkerSize() == size):
+            self._startMarkerSize = None
+        else:
+            self._startMarkerSize = size
+
+    def setEndMarkerStyleIfUnique(self, style: OdgMarker.Style) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupEndMarkerStyle() == style):
+            self._endMarkerStyle = None
+        else:
+            self._endMarkerStyle = style
+
+    def setEndMarkerSizeIfUnique(self, size: float) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupEndMarkerSize() == size):
+            self._endMarkerSize = None
+        else:
+            self._endMarkerSize = size
+
 
 # ======================================================================================================================
 # ======================================================================================================================

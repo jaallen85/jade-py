@@ -26,6 +26,17 @@ from .propertiesbrowser import PropertiesBrowser
 from .stylesbrowser import StylesBrowser
 
 
+# Todo:
+#   - Add save/load support
+#   - Add cut/copy/paste support
+#   - Add support for other items
+#   - Add export to PNG support
+#   - Add export to SVG support
+#   - Add preferences support
+#   - Add about dialog
+#   - Add styles support
+
+
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
