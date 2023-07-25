@@ -48,7 +48,7 @@ class OdgLineItem(OdgItem):
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.copyStyle(self.style())
+        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setLine(self.line())
         return copiedItem
 
@@ -211,7 +211,12 @@ class OdgLineItem(OdgItem):
     # ==================================================================================================================
 
     def write(self, writer: OdgWriter) -> None:
-        pass
+        super().write(writer)
+
+        writer.writeLengthAttribute('svg:x1', self._line.x1())
+        writer.writeLengthAttribute('svg:y1', self._line.y1())
+        writer.writeLengthAttribute('svg:x2', self._line.x2())
+        writer.writeLengthAttribute('svg:y2', self._line.y2())
 
     def read(self, reader: OdgReader) -> None:
         pass

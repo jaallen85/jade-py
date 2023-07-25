@@ -18,7 +18,8 @@ import os
 from typing import Callable
 from PySide6.QtCore import Qt, QSize, SignalInstance
 from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
-from PySide6.QtWidgets import QApplication, QComboBox, QDockWidget, QHBoxLayout, QLabel, QMainWindow, QToolBar, QWidget
+from PySide6.QtWidgets import (QApplication, QComboBox, QDockWidget, QFileDialog, QHBoxLayout, QLabel, QMainWindow,
+                               QMessageBox, QToolBar, QWidget)
 from .odg.odgunits import OdgUnits
 from .drawingwidget import DrawingWidget
 from .pagesbrowser import PagesBrowser
@@ -43,6 +44,9 @@ class MainWindow(QMainWindow):
 
         self._filePath: str = ''
         self._newDrawingCount: int = 0
+        self._workingDir: str = os.getcwd()
+        self._promptOverwrite: bool = True
+        self._promptCloseUnsaved: bool = True
         self._pagesDockVisibleOnClose: bool = True
         self._propertiesDockVisibleOnClose: bool = True
         self._stylesDockVisibleOnClose: bool = True
@@ -299,17 +303,88 @@ class MainWindow(QMainWindow):
             self._setDrawingVisible(True)
 
     def openDrawing(self, path: str = '') -> None:
-        pass
+        # Prompt the user for the file path if none is passed as an argument
+        if (path == ''):
+            fileFilter = 'ODF Drawing (*.odg);;All Files (*)'
+            options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
+            (path, _) = QFileDialog.getOpenFileName(self, 'Open File', self._workingDir, fileFilter, '', options)
+
+        # If a valid path was selected or provided, proceed with the open operation
+        if (path != ''):
+            # Close any open drawing before proceeding
+            self.closeDrawing()
+
+            # Open an existing drawing only if there is no open drawing (i.e. close was successful or unneeded)
+            if (not self.isDrawingVisible()):
+                # Use the selected path to load the drawing from file
+                if (self._drawing.load(path)):
+                    self._setFilePath(path)
+                    self._setDrawingVisible(True)
+
+                # Update the cached working directory
+                self._workingDir = os.path.dirname(path)
 
     def saveDrawing(self, path: str = '') -> None:
-        pass
+        if (self.isDrawingVisible()):
+            if (path == '' and self._filePath.startswith('Untitled')):
+                # If no path is provided and self._filePath is invalid, then do a 'save-as' instead
+                self.saveDrawingAs()
+            else:
+                # Use either the provided path or the cached self._filePath to save the drawing to file
+                if (path == ''):
+                    path = self._filePath
+                if (self._drawing.save(path)):
+                    self._setFilePath(path)
 
     def saveDrawingAs(self) -> None:
-        pass
+        if (self.isDrawingVisible()):
+            # Prompt the user for a new file path
+            path = self._workingDir if (self._filePath.startswith('Untitled')) else self._filePath
+            fileFilter = 'ODF Drawing (*.odg);;All Files (*)'
+            options = QFileDialog.Option(0) if (self._promptOverwrite) else QFileDialog.Option.DontConfirmOverwrite
+            (path, _) = QFileDialog.getSaveFileName(self, 'Save File', path, fileFilter, '', options)
+
+            # If a valid path was selected, proceed with the save operation
+            if (path != ''):
+                # Ensure that the selected path ends with the proper file suffix
+                if (not path.endswith('.odg')):
+                    path = f'{path}.odg'
+
+                # Use the selected path to save the drawing to file
+                if (self._drawing.save(path)):
+                    self._setFilePath(path)
+
+                # Update the cached working directory
+                self._workingDir = os.path.dirname(path)
 
     def closeDrawing(self) -> None:
-        self._drawing.hide()
-        self._drawing.clear()
+        if (self.isDrawingVisible()):
+            proceedToClose = True
+
+            if (self._promptCloseUnsaved and not self._drawing.isClean()):
+                # If drawing has unsaved changes, prompt the user whether to save before closing
+                text = f'Save changes to {os.path.basename(self._filePath)} before closing?'
+                buttons = (QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No |
+                           QMessageBox.StandardButton.Cancel)
+                defaultButton = QMessageBox.StandardButton.Yes
+                selectedButton = QMessageBox.question(self, 'Save Changes', text, buttons, defaultButton)
+
+                # If the Yes button was selected, so a 'save' or 'save-as' operation as needed
+                if (selectedButton == QMessageBox.StandardButton.Yes):
+                    if (self._filePath.startswith('Untitled')):
+                        self.saveDrawingAs()
+                    else:
+                        self.saveDrawing()
+
+                # Allow the close to proceed if the user clicked Yes and the save was successful or
+                # if the user clicked No
+                proceedToClose = ((selectedButton == QMessageBox.StandardButton.Yes and self._drawing.isClean()) or
+                                  selectedButton == QMessageBox.StandardButton.No)
+
+            if (proceedToClose):
+                # Hide the drawing and clear it to its default state
+                self._setDrawingVisible(False)
+                self._setFilePath('')
 
     def _openDrawing(self) -> None:
         self.openDrawing()

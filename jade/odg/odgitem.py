@@ -21,7 +21,7 @@ from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
 from PySide6.QtGui import QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF, QTransform
 from .odgitempoint import OdgItemPoint
-from .odgitemstyle import OdgItemStyle, OdgItemAutomaticStyle
+from .odgitemstyle import OdgItemStyle
 from .odgreader import OdgReader
 from .odgwriter import OdgWriter
 
@@ -40,7 +40,7 @@ class OdgItem(ABC):
 
         self._points: list[OdgItemPoint] = []
 
-        self._style: OdgItemAutomaticStyle = OdgItemAutomaticStyle(name)
+        self._style: OdgItemStyle = OdgItemStyle(name)
 
         self._selected: bool = False
 
@@ -164,22 +164,7 @@ class OdgItem(ABC):
 
     # ==================================================================================================================
 
-    def copyStyle(self, other: OdgItemAutomaticStyle) -> None:
-        self._style.setParent(other.parent())
-
-        self._style.setPenStyle(other.penStyle())
-        self._style.setPenWidth(other.penWidth())
-        self._style.setPenColor(other.penColor())
-        self._style.setPenCapStyle(other.penCapStyle())
-        self._style.setPenJoinStyle(other.penJoinStyle())
-        self._style.setBrushColor(other.brushColor())
-
-        self._style.setStartMarkerStyle(other.startMarkerStyle())
-        self._style.setStartMarkerSize(other.startMarkerSize())
-        self._style.setEndMarkerStyle(other.endMarkerStyle())
-        self._style.setEndMarkerSize(other.endMarkerSize())
-
-    def style(self) -> OdgItemAutomaticStyle:
+    def style(self) -> OdgItemStyle:
         return self._style
 
     # ==================================================================================================================
@@ -276,11 +261,24 @@ class OdgItem(ABC):
 
     # ==================================================================================================================
 
-    @abstractmethod
     def write(self, writer: OdgWriter) -> None:
-        pass
+        if (self._name != ''):
+            writer.writeAttribute('draw:name', self._name)
+        writer.writeAttribute('draw:style-name', self._style.name())
 
-    @abstractmethod
+        transformStr = ''
+        if (self._rotation != 0):
+            transformStr = f'{transformStr} rotate({self._rotation * math.pi / 2})'
+        if (self._flipped):
+            transformStr = f'{transformStr} scale(-1, 1)'
+        if (self._position.x() != 0 or self._position.y() != 0):
+            xStr = writer.xCoordinateToString(self._position.x())
+            yStr = writer.yCoordinateToString(self._position.y())
+            transformStr = f'{transformStr} translate({xStr}, {yStr})'
+        transformStr = transformStr.strip()
+        if (transformStr != ''):
+            writer.writeAttribute('draw:transform', transformStr)
+
     def read(self, reader: OdgReader) -> None:
         pass
 

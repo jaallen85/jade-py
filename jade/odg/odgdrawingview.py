@@ -26,6 +26,7 @@ from .odgitem import OdgItem
 from .odgitempoint import OdgItemPoint
 from .odgitemstyle import OdgItemStyle
 from .odgpage import OdgPage
+from .odgreader import OdgReader
 from .odgunits import OdgUnits
 
 
@@ -87,7 +88,8 @@ class OdgDrawingView(QAbstractScrollArea):
         self._gridSpacingMinor: int = 2
 
         # Item styles
-        self._itemStylesTree: OdgItemStyle = OdgItemStyle.createDefault(self._units)
+        self._defaultItemStyle: OdgItemStyle = OdgItemStyle.createDefaultStyle(self._units)
+        self._itemStyles: list[OdgItemStyle] = []
 
         # Pages
         self._pages: list[OdgPage] = []
@@ -131,7 +133,7 @@ class OdgDrawingView(QAbstractScrollArea):
     def __del__(self) -> None:
         self.clearPages()
         self.clearItemStyles()
-        del self._itemStylesTree
+        del self._defaultItemStyle
 
     # ==================================================================================================================
 
@@ -150,7 +152,10 @@ class OdgDrawingView(QAbstractScrollArea):
 
             scaleFactor = OdgUnits.convert(1, oldUnits, self._units)
 
-            self._itemStylesTree.scale(scaleFactor)
+            self._defaultItemStyle.scale(scaleFactor)
+            for style in self._itemStyles:
+                style.scale(scaleFactor)
+
             for page in self._pages:
                 for item in page.items():
                     item.scale(scaleFactor)
@@ -311,10 +316,10 @@ class OdgDrawingView(QAbstractScrollArea):
     # ==================================================================================================================
 
     def clearItemStyles(self) -> None:
-        self._itemStylesTree.clearChildren()
+        del self._itemStyles[:]
 
     def defaultItemStyle(self) -> OdgItemStyle:
-        return self._itemStylesTree
+        return self._defaultItemStyle
 
     # ==================================================================================================================
 
@@ -594,6 +599,125 @@ class OdgDrawingView(QAbstractScrollArea):
 
     def placeItems(self) -> list[OdgItem]:
         return self._placeModeItems
+
+    # ==================================================================================================================
+
+    def save(self, path: str) -> bool:
+        # Saving to file is disabled for OdgDrawingView
+        return False
+
+    def load(self, path: str) -> bool:
+        self.clear()
+        reader = OdgReader(path)
+        self._read(reader)
+        return True
+
+    def clear(self) -> None:
+        self.clearPages()
+        self.clearItemStyles()
+        OdgItem.resetFactoryCounts()
+
+    def _read(self, reader: OdgReader) -> None:
+        reader.startSettingsDocument()
+        self._readSettings(reader)
+        reader.endDocument()
+
+        reader.startStylesDocument()
+        self._readStyles(reader)
+        reader.endDocument()
+
+        reader.startContentDocument()
+        self._readContent(reader)
+        reader.endDocument()
+
+    def _readSettings(self, reader: OdgReader) -> None:
+        while (reader.readNextStartElement()):
+            if (reader.qualifiedName() == 'office:settings'):
+                while (reader.readNextStartElement()):
+                    if (reader.qualifiedName() == 'config:config-item-set'):
+                        attr = reader.attributes()
+                        if (attr.hasAttribute('config:name') and attr.value('config:name') == 'jade:settings'):
+                            while (reader.readNextStartElement()):
+                                if (reader.qualifiedName() == 'config:config-item'):
+                                    attr = reader.attributes()
+                                    text = reader.readElementText()
+                                    if (attr.hasAttribute('config:name') and attr.hasAttribute('config:type')):
+                                        name = attr.value('config:name')
+                                        type = attr.value('config:type')
+                                        if (name == 'units' and type == 'string'):
+                                            self.setUnits(OdgUnits.fromStr(text))
+                                        elif (name == 'grid' and type == 'double'):
+                                            self.setGrid(float(text))
+                                        elif (name == 'gridVisible' and type == 'boolean'):
+                                            self.setGridVisible(text.strip().lower() == 'true')
+                                        elif (name == 'gridColor' and type == 'string'):
+                                            self.setGridColor(QColor.fromString(text))
+                                        elif (name == 'gridSpacingMajor' and type == 'int'):
+                                            self.setGridSpacingMajor(int(text))
+                                        elif (name == 'gridSpacingMinor' and type == 'int'):
+                                            self.setGridSpacingMinor(int(text))
+                                else:
+                                    reader.skipCurrentElement()
+                    else:
+                        reader.skipCurrentElement()
+            else:
+                reader.skipCurrentElement()
+
+    def _readStyles(self, reader: OdgReader) -> None:
+        while (reader.readNextStartElement()):
+            if (reader.qualifiedName() == 'office:styles'):
+                while (reader.readNextStartElement()):
+                    if (reader.qualifiedName() == 'style:default-style'):
+                        reader.skipCurrentElement()
+                    elif (reader.qualifiedName() == 'style:style'):
+                        print(f'    {[attr.qualifiedName() for attr in reader.attributes()]}')
+                        reader.skipCurrentElement()
+                    else:
+                        reader.skipCurrentElement()
+            elif (reader.qualifiedName() == 'office:automatic-styles'):
+                while (reader.readNextStartElement()):
+                    print(f'  {reader.qualifiedName()}')
+                    if (reader.qualifiedName() == 'style:page-layout'):
+                        reader.skipCurrentElement()
+                    elif (reader.qualifiedName() == 'style:style'):
+                        reader.skipCurrentElement()
+                    else:
+                        reader.skipCurrentElement()
+            elif (reader.qualifiedName() == 'office:master-styles'):
+                while (reader.readNextStartElement()):
+                    print(f'  {reader.qualifiedName()}')
+                    if (reader.qualifiedName() == 'style:master-page'):
+                        reader.skipCurrentElement()
+                    else:
+                        reader.skipCurrentElement()
+            else:
+                reader.skipCurrentElement()
+
+    def _readContent(self, reader: OdgReader) -> None:
+        while (reader.readNextStartElement()):
+            if (reader.qualifiedName() == 'office:automatic-styles'):
+                while (reader.readNextStartElement()):
+                    print(f'  {reader.qualifiedName()}')
+                    if (reader.qualifiedName() == 'style:page-layout'):
+                        reader.skipCurrentElement()
+                    elif (reader.qualifiedName() == 'style:style'):
+                        reader.skipCurrentElement()
+                    else:
+                        reader.skipCurrentElement()
+            elif (reader.qualifiedName() == 'office:body'):
+                while (reader.readNextStartElement()):
+                    print(f'  {reader.qualifiedName()}')
+                    if (reader.qualifiedName() == 'office:drawing'):
+                        while (reader.readNextStartElement()):
+                            print(f'  {reader.qualifiedName()}')
+                            if (reader.qualifiedName() == 'draw:page'):
+                                reader.skipCurrentElement()
+                            else:
+                                reader.skipCurrentElement()
+                    else:
+                        reader.skipCurrentElement()
+            else:
+                reader.skipCurrentElement()
 
     # ==================================================================================================================
 

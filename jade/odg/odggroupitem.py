@@ -50,7 +50,7 @@ class OdgGroupItem(OdgItem):
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.copyStyle(self.style())
+        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setItems(OdgItem.copyItems(self.items()))
         return copiedItem
 

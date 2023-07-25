@@ -51,7 +51,7 @@ class OdgRectItem(OdgItem):
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.copyStyle(self.style())
+        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setRect(self.rect())
         copiedItem.setCornerRadius(self.cornerRadius())
         return copiedItem
@@ -234,7 +234,15 @@ class OdgRectItem(OdgItem):
     # ==================================================================================================================
 
     def write(self, writer: OdgWriter) -> None:
-        pass
+        super().write(writer)
+
+        writer.writeLengthAttribute('svg:x', self._rect.left())
+        writer.writeLengthAttribute('svg:y', self._rect.top())
+        writer.writeLengthAttribute('svg:width', self._rect.width())
+        writer.writeLengthAttribute('svg:height', self._rect.height())
+
+        if (self._cornerRadius != 0):
+            writer.writeLengthAttribute('draw:corner-radius', self._cornerRadius)
 
     def read(self, reader: OdgReader) -> None:
         pass

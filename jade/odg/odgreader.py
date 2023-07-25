@@ -14,5 +14,69 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from zipfile import ZipFile
+from PySide6.QtCore import QXmlStreamAttributes, QXmlStreamReader
+
+
 class OdgReader:
-    pass
+    def __init__(self, path: str) -> None:
+        self._path: str = path
+
+        self._content: str = ''
+        self._settings: str = ''
+        self._styles: str = ''
+        with ZipFile(self._path, 'r') as odgFile:
+            with odgFile.open('settings.xml', 'r') as settingsFile:
+                self._settings = settingsFile.read().decode('utf-8')
+            with odgFile.open('styles.xml', 'r') as stylesFile:
+                self._styles = stylesFile.read().decode('utf-8')
+            with odgFile.open('content.xml', 'r') as contentFile:
+                self._content = contentFile.read().decode('utf-8')
+
+        self._xml: QXmlStreamReader = QXmlStreamReader()
+
+    # ==================================================================================================================
+
+    def startContentDocument(self) -> None:
+        self._xml = QXmlStreamReader(self._content)
+
+        if (self._xml.readNextStartElement() and self._xml.qualifiedName() == 'office:document-content'):
+            pass
+        else:
+            self._xml.skipCurrentElement()
+
+    def startSettingsDocument(self) -> None:
+        self._xml = QXmlStreamReader(self._settings)
+
+        if (self._xml.readNextStartElement() and self._xml.qualifiedName() == 'office:document-settings'):
+            pass
+        else:
+            self._xml.skipCurrentElement()
+
+    def startStylesDocument(self) -> None:
+        self._xml = QXmlStreamReader(self._styles)
+
+        if (self._xml.readNextStartElement() and self._xml.qualifiedName() == 'office:document-styles'):
+            pass
+        else:
+            self._xml.skipCurrentElement()
+
+    def endDocument(self) -> None:
+        pass
+
+    # ==================================================================================================================
+
+    def readNextStartElement(self) -> bool:
+        return self._xml.readNextStartElement()
+
+    def skipCurrentElement(self) -> None:
+        self._xml.skipCurrentElement()
+
+    def qualifiedName(self) -> str:
+        return self._xml.qualifiedName()
+
+    def attributes(self) -> QXmlStreamAttributes:
+        return self._xml.attributes()
+
+    def readElementText(self) -> str:
+        return self._xml.readElementText()

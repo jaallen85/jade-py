@@ -99,8 +99,8 @@ class OdgMarker:
         if (self._style == OdgMarker.Style.Triangle):
             angle = math.pi / 6     # Makes the arrowhead a 60 degree angle
             sqrt2 = math.sqrt(2)
-            x = self._size / sqrt2 * math.cos(angle)
-            y = self._size / sqrt2 * math.sin(angle)
+            x = self._size * 2 / sqrt2 * math.cos(angle)
+            y = self._size * 2 / sqrt2 * math.sin(angle)
 
             path.moveTo(QPointF(0, 0))
             path.lineTo(QPointF(-x, -y))

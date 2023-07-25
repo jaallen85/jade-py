@@ -14,14 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from abc import ABC, abstractmethod
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor, QPen
 from .odgmarker import OdgMarker
 from .odgunits import OdgUnits
+from .odgwriter import OdgWriter
 
 
-class OdgItemStyleBase(ABC):
+class OdgItemStyle:
     def __init__(self, name: str) -> None:
         self._name: str = name
 
@@ -49,9 +49,8 @@ class OdgItemStyleBase(ABC):
 
     # ==================================================================================================================
 
-    @abstractmethod
     def setParent(self, parent: 'OdgItemStyle | None') -> None:
-        pass
+        self._parent = parent
 
     def parent(self) -> 'OdgItemStyle | None':
         return self._parent
@@ -289,65 +288,189 @@ class OdgItemStyleBase(ABC):
         else:
             self._endMarkerSize = size
 
+    # ==================================================================================================================
 
-# ======================================================================================================================
-# ======================================================================================================================
-# ======================================================================================================================
+    def copyFromStyle(self, other: 'OdgItemStyle') -> None:
+        self.setParent(other.parent())
 
-class OdgItemStyle(OdgItemStyleBase):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
-        self._children: list[OdgItemStyle] = []
+        self.setPenStyle(other.penStyle())
+        self.setPenWidth(other.penWidth())
+        self.setPenColor(other.penColor())
+        self.setPenCapStyle(other.penCapStyle())
+        self.setPenJoinStyle(other.penJoinStyle())
+        self.setBrushColor(other.brushColor())
 
-    def __del__(self) -> None:
-        self.clearChildren()
+        self.setStartMarkerStyle(other.startMarkerStyle())
+        self.setStartMarkerSize(other.startMarkerSize())
+        self.setEndMarkerStyle(other.endMarkerStyle())
+        self.setEndMarkerSize(other.endMarkerSize())
 
     # ==================================================================================================================
 
-    def setParent(self, parent: 'OdgItemStyle | None') -> None:
+    def write(self, writer: OdgWriter) -> None:
+        if (self._name != ''):
+            writer.writeAttribute('style:name', self._name)
+        writer.writeAttribute('style:family', 'graphic')
         if (isinstance(self._parent, OdgItemStyle)):
-            self._parent.removeChild(self)
-        self._parent = parent
-        if (isinstance(self._parent, OdgItemStyle)):
-            self._parent.addChild(self)
+            writer.writeAttribute('style:parent-style-name', self._parent.name())
 
-    def addChild(self, style: 'OdgItemStyle') -> None:
-        self.insertChild(len(self._children), style)
+        writer.writeStartElement('style:graphic-properties')
 
-    def insertChild(self, index: int, style: 'OdgItemStyle') -> None:
-        if (style not in self._children):
-            self._children.insert(index, style)
-            # pylint: disable-next=W0212
-            style._parent = self
+        # Pen style
+        if (isinstance(self._penStyle, Qt.PenStyle)):
+            match (self._penStyle):
+                case Qt.PenStyle.SolidLine:
+                    writer.writeAttribute('draw:stroke', 'solid')
+                case Qt.PenStyle.DashLine:
+                    writer.writeAttribute('draw:stroke', 'dash')
+                    writer.writeAttribute('draw:stroke-dash', 'Dash_20__28_Rounded_29_')
+                case Qt.PenStyle.DotLine:
+                    writer.writeAttribute('draw:stroke', 'dash')
+                    writer.writeAttribute('draw:stroke-dash', 'Dot_20__28_Rounded_29_')
+                case Qt.PenStyle.DashDotLine:
+                    writer.writeAttribute('draw:stroke', 'dash')
+                    writer.writeAttribute('draw:stroke-dash', 'Dash_20_Dot_20__28_Rounded_29_')
+                case Qt.PenStyle.DashDotDotLine:
+                    writer.writeAttribute('draw:stroke', 'dash')
+                    writer.writeAttribute('draw:stroke-dash', 'Dash_20_Dot_20_Dot_20__28_Rounded_29_')
+                case _:
+                    writer.writeAttribute('draw:stroke', 'none')
 
-    def removeChild(self, style: 'OdgItemStyle') -> None:
-        if (style in self._children):
-            self._children.remove(style)
-            # pylint: disable-next=W0212
-            style._parent = None
+        # Pen width
+        if (isinstance(self._penWidth, float)):
+            writer.writeLengthAttribute('svg:stroke-width', self._penWidth)
 
-    def clearChildren(self) -> None:
-        while (len(self._children) > 0):
-            style = self._children[-1]
-            self.removeChild(style)
-            del style
+        # Pen color
+        if (isinstance(self._penColor, QColor)):
+            writer.writeAttribute('svg:stroke-color', self._penColor.name(QColor.NameFormat.HexRgb))
+            if (self._penColor.alpha() != 255):
+                writer.writeAttribute('svg:stroke-opacity', f'{self._penColor.alphaF() * 100:.1f}%')
 
-    def children(self) -> 'list[OdgItemStyle]':
-        return self._children
+        # Pen cap style
+        if (isinstance(self._penCapStyle, Qt.PenCapStyle)):
+            match (self._penCapStyle):
+                case Qt.PenCapStyle.FlatCap:
+                    writer.writeAttribute('svg:stroke-linecap', 'butt')
+                case Qt.PenCapStyle.SquareCap:
+                    writer.writeAttribute('svg:stroke-linecap', 'square')
+                case _:
+                    writer.writeAttribute('svg:stroke-linecap', 'round')
+
+        # Pen join style
+        if (isinstance(self._penJoinStyle, Qt.PenJoinStyle)):
+            match (self._penJoinStyle):
+                case (Qt.PenJoinStyle.MiterJoin | Qt.PenJoinStyle.SvgMiterJoin):
+                    writer.writeAttribute('draw:stroke-linejoin', 'miter')
+                case Qt.PenJoinStyle.BevelJoin:
+                    writer.writeAttribute('draw:stroke-linejoin', 'bevel')
+                case _:
+                    writer.writeAttribute('draw:stroke-linejoin', 'round')
+
+        # Brush color
+        if (isinstance(self._brushColor, QColor)):
+            writer.writeFillAttributes(self._brushColor)
+
+        # Start marker style
+        if (isinstance(self._startMarkerStyle, OdgMarker.Style)):
+            match (self._startMarkerStyle):
+                case OdgMarker.Style.Triangle:
+                    writer.writeAttribute('draw:marker-start', 'Triangle')
+                    writer.writeAttribute('draw:marker-start-center', 'false')
+                case OdgMarker.Style.Circle:
+                    writer.writeAttribute('draw:marker-start', 'Circle')
+                    writer.writeAttribute('draw:marker-start-center', 'true')
+                case _:
+                    pass
+
+        # Start marker size
+        if (isinstance(self._startMarkerSize, float)):
+            writer.writeLengthAttribute('draw:marker-start-width', self._startMarkerSize)
+
+        # End marker style
+        if (isinstance(self._endMarkerStyle, OdgMarker.Style)):
+            match (self._endMarkerStyle):
+                case OdgMarker.Style.Triangle:
+                    writer.writeAttribute('draw:marker-end', 'Triangle')
+                    writer.writeAttribute('draw:marker-end-center', 'false')
+                case OdgMarker.Style.Circle:
+                    writer.writeAttribute('draw:marker-end', 'Circle')
+                    writer.writeAttribute('draw:marker-end-center', 'true')
+                case _:
+                    pass
+
+        # End marker size
+        if (isinstance(self._endMarkerSize, float)):
+            writer.writeLengthAttribute('draw:marker-end-width', self._endMarkerSize)
+
+        writer.writeEndElement()
 
     # ==================================================================================================================
 
-    def sort(self, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
-        self._children = sorted(self._children, key=(lambda x: x.name()),
-                                reverse=(order == Qt.SortOrder.DescendingOrder))
-        for child in self._children:
-            child.sort(order)
+    @staticmethod
+    def writeDashStyles(writer: OdgWriter) -> None:
+        # OpenOffice built-in dash styles
+        writer.writeStartElement('draw:stroke-dash')
+        writer.writeAttribute('draw:name', 'Dash_20__28_Rounded_29_')
+        writer.writeAttribute('draw:display-name', 'Dash (Rounded)')
+        writer.writeAttribute('draw:style', 'round')
+        writer.writeAttribute('draw:dots1', '1')
+        writer.writeAttribute('draw:dots1-length', '201%')
+        writer.writeAttribute('draw:distance', '199%')
+        writer.writeEndElement()
+
+        writer.writeStartElement('draw:stroke-dash')
+        writer.writeAttribute('draw:name', 'Dot_20__28_Rounded_29_')
+        writer.writeAttribute('draw:display-name', 'Dot (Rounded)')
+        writer.writeAttribute('draw:style', 'round')
+        writer.writeAttribute('draw:dots1', '1')
+        writer.writeAttribute('draw:dots1-length', '1%')
+        writer.writeAttribute('draw:distance', '199%')
+        writer.writeEndElement()
+
+        writer.writeStartElement('draw:stroke-dash')
+        writer.writeAttribute('draw:name', 'Dash_20_Dot_20__28_Rounded_29_')
+        writer.writeAttribute('draw:display-name', 'Dash Dot (Rounded)')
+        writer.writeAttribute('draw:style', 'round')
+        writer.writeAttribute('draw:dots1', '1')
+        writer.writeAttribute('draw:dots1-length', '201%')
+        writer.writeAttribute('draw:dots2', '1')
+        writer.writeAttribute('draw:dots2-length', '1%')
+        writer.writeAttribute('draw:distance', '199%')
+        writer.writeEndElement()
+
+        writer.writeStartElement('draw:stroke-dash')
+        writer.writeAttribute('draw:name', 'Dash_20_Dot_20_Dot_20__28_Rounded_29_')
+        writer.writeAttribute('draw:display-name', 'Dash Dot Dot (Rounded)')
+        writer.writeAttribute('draw:style', 'round')
+        writer.writeAttribute('draw:dots1', '1')
+        writer.writeAttribute('draw:dots1-length', '201%')
+        writer.writeAttribute('draw:dots2', '2')
+        writer.writeAttribute('draw:dots2-length', '1%')
+        writer.writeAttribute('draw:distance', '199%')
+        writer.writeEndElement()
+
+    @staticmethod
+    def writeMarkerStyles(writer: OdgWriter) -> None:
+        writer.writeStartElement('draw:marker')
+        writer.writeAttribute('draw:name', 'Triangle')
+        writer.writeAttribute('svg:viewBox', '0 0 1013 1130')
+        writer.writeAttribute('svg:d', ('M1009 1050l-449-1008-22-30-29-12-34 12-21 26-449 1012-5 13v8l5 21 12 21 17 '
+                                        '13 21 4h903l21-4 21-13 9-21 4-21v-8z'))
+        writer.writeEndElement()
+
+        writer.writeStartElement('draw:marker')
+        writer.writeAttribute('draw:name', 'Circle')
+        writer.writeAttribute('svg:viewBox', '0 0 1131 1131')
+        writer.writeAttribute('svg:d', ('M462 1118l-102-29-102-51-93-72-72-93-51-102-29-102-13-105 13-102 29-106 '
+                                        '51-102 72-89 93-72 102-50 102-34 106-9 101 9 106 34 98 50 93 72 72 89 51 102 '
+                                        '29 106 13 102-13 105-29 102-51 102-72 93-93 72-98 51-106 29-101 13z'))
+        writer.writeEndElement()
 
     # ==================================================================================================================
 
     @classmethod
-    def createDefault(cls, units: OdgUnits) -> 'OdgItemStyle':
-        style = cls('Default')
+    def createDefaultStyle(cls, units: OdgUnits) -> 'OdgItemStyle':
+        style = cls('standard')
 
         style.setBrushColor(QColor(255, 255, 255))
 
@@ -358,17 +481,8 @@ class OdgItemStyle(OdgItemStyleBase):
         style.setPenJoinStyle(Qt.PenJoinStyle.RoundJoin)
 
         style.setStartMarkerStyle(OdgMarker.Style.NoMarker)
-        style.setStartMarkerSize(0.1 if (units == OdgUnits.Inches) else 2.5)
+        style.setStartMarkerSize(0.06 if (units == OdgUnits.Inches) else 1.5)
         style.setEndMarkerStyle(OdgMarker.Style.NoMarker)
-        style.setEndMarkerSize(0.1 if (units == OdgUnits.Inches) else 2.5)
+        style.setEndMarkerSize(0.06 if (units == OdgUnits.Inches) else 1.5)
 
         return style
-
-
-# ======================================================================================================================
-# ======================================================================================================================
-# ======================================================================================================================
-
-class OdgItemAutomaticStyle(OdgItemStyleBase):
-    def setParent(self, parent: OdgItemStyle | None) -> None:
-        self._parent = parent

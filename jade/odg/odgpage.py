@@ -17,6 +17,7 @@
 from typing import Any
 from PySide6.QtCore import QObject, Signal
 from .odgitem import OdgItem
+from .odgwriter import OdgWriter
 
 
 class OdgPage(QObject):
@@ -86,3 +87,14 @@ class OdgPage(QObject):
 
     def items(self) -> list[OdgItem]:
         return self._items
+
+    # ==================================================================================================================
+
+    def write(self, writer: OdgWriter) -> None:
+        writer.writeAttribute('draw:name', self._name)
+        writer.writeAttribute('draw:master-page-name', 'Default')
+
+        for item in self._items:
+            writer.writeStartElement(item.qualifiedType())
+            item.write(writer)
+            writer.writeEndElement()

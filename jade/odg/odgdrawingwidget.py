@@ -17,12 +17,14 @@
 from enum import IntEnum
 from typing import Any
 from PySide6.QtCore import Qt, QPointF, QRectF, Signal
-from PySide6.QtGui import QCursor, QMouseEvent, QUndoCommand, QUndoStack
+from PySide6.QtGui import QColor, QCursor, QMouseEvent, QUndoCommand, QUndoStack
 from .odgdrawingview import OdgDrawingView
 from .odggroupitem import OdgGroupItem
 from .odgitem import OdgItem
 from .odgitempoint import OdgItemPoint
+from .odgitemstyle import OdgItemStyle
 from .odgpage import OdgPage
+from .odgwriter import OdgWriter
 
 
 class OdgDrawingWidget(OdgDrawingView):
@@ -224,20 +226,165 @@ class OdgDrawingWidget(OdgDrawingView):
         self._undoStack.clear()
 
     def save(self, path: str) -> bool:
+        writer = OdgWriter(path, self._units, self._pageSize, self._pageMargins)
+        self._write(writer)
+        writer.commit()
         return True
 
     def load(self, path: str) -> bool:
-        return True
+        self.clear()
+        return super().load(path)
 
     def clear(self) -> None:
+        super().clear()
         self._undoStack.clear()
-
-        self.clearPages()
         self._newPageCount = 0
 
-        self.clearItemStyles()
+    def _write(self, writer: OdgWriter) -> None:
+        writer.startMetaDocument()
+        writer.endDocument()
 
-        OdgItem.resetFactoryCounts()
+        writer.startSettingsDocument()
+        self._writeSettings(writer)
+        writer.endDocument()
+
+        writer.startStylesDocument()
+        self._writeStyles(writer)
+        writer.endDocument()
+
+        writer.startContentDocument()
+        self._writeContent(writer)
+        writer.endDocument()
+
+    def _writeSettings(self, writer: OdgWriter) -> None:
+        writer.writeStartElement('office:settings')
+
+        writer.writeStartElement('config:config-item-set')
+        writer.writeAttribute('config:name', 'jade:settings')
+
+        # Units and grid settings
+        writer.writeStartElement('config:config-item')
+        writer.writeAttribute('config:name', 'units')
+        writer.writeAttribute('config:type', 'string')
+        writer.writeCharacters(str(self._units))
+        writer.writeEndElement()
+
+        writer.writeStartElement('config:config-item')
+        writer.writeAttribute('config:name', 'grid')
+        writer.writeAttribute('config:type', 'double')
+        writer.writeCharacters(str(self._grid))
+        writer.writeEndElement()
+
+        writer.writeStartElement('config:config-item')
+        writer.writeAttribute('config:name', 'gridVisible')
+        writer.writeAttribute('config:type', 'boolean')
+        writer.writeCharacters('true' if self._gridVisible else 'false')
+        writer.writeEndElement()
+
+        writer.writeStartElement('config:config-item')
+        writer.writeAttribute('config:name', 'gridColor')
+        writer.writeAttribute('config:type', 'string')
+        writer.writeCharacters(self._gridColor.name(QColor.NameFormat.HexRgb))
+        writer.writeEndElement()
+
+        writer.writeStartElement('config:config-item')
+        writer.writeAttribute('config:name', 'gridSpacingMajor')
+        writer.writeAttribute('config:type', 'int')
+        writer.writeCharacters(str(self._gridSpacingMajor))
+        writer.writeEndElement()
+
+        writer.writeStartElement('config:config-item')
+        writer.writeAttribute('config:name', 'gridSpacingMinor')
+        writer.writeAttribute('config:type', 'int')
+        writer.writeCharacters(str(self._gridSpacingMinor))
+        writer.writeEndElement()
+
+        writer.writeEndElement()
+
+        writer.writeEndElement()
+
+    def _writeStyles(self, writer: OdgWriter) -> None:
+        # Item styles
+        writer.writeStartElement('office:styles')
+
+        OdgItemStyle.writeDashStyles(writer)
+        OdgItemStyle.writeMarkerStyles(writer)
+
+        writer.writeStartElement('style:style')
+        self._defaultItemStyle.write(writer)
+        writer.writeEndElement()
+
+        for style in self._itemStyles:
+            writer.writeStartElement('style:style')
+            style.write(writer)
+            writer.writeEndElement()
+
+        writer.writeEndElement()
+
+        # Page styles
+        writer.writeStartElement('office:automatic-styles')
+
+        writer.writeStartElement('style:page-layout')
+        writer.writeAttribute('style:name', 'DefaultPageLayout')
+
+        writer.writeStartElement('style:page-layout-properties')
+        writer.writeLengthAttribute('fo:page-width', self._pageSize.width())
+        writer.writeLengthAttribute('fo:page-height', self._pageSize.height())
+        writer.writeLengthAttribute('fo:margin-left', self._pageMargins.left())
+        writer.writeLengthAttribute('fo:margin-top', self._pageMargins.top())
+        writer.writeLengthAttribute('fo:margin-right', self._pageMargins.right())
+        writer.writeLengthAttribute('fo:margin-bottom', self._pageMargins.bottom())
+        writer.writeEndElement()
+
+        writer.writeEndElement()
+        writer.writeStartElement('style:style')
+        writer.writeAttribute('style:name', 'DefaultPageStyle')
+        writer.writeAttribute('style:family', 'drawing-page')
+
+        writer.writeStartElement('style:drawing-page-properties')
+        writer.writeFillAttributes(self._backgroundColor)
+        writer.writeAttribute('draw:background-size', 'border')
+        writer.writeEndElement()
+
+        writer.writeEndElement()
+
+        writer.writeEndElement()
+
+        # Master page
+        writer.writeStartElement('office:master-styles')
+
+        writer.writeStartElement('style:master-page')
+        writer.writeAttribute('style:name', 'Default')
+        writer.writeAttribute('style:page-layout-name', 'DefaultPageLayout')
+        writer.writeAttribute('draw:style-name', 'DefaultPageStyle')
+        writer.writeEndElement()
+
+        writer.writeEndElement()
+
+    def _writeContent(self, writer: OdgWriter) -> None:
+        # Automatic item styles
+        writer.writeStartElement('office:automatic-styles')
+        for page in self._pages:
+            for item in page.items():
+                style = item.style()
+                if (isinstance(style, OdgItemStyle)):
+                    writer.writeStartElement('style:style')
+                    style.write(writer)
+                    writer.writeEndElement()
+
+        writer.writeEndElement()
+
+        # Pages
+        writer.writeStartElement('office:body')
+        writer.writeStartElement('office:drawing')
+
+        for page in self._pages:
+            writer.writeStartElement('draw:page')
+            page.write(writer)
+            writer.writeEndElement()
+
+        writer.writeEndElement()
+        writer.writeEndElement()
 
     # ==================================================================================================================
 
