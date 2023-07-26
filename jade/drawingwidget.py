@@ -31,6 +31,7 @@ class DrawingWidget(OdgDrawingWidget):
 
         OdgItem.registerFactoryItem(OdgLineItem('Line'))
         OdgItem.registerFactoryItem(OdgRectItem('Rect'))
+        OdgItem.registerFactoryItem(OdgGroupItem('Group'))
 
         self._createActions()
         self._createContextMenus()

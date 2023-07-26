@@ -370,11 +370,7 @@ class OdgDrawingWidget(OdgDrawingView):
         writer.writeStartElement('office:automatic-styles')
         for page in self._pages:
             for item in page.items():
-                style = item.style()
-                if (isinstance(style, OdgItemStyle)):
-                    writer.writeStartElement('style:style')
-                    style.write(writer)
-                    writer.writeEndElement()
+                item.writeStyles(writer)
 
         writer.writeEndElement()
 

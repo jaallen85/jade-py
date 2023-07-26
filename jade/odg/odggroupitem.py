@@ -137,10 +137,15 @@ class OdgGroupItem(OdgItem):
 
     # ==================================================================================================================
 
+    def writeStyles(self, writer: OdgWriter) -> None:
+        super().writeStyles(writer)
+        for item in self._items:
+            item.writeStyles(writer)
+
     def write(self, writer: OdgWriter) -> None:
         super().write(writer)
         OdgItem.writeItems(writer, self._items)
 
     def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        super().readItems(reader, automaticItemStyles)
+        super().read(reader, automaticItemStyles)
         self.setItems(OdgItem.readItems(reader, automaticItemStyles))

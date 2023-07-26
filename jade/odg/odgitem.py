@@ -261,6 +261,12 @@ class OdgItem(ABC):
 
     # ==================================================================================================================
 
+    def writeStyles(self, writer: OdgWriter) -> None:
+        if (isinstance(self._style, OdgItemStyle)):
+            writer.writeStartElement('style:style')
+            self._style.write(writer)
+            writer.writeEndElement()
+
     def write(self, writer: OdgWriter) -> None:
         if (self._name != ''):
             writer.writeAttribute('draw:name', self._name)
@@ -268,7 +274,7 @@ class OdgItem(ABC):
 
         transformStr = ''
         if (self._rotation != 0):
-            transformStr = f'{transformStr} rotate({self._rotation * math.pi / 2})'
+            transformStr = f'{transformStr} rotate({self._rotation * (-math.pi / 2)})'
         if (self._flipped):
             transformStr = f'{transformStr} scale(-1, 1)'
         if (self._position.x() != 0 or self._position.y() != 0):
@@ -313,7 +319,7 @@ class OdgItem(ABC):
                             elif (strippedToken.startswith('scale(')):
                                 self.setFlipped(not self.isFlipped())
                             elif (strippedToken.startswith('rotate(')):
-                                self.setRotation(self.rotation() + int(float(strippedToken[7:]) / (math.pi / 2)))
+                                self.setRotation(self.rotation() + int(float(strippedToken[7:]) / (-math.pi / 2)))
                     except (KeyError, ValueError):
                         pass
 
@@ -463,7 +469,9 @@ class OdgItem(ABC):
         for item in items:
             newItem = OdgItem.createItem(item.type(), item.style().parent())
             if (isinstance(newItem, OdgItem)):
-                copiedItems.append(newItem)
+                copiedItem = copy.copy(item)
+                copiedItem.setName(newItem.name())
+                copiedItems.append(copiedItem)
 
         # Maintain connections to other items in this list
         for itemIndex, item in enumerate(items):
