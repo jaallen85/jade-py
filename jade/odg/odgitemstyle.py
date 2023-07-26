@@ -17,6 +17,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor, QPen
 from .odgmarker import OdgMarker
+from .odgreader import OdgReader
 from .odgunits import OdgUnits
 from .odgwriter import OdgWriter
 
@@ -305,6 +306,22 @@ class OdgItemStyle:
         self.setEndMarkerStyle(other.endMarkerStyle())
         self.setEndMarkerSize(other.endMarkerSize())
 
+    def clear(self) -> None:
+        self.setName('')
+        self.setParent(None)
+
+        self.setPenStyle(None)
+        self.setPenWidth(None)
+        self.setPenColor(None)
+        self.setPenCapStyle(None)
+        self.setPenJoinStyle(None)
+        self.setBrushColor(None)
+
+        self.setStartMarkerStyle(None)
+        self.setStartMarkerSize(None)
+        self.setEndMarkerStyle(None)
+        self.setEndMarkerSize(None)
+
     # ==================================================================================================================
 
     def write(self, writer: OdgWriter) -> None:
@@ -403,6 +420,116 @@ class OdgItemStyle:
             writer.writeLengthAttribute('draw:marker-end-width', self._endMarkerSize)
 
         writer.writeEndElement()
+
+    def read(self, reader: OdgReader, styles: 'list[OdgItemStyle]') -> None:
+        self.clear()
+
+        attributes = reader.attributes()
+        for i in range(attributes.count()):
+            attr = attributes.at(i)
+            match (attr.qualifiedName()):
+                case 'style:name':
+                    self.setName(attr.value())
+                case 'style:parent-style-name':
+                    parentStyleName = attr.value()
+                    for style in styles:
+                        if (style.name() == parentStyleName):
+                            self.setParent(style)
+                            break
+
+        while (reader.readNextStartElement()):
+            if (reader.qualifiedName() == 'style:graphic-properties'):
+                attributes = reader.attributes()
+                for i in range(attributes.count()):
+                    attr = attributes.at(i)
+                    match (attr.qualifiedName()):
+                        # Pen style
+                        case 'draw:stroke':
+                            match (attr.value()):
+                                case 'solid':
+                                    self.setPenStyle(Qt.PenStyle.SolidLine)
+                                case 'none':
+                                    self.setPenStyle(Qt.PenStyle.NoPen)
+                        case 'draw:stroke-dash':
+                            match (attr.value()):
+                                case 'Dash_20__28_Rounded_29_':
+                                    self.setPenStyle(Qt.PenStyle.DashLine)
+                                case 'Dot_20__28_Rounded_29_':
+                                    self.setPenStyle(Qt.PenStyle.DotLine)
+                                case 'Dash_20_Dot_20__28_Rounded_29_':
+                                    self.setPenStyle(Qt.PenStyle.DashDotLine)
+                                case 'Dash_20_Dot_20_Dot_20__28_Rounded_29_':
+                                    self.setPenStyle(Qt.PenStyle.DashDotDotLine)
+
+                        # Pen width
+                        case 'svg:stroke-width':
+                            self.setPenWidth(reader.lengthFromString(attr.value()))
+
+                        # Pen color
+                        case 'svg:stroke-color':
+                            self.setPenColor(QColor(attr.value()))
+                        case 'svg:stroke-opacity':
+                            if (isinstance(self._penColor, QColor)):
+                                self._penColor.setAlphaF(reader.percentFromString(attr.value()))
+
+                        # Pen cap style
+                        case 'svg:stroke-linecap':
+                            match (attr.value()):
+                                case 'butt':
+                                    self.setPenCapStyle(Qt.PenCapStyle.FlatCap)
+                                case 'square':
+                                    self.setPenCapStyle(Qt.PenCapStyle.SquareCap)
+                                case 'round':
+                                    self.setPenCapStyle(Qt.PenCapStyle.RoundCap)
+
+                        # Pen join style
+                        case 'draw:stroke-linejoin':
+                            match (attr.value()):
+                                case 'miter':
+                                    self.setPenJoinStyle(Qt.PenJoinStyle.MiterJoin)
+                                case 'bevel':
+                                    self.setPenJoinStyle(Qt.PenJoinStyle.BevelJoin)
+                                case 'round':
+                                    self.setPenJoinStyle(Qt.PenJoinStyle.RoundJoin)
+
+                        # Brush color
+                        case 'draw:fill':
+                            match (attr.value()):
+                                case 'solid':
+                                    self.setBrushColor(QColor(0, 0, 0))
+                                case 'none':
+                                    self.setBrushColor(QColor(0, 0, 0, 0))
+                        case 'draw:fill-color':
+                            self.setBrushColor(QColor(attr.value()))
+                        case 'draw:opacity':
+                            if (isinstance(self._brushColor, QColor)):
+                                self._brushColor.setAlphaF(reader.percentFromString(attr.value()))
+
+                        # Start marker style
+                        case 'draw:marker-start':
+                            match (attr.value()):
+                                case 'Triangle':
+                                    self.setStartMarkerStyle(OdgMarker.Style.Triangle)
+                                case 'Circle':
+                                    self.setStartMarkerStyle(OdgMarker.Style.Circle)
+
+                        # Start marker size
+                        case 'draw:marker-start-width':
+                            self.setStartMarkerSize(reader.lengthFromString(attr.value()))
+
+                        # End marker style
+                        case 'draw:marker-end':
+                            match (attr.value()):
+                                case 'Triangle':
+                                    self.setEndMarkerStyle(OdgMarker.Style.Triangle)
+                                case 'Circle':
+                                    self.setEndMarkerStyle(OdgMarker.Style.Circle)
+
+                        # End marker size
+                        case 'draw:marker-end-width':
+                            self.setEndMarkerSize(reader.lengthFromString(attr.value()))
+
+            reader.skipCurrentElement()
 
     # ==================================================================================================================
 

@@ -229,11 +229,15 @@ class OdgDrawingWidget(OdgDrawingView):
         writer = OdgWriter(path, self._units, self._pageSize, self._pageMargins)
         self._write(writer)
         writer.commit()
+        self._undoStack.setClean()
         return True
 
     def load(self, path: str) -> bool:
         self.clear()
-        return super().load(path)
+        result = super().load(path)
+        if (result):
+            self._undoStack.setClean()
+        return result
 
     def clear(self) -> None:
         super().clear()

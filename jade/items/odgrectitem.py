@@ -20,6 +20,7 @@ from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import QColor, QPainter, QPainterPath
 from ..odg.odgitem import OdgItem
 from ..odg.odgitempoint import OdgItemPoint
+from ..odg.odgitemstyle import OdgItemStyle
 from ..odg.odgreader import OdgReader
 from ..odg.odgwriter import OdgWriter
 
@@ -244,5 +245,26 @@ class OdgRectItem(OdgItem):
         if (self._cornerRadius != 0):
             writer.writeLengthAttribute('draw:corner-radius', self._cornerRadius)
 
-    def read(self, reader: OdgReader) -> None:
-        pass
+    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
+        super().read(reader, automaticItemStyles)
+
+        left, top, width, height = (0.0, 0.0, 0.0, 0.0)
+        cornerRadius = 0.0
+        attributes = reader.attributes()
+        for i in range(attributes.count()):
+            attr = attributes.at(i)
+            match (attr.qualifiedName()):
+                case 'svg:x':
+                    left = reader.lengthFromString(attr.value())
+                case 'svg:y':
+                    top = reader.lengthFromString(attr.value())
+                case 'svg:width':
+                    width = reader.lengthFromString(attr.value())
+                case 'svg:height':
+                    height = reader.lengthFromString(attr.value())
+                case 'draw:corner-radius':
+                    cornerRadius = reader.lengthFromString(attr.value())
+        self.setRect(QRectF(left, top, width, height))
+        self.setCornerRadius(cornerRadius)
+
+        reader.skipCurrentElement()

@@ -28,7 +28,6 @@ from .stylesbrowser import StylesBrowser
 
 
 # Todo:
-#   - Add save/load support
 #   - Add cut/copy/paste support
 #   - Add support for other items
 #   - Add export to PNG support

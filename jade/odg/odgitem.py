@@ -279,8 +279,43 @@ class OdgItem(ABC):
         if (transformStr != ''):
             writer.writeAttribute('draw:transform', transformStr)
 
-    def read(self, reader: OdgReader) -> None:
-        pass
+    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
+        self._name = ''
+        self._position = QPointF()
+        self._rotation = 0
+        self._flipped = False
+        self._transform = QTransform()
+        self._transformInverse = QTransform()
+        self._style.clear()
+        self._selected = False
+
+        attributes = reader.attributes()
+        for i in range(attributes.count()):
+            attr = attributes.at(i)
+            match (attr.qualifiedName()):
+                case 'draw:name':
+                    self.setName(attr.value())
+                case 'draw:style-name':
+                    styleName = attr.value()
+                    for style in automaticItemStyles:
+                        if (style.name() == styleName):
+                            self.style().copyFromStyle(style)
+                            break
+                case 'draw:transform':
+                    try:
+                        transformStr = attr.value()
+                        for token in transformStr.split(')'):
+                            strippedToken = token.strip()
+                            if (strippedToken.startswith('translate(')):
+                                coords = strippedToken[10:].split(',')
+                                self.setPosition(QPointF(self.position().x() + reader.xCoordinateFromString(coords[0]),
+                                                         self.position().y() + reader.yCoordinateFromString(coords[1])))
+                            elif (strippedToken.startswith('scale(')):
+                                self.setFlipped(not self.isFlipped())
+                            elif (strippedToken.startswith('rotate(')):
+                                self.setRotation(self.rotation() + int(float(strippedToken[7:]) / (math.pi / 2)))
+                    except (KeyError, ValueError):
+                        pass
 
     # ==================================================================================================================
 
@@ -451,3 +486,49 @@ class OdgItem(ABC):
                         copiedTargetItemPoint.addConnection(copiedItemPoint)
 
         return copiedItems
+
+    # ==================================================================================================================
+
+    @staticmethod
+    def writeItems(writer: OdgWriter, items: 'list[OdgItem]') -> None:
+        for item in items:
+            writer.writeStartElement(item.qualifiedType())
+            item.write(writer)
+            writer.writeEndElement()
+
+    @staticmethod
+    def readItems(reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> 'list[OdgItem]':
+        items: list[OdgItem] = []
+        newItem: OdgItem | None = None
+
+        # Read items from XML
+        while (reader.readNextStartElement()):
+            qualifiedName = reader.qualifiedName()
+            newItem = None
+            for item in OdgItem._factoryItems:
+                if (qualifiedName == item.qualifiedType()):
+                    newItem = OdgItem.createItem(item.type(), None)
+                    break
+
+            if (isinstance(newItem, OdgItem)):
+                newItem.read(reader, automaticItemStyles)
+                items.append(newItem)
+            else:
+                reader.skipCurrentElement()
+
+        # Connect items together
+        for itemIndex, item in enumerate(items):
+            for otherItem in items[itemIndex+1:]:
+                for point in item.points():
+                    for otherPoint in otherItem.points():
+                        shouldConnect = (point.isConnectionPoint() and otherPoint.isConnectionPoint() and
+                                         (point.isFree() or otherPoint.isFree()))
+                        if (shouldConnect):
+                            vec = item.mapToScene(point.position())
+                            vec = vec - otherItem.mapToScene(otherPoint.position())
+                            distance = math.sqrt(vec.x() * vec.x() + vec.y() * vec.y())
+                            if (distance <= 0.01):
+                                point.addConnection(otherPoint)
+                                otherPoint.addConnection(point)
+
+        return items

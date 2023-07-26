@@ -20,6 +20,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPainter, QPainterPath
 from .odgitem import OdgItem
 from .odgitempoint import OdgItemPoint
+from .odgitemstyle import OdgItemStyle
 from .odgreader import OdgReader
 from .odgwriter import OdgWriter
 
@@ -137,7 +138,9 @@ class OdgGroupItem(OdgItem):
     # ==================================================================================================================
 
     def write(self, writer: OdgWriter) -> None:
-        pass
+        super().write(writer)
+        OdgItem.writeItems(writer, self._items)
 
-    def read(self, reader: OdgReader) -> None:
-        pass
+    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
+        super().readItems(reader, automaticItemStyles)
+        self.setItems(OdgItem.readItems(reader, automaticItemStyles))

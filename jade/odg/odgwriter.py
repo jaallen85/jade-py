@@ -163,13 +163,13 @@ class OdgWriter:
     # ==================================================================================================================
 
     def lengthToString(self, value: float) -> str:
-        return f'{value}{str(self._units)}'
+        return f'{value:.8g}{str(self._units)}'
 
     def xCoordinateToString(self, x: float) -> str:
-        return f'{x + self._pageMargins.left()}{str(self._units)}'
+        return f'{x + self._pageMargins.left():.8g}{str(self._units)}'
 
     def yCoordinateToString(self, y: float) -> str:
-        return f'{y + self._pageMargins.top()}{str(self._units)}'
+        return f'{y + self._pageMargins.top():.8g}{str(self._units)}'
 
     def writeLengthAttribute(self, qualifiedName: str, value: float) -> None:
         self.writeAttribute(qualifiedName, self.lengthToString(value))

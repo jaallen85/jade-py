@@ -21,6 +21,7 @@ from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath
 from ..odg.odgitem import OdgItem
 from ..odg.odgitempoint import OdgItemPoint
+from ..odg.odgitemstyle import OdgItemStyle
 from ..odg.odgmarker import OdgMarker
 from ..odg.odgreader import OdgReader
 from ..odg.odgwriter import OdgWriter
@@ -218,8 +219,25 @@ class OdgLineItem(OdgItem):
         writer.writeLengthAttribute('svg:x2', self._line.x2())
         writer.writeLengthAttribute('svg:y2', self._line.y2())
 
-    def read(self, reader: OdgReader) -> None:
-        pass
+    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
+        super().read(reader, automaticItemStyles)
+
+        x1, y1, x2, y2 = (0.0, 0.0, 0.0, 0.0)
+        attributes = reader.attributes()
+        for i in range(attributes.count()):
+            attr = attributes.at(i)
+            match (attr.qualifiedName()):
+                case 'svg:x1':
+                    x1 = reader.lengthFromString(attr.value())
+                case 'svg:y1':
+                    y1 = reader.lengthFromString(attr.value())
+                case 'svg:x2':
+                    x2 = reader.lengthFromString(attr.value())
+                case 'svg:y2':
+                    y2 = reader.lengthFromString(attr.value())
+        self.setLine(QLineF(x1, y1, x2, y2))
+
+        reader.skipCurrentElement()
 
     # ==================================================================================================================
 

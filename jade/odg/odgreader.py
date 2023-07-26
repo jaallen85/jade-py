@@ -14,13 +14,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import re
 from zipfile import ZipFile
-from PySide6.QtCore import QXmlStreamAttributes, QXmlStreamReader
+from PySide6.QtCore import QMarginsF, QSizeF, QXmlStreamAttributes, QXmlStreamReader
+from .odgunits import OdgUnits
 
 
 class OdgReader:
     def __init__(self, path: str) -> None:
         self._path: str = path
+
+        self._units: OdgUnits = OdgUnits.Millimeters
+        self._pageSize: QSizeF = QSizeF(0, 0)
+        self._pageMargins: QMarginsF = QMarginsF(0, 0, 0, 0)
 
         self._content: str = ''
         self._settings: str = ''
@@ -66,6 +72,17 @@ class OdgReader:
 
     # ==================================================================================================================
 
+    def setUnits(self, units: OdgUnits) -> None:
+        self._units = units
+
+    def setPageSize(self, size: QSizeF) -> None:
+        self._pageSize = size
+
+    def setPageMargins(self, margins: QMarginsF) -> None:
+        self._pageMargins = margins
+
+    # ==================================================================================================================
+
     def readNextStartElement(self) -> bool:
         return self._xml.readNextStartElement()
 
@@ -80,3 +97,40 @@ class OdgReader:
 
     def readElementText(self) -> str:
         return self._xml.readElementText()
+
+    # ==================================================================================================================
+
+    def lengthFromString(self, text: str) -> float:
+        text = text.strip()
+        pattern = r'[-+]? (?: (?: \d* \. \d+ ) | (?: \d+ \.? ) )(?: [Ee] [+-]? \d+ ) ?'
+        match = re.match(pattern, text, re.VERBOSE)
+        if (match is not None):
+            try:
+                length = float(match.group(0))
+                unitsStr = text[match.end():].strip()
+                if (unitsStr == ''):
+                    # Assume the value provided is in the same units as self._units
+                    return length
+                # Try to convert the provided value to the same units as self._units; fail if unrecognized units
+                # are provided
+                units = OdgUnits.fromStr(unitsStr)
+                return OdgUnits.convert(length, units, self._units)
+            except ValueError:
+                pass
+        return 0
+
+    def xCoordinateFromString(self, text: str) -> float:
+        return self.lengthFromString(text) - self._pageMargins.left()
+
+    def yCoordinateFromString(self, text: str) -> float:
+        return self.lengthFromString(text) - self._pageMargins.top()
+
+    def percentFromString(self, text: str) -> float:
+        text = text.strip()
+        try:
+            if (text.endswith('%')):
+                return float(text[:-1]) / 100.0
+            return float(text)
+        except ValueError:
+            pass
+        return 0
