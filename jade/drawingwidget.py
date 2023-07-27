@@ -21,7 +21,11 @@ from .odg.odgdrawingwidget import OdgDrawingWidget
 from .odg.odggroupitem import OdgGroupItem
 from .odg.odgitem import OdgItem
 from .odg.odgpage import OdgPage
+from .items.odgcurveitem import OdgCurveItem
+from .items.odgellipseitem import OdgEllipseItem
 from .items.odglineitem import OdgLineItem
+from .items.odgpolygonitem import OdgPolygonItem
+from .items.odgpolylineitem import OdgPolylineItem
 from .items.odgrectitem import OdgRectItem
 
 
@@ -31,6 +35,10 @@ class DrawingWidget(OdgDrawingWidget):
 
         OdgItem.registerFactoryItem(OdgLineItem('Line'))
         OdgItem.registerFactoryItem(OdgRectItem('Rect'))
+        OdgItem.registerFactoryItem(OdgEllipseItem('Ellipse'))
+        OdgItem.registerFactoryItem(OdgPolylineItem('Polyline'))
+        OdgItem.registerFactoryItem(OdgPolygonItem('Polygon'))
+        OdgItem.registerFactoryItem(OdgCurveItem('Curve'))
         OdgItem.registerFactoryItem(OdgGroupItem('Group'))
 
         self._createActions()

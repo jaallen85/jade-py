@@ -1,4 +1,4 @@
-# odgrectitem.py
+# odgellipseitem.py
 # Copyright (C) 2023  Jason Allen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,60 +15,57 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Any
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRectF
 from PySide6.QtGui import QColor, QPainter, QPainterPath
 from ..odg.odgitem import OdgRectItemBase
 from ..odg.odgitempoint import OdgItemPoint
 from ..odg.odgitemstyle import OdgItemStyle
 from ..odg.odgreader import OdgReader
-from ..odg.odgwriter import OdgWriter
 
 
-class OdgRectItem(OdgRectItemBase):
+class OdgEllipseItem(OdgRectItemBase):
     def __init__(self, name: str) -> None:
         super().__init__(name)
 
-        self._cornerRadius: float = 0.0
+        # Corner points are control but not connection points; edge points are control and connection points
+        for index, point in enumerate(self._points):
+            if ((index % 2) == 0):
+                point.setType(OdgItemPoint.Type.Control)
+            else:
+                point.setType(OdgItemPoint.Type.ControlAndConnection)
 
-        # All points are control and connection points
-        for point in self._points:
-            point.setType(OdgItemPoint.Type.ControlAndConnection)
-
-    def __copy__(self) -> 'OdgRectItem':
-        copiedItem = OdgRectItem(self.name())
+    def __copy__(self) -> 'OdgEllipseItem':
+        copiedItem = OdgEllipseItem(self.name())
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
         copiedItem.style().copyFromStyle(self.style())
-        copiedItem.setRect(self.rect())
-        copiedItem.setCornerRadius(self.cornerRadius())
+        copiedItem.setEllipse(self.ellipse())
         return copiedItem
 
     # ==================================================================================================================
 
     def type(self) -> str:
-        return 'rect'
+        return 'ellipse'
 
     def prettyType(self) -> str:
-        return 'Rect'
+        return 'Ellipse'
 
     def qualifiedType(self) -> str:
-        return 'draw:rect'
+        return 'draw:ellipse'
 
     # ==================================================================================================================
 
-    def setCornerRadius(self, radius: float) -> None:
-        self._cornerRadius = radius
+    def setEllipse(self, ellipse: QRectF) -> None:
+        self.setRect(ellipse)
 
-    def cornerRadius(self) -> float:
-        return self._cornerRadius
+    def ellipse(self) -> QRectF:
+        return self.rect()
 
     # ==================================================================================================================
 
     def setProperty(self, name: str, value: Any) -> None:
-        if (name == 'cornerRadius' and isinstance(value, float)):
-            self.setCornerRadius(value)
-        elif (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
+        if (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
             self._style.setPenStyleIfUnique(Qt.PenStyle(value))
         elif (name == 'penWidth' and isinstance(value, float)):
             self._style.setPenWidthIfUnique(value)
@@ -78,10 +75,8 @@ class OdgRectItem(OdgRectItemBase):
             self._style.setBrushColorIfUnique(value)
 
     def property(self, name: str) -> Any:
-        if (name == 'rect'):
-            return self.rect()
-        if (name == 'cornerRadius'):
-            return self.cornerRadius()
+        if (name == 'ellipse'):
+            return self.ellipse()
         if (name == 'penStyle'):
             return self._style.lookupPenStyle()
         if (name == 'penWidth'):
@@ -101,14 +96,14 @@ class OdgRectItem(OdgRectItemBase):
 
         shape = QPainterPath()
         if (pen.style() != Qt.PenStyle.NoPen):
-            rectPath = QPainterPath()
-            rectPath.addRoundedRect(normalizedRect, self._cornerRadius, self._cornerRadius)
+            ellipsePath = QPainterPath()
+            ellipsePath.addEllipse(normalizedRect)
 
-            shape = self._strokePath(rectPath, pen)
+            shape = self._strokePath(ellipsePath, pen)
             if (brush.color().alpha() > 0):
-                shape = shape.united(rectPath)
+                shape = shape.united(ellipsePath)
         else:
-            shape.addRoundedRect(normalizedRect, self._cornerRadius, self._cornerRadius)
+            shape.addEllipse(normalizedRect)
 
         return shape
 
@@ -117,27 +112,10 @@ class OdgRectItem(OdgRectItemBase):
     def paint(self, painter: QPainter) -> None:
         painter.setBrush(self.style().lookupBrush())
         painter.setPen(self.style().lookupPen())
-        painter.drawRoundedRect(self._rect.normalized(), self._cornerRadius, self._cornerRadius)
+        painter.drawEllipse(self._rect.normalized())
 
     # ==================================================================================================================
-
-    def scale(self, scale: float) -> None:
-        super().scale(scale)
-        self.setCornerRadius(self._cornerRadius * scale)
-
-    # ==================================================================================================================
-
-    def write(self, writer: OdgWriter) -> None:
-        super().write(writer)
-
-        if (self._cornerRadius != 0):
-            writer.writeLengthAttribute('draw:corner-radius', self._cornerRadius)
 
     def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
         super().read(reader, automaticItemStyles)
-
-        attributes = reader.attributes()
-        if (attributes.hasAttribute('draw:corner-radius')):
-            self.setCornerRadius(reader.lengthFromString(attributes.value('draw:corner-radius')))
-
         reader.skipCurrentElement()

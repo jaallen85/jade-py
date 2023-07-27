@@ -29,12 +29,13 @@ from .stylesbrowser import StylesBrowser
 
 # Todo:
 #   - Add cut/copy/paste support
-#   - Add support for other items
+#   - Add support for text items, custom items
 #   - Add export to PNG support
 #   - Add export to SVG support
 #   - Add preferences support
 #   - Add about dialog
 #   - Add styles support
+#   - Grouping items should move existing items into the group, not create new items.  Same for ungrouping.
 
 
 class MainWindow(QMainWindow):

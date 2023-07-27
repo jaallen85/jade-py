@@ -17,6 +17,7 @@
 import copy
 import math
 from abc import ABC, abstractmethod
+from enum import IntEnum
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
 from PySide6.QtGui import QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF, QTransform
@@ -540,3 +541,163 @@ class OdgItem(ABC):
                                 otherPoint.addConnection(point)
 
         return items
+
+
+# ======================================================================================================================
+# ======================================================================================================================
+# ======================================================================================================================
+
+class OdgRectItemBase(OdgItem):
+    class PointIndex(IntEnum):
+        TopLeft = 0
+        TopMiddle = 1
+        TopRight = 2
+        MiddleRight = 3
+        BottomRight = 4
+        BottomMiddle = 5
+        BottomLeft = 6
+        MiddleLeft = 7
+
+    # ==================================================================================================================
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+        self._rect: QRectF = QRectF()
+
+        for _ in range(8):
+            self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.Control))
+
+    # ==================================================================================================================
+
+    def setRect(self, rect: QRectF) -> None:
+        if (rect.width() >= 0 and rect.height() >= 0):
+            self._rect = QRectF(rect)
+
+            # Put the item's position at the center of the rect
+            offset = rect.center()
+            self.setPosition(self.mapToScene(offset))
+            self._rect.translate(-offset)
+
+            # Set point positions to match self._rect
+            if (len(self._points) >= 8):
+                topLeft = self._rect.topLeft()
+                center = self._rect.center()
+                bottomRight = self._rect.bottomRight()
+
+                self._points[OdgRectItemBase.PointIndex.TopLeft].setPosition(topLeft)
+                self._points[OdgRectItemBase.PointIndex.TopMiddle].setPosition(QPointF(center.x(), topLeft.y()))
+                self._points[OdgRectItemBase.PointIndex.TopRight].setPosition(QPointF(bottomRight.x(), topLeft.y()))
+                self._points[OdgRectItemBase.PointIndex.MiddleRight].setPosition(QPointF(bottomRight.x(), center.y()))
+                self._points[OdgRectItemBase.PointIndex.BottomRight].setPosition(bottomRight)
+                self._points[OdgRectItemBase.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), bottomRight.y()))
+                self._points[OdgRectItemBase.PointIndex.BottomLeft].setPosition(QPointF(topLeft.x(), bottomRight.y()))
+                self._points[OdgRectItemBase.PointIndex.MiddleLeft].setPosition(QPointF(topLeft.x(), center.y()))
+
+    def rect(self) -> QRectF:
+        return self._rect
+
+    # ==================================================================================================================
+
+    def boundingRect(self) -> QRectF:
+        rect = QRectF(self._rect.normalized())
+
+        # Adjust for pen width
+        if (self.style().lookupPenStyle() != Qt.PenStyle.NoPen):
+            halfPenWidth = self.style().lookupPenWidth() / 2
+            rect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)
+
+        return rect
+
+    def isValid(self) -> bool:
+        return (self._rect.width() != 0 or self._rect.height() != 0)
+
+    # ==================================================================================================================
+
+    def resize(self, point: OdgItemPoint, position: QPointF, snapTo45Degrees: bool) -> None:
+        if (point in self._points):
+            if (snapTo45Degrees and len(self._points) >= 8):
+                position = self._snapResizeTo45Degrees(point, position,
+                                                       self._points[OdgRectItemBase.PointIndex.TopLeft],
+                                                       self._points[OdgRectItemBase.PointIndex.BottomRight])
+            position = self.mapFromScene(position)
+
+            rect = QRectF(self._rect)
+            pointIndex = self._points.index(point)
+
+            # Ensure that rect.width() >= 0
+            if (pointIndex in (OdgRectItemBase.PointIndex.TopLeft, OdgRectItemBase.PointIndex.MiddleLeft,
+                               OdgRectItemBase.PointIndex.BottomLeft)):
+                if (position.x() > rect.right()):
+                    rect.setLeft(rect.right())
+                else:
+                    rect.setLeft(position.x())
+            elif (pointIndex in (OdgRectItemBase.PointIndex.TopRight, OdgRectItemBase.PointIndex.MiddleRight,
+                                 OdgRectItemBase.PointIndex.BottomRight)):
+                if (position.x() < rect.left()):
+                    rect.setRight(rect.left())
+                else:
+                    rect.setRight(position.x())
+
+            # Ensure that rect.height() >= 0
+            if (pointIndex in (OdgRectItemBase.PointIndex.TopLeft, OdgRectItemBase.PointIndex.TopMiddle,
+                               OdgRectItemBase.PointIndex.TopRight)):
+                if (position.y() > rect.bottom()):
+                    rect.setTop(rect.bottom())
+                else:
+                    rect.setTop(position.y())
+            elif (pointIndex in (OdgRectItemBase.PointIndex.BottomLeft, OdgRectItemBase.PointIndex.BottomMiddle,
+                                 OdgRectItemBase.PointIndex.BottomRight)):
+                if (position.y() < rect.top()):
+                    rect.setBottom(rect.top())
+                else:
+                    rect.setBottom(position.y())
+
+            self.setRect(rect)
+
+    def scale(self, scale: float) -> None:
+        super().scale(scale)
+        self.setRect(QRectF(self._rect.left() * scale, self._rect.top() * scale,
+                            self._rect.width() * scale, self._rect.height() * scale))
+
+    # ==================================================================================================================
+
+    def placeCreateEvent(self, sceneRect: QRectF, grid: float) -> None:
+        size = 8 * grid
+        if (size <= 0):
+            size = sceneRect.width() / 40
+        self.setRect(QRectF(-size, -size / 2, 2 * size, size))
+
+    def placeResizeStartPoint(self) -> OdgItemPoint | None:
+        return self._points[OdgRectItemBase.PointIndex.TopLeft] if (len(self._points) >= 8) else None
+
+    def placeResizeEndPoint(self) -> OdgItemPoint | None:
+        return self._points[OdgRectItemBase.PointIndex.BottomRight] if (len(self._points) >= 8) else None
+
+    # ==================================================================================================================
+
+    def write(self, writer: OdgWriter) -> None:
+        super().write(writer)
+
+        writer.writeLengthAttribute('svg:x', self._rect.left())
+        writer.writeLengthAttribute('svg:y', self._rect.top())
+        writer.writeLengthAttribute('svg:width', self._rect.width())
+        writer.writeLengthAttribute('svg:height', self._rect.height())
+
+    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
+        super().read(reader, automaticItemStyles)
+
+        left, top, width, height = (0.0, 0.0, 0.0, 0.0)
+        attributes = reader.attributes()
+        for i in range(attributes.count()):
+            attr = attributes.at(i)
+            match (attr.qualifiedName()):
+                case 'svg:x':
+                    left = reader.lengthFromString(attr.value())
+                case 'svg:y':
+                    top = reader.lengthFromString(attr.value())
+                case 'svg:width':
+                    width = reader.lengthFromString(attr.value())
+                case 'svg:height':
+                    height = reader.lengthFromString(attr.value())
+        self.setRect(QRectF(left, top, width, height))

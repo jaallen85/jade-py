@@ -162,6 +162,9 @@ class OdgWriter:
 
     # ==================================================================================================================
 
+    def lengthToNoUnitsString(self, value: float) -> str:
+        return f'{value:.8g}'
+
     def lengthToString(self, value: float) -> str:
         return f'{value:.8g}{str(self._units)}'
 

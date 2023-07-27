@@ -819,7 +819,7 @@ class OdgDrawingWidget(OdgDrawingView):
 
             # Create a new set of place items
             newItems = OdgItem.copyItems(self._placeModeItems)
-            if (not self._placeByMousePressAndRelease):
+            if (self._placeByMousePressAndRelease):
                 for item in newItems:
                     item.placeCreateEvent(self.contentRect(), self._grid)
 
