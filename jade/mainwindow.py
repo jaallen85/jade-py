@@ -28,7 +28,6 @@ from .stylesbrowser import StylesBrowser
 
 
 # Todo:
-#   - Fix issue with transform for group items in LibreOffice
 #   - Add cut/copy/paste support
 #   - Add support for other items
 #   - Add export to PNG support

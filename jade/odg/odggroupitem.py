@@ -75,19 +75,7 @@ class OdgGroupItem(OdgItem):
     def setItems(self, items: list[OdgItem]) -> None:
         del self._items[:]
         self._items = items
-
-        # Set point positions to match self.boundingRect()
-        if (len(self._points) >= 8):
-            rect = self.boundingRect()
-            center = rect.center()
-            self._points[OdgGroupItem.PointIndex.TopLeft].setPosition(QPointF(rect.left(), rect.top()))
-            self._points[OdgGroupItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), rect.top()))
-            self._points[OdgGroupItem.PointIndex.TopRight].setPosition(QPointF(rect.right(), rect.top()))
-            self._points[OdgGroupItem.PointIndex.MiddleRight].setPosition(QPointF(rect.right(), center.y()))
-            self._points[OdgGroupItem.PointIndex.BottomRight].setPosition(QPointF(rect.right(), rect.bottom()))
-            self._points[OdgGroupItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), rect.bottom()))
-            self._points[OdgGroupItem.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
-            self._points[OdgGroupItem.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
+        self._updatePointPositions()
 
     def items(self) -> list[OdgItem]:
         return self._items
@@ -138,14 +126,69 @@ class OdgGroupItem(OdgItem):
     # ==================================================================================================================
 
     def writeStyles(self, writer: OdgWriter) -> None:
-        super().writeStyles(writer)
         for item in self._items:
             item.writeStyles(writer)
 
     def write(self, writer: OdgWriter) -> None:
-        super().write(writer)
+        originalPosition = QPointF(self._position)
+        originalRotation = self._rotation
+        originalFlipped = self._flipped
+        originalItemPosition = {}
+        originalItemRotation = {}
+        originalItemFlipped = {}
+        for item in self._items:
+            originalItemPosition[item] = item.position()
+            originalItemRotation[item] = item.rotation()
+            originalItemFlipped[item] = item.isFlipped()
+
+        # Apply the group's position/transform to each item
+        for item in self._items:
+            item.setPosition(self.mapToScene(item.position()))
+            item.setRotation(item.rotation() + self.rotation())
+            if (self.isFlipped()):
+                item.setFlipped(not item.isFlipped())
+        # Clear group's position/transform
+        self.setPosition(QPointF(0, 0))
+        self.setRotation(0)
+        self.setFlipped(False)
+
+        # Write group to XML
+        if (self._name != ''):
+            writer.writeAttribute('draw:name', self._name)
         OdgItem.writeItems(writer, self._items)
+
+        # Restore items' original position/transform
+        for item in self._items:
+            item.setPosition(originalItemPosition[item])
+            item.setRotation(originalItemRotation[item])
+            item.setFlipped(originalItemFlipped[item])
+        self.setPosition(originalPosition)
+        self.setRotation(originalRotation)
+        self.setFlipped(originalFlipped)
 
     def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
         super().read(reader, automaticItemStyles)
         self.setItems(OdgItem.readItems(reader, automaticItemStyles))
+
+        # Put the group position equal to the position of the last item and adjust each item's position
+        # accordingly
+        self.setPosition(self._items[-1].position())
+        for item in self._items:
+            item.setPosition(self.mapFromScene(item.position()))
+        self._updatePointPositions()
+
+    # ==================================================================================================================
+
+    def _updatePointPositions(self) -> None:
+        # Set point positions to match self.boundingRect()
+        if (len(self._points) >= 8):
+            rect = self.boundingRect()
+            center = rect.center()
+            self._points[OdgGroupItem.PointIndex.TopLeft].setPosition(QPointF(rect.left(), rect.top()))
+            self._points[OdgGroupItem.PointIndex.TopMiddle].setPosition(QPointF(center.x(), rect.top()))
+            self._points[OdgGroupItem.PointIndex.TopRight].setPosition(QPointF(rect.right(), rect.top()))
+            self._points[OdgGroupItem.PointIndex.MiddleRight].setPosition(QPointF(rect.right(), center.y()))
+            self._points[OdgGroupItem.PointIndex.BottomRight].setPosition(QPointF(rect.right(), rect.bottom()))
+            self._points[OdgGroupItem.PointIndex.BottomMiddle].setPosition(QPointF(center.x(), rect.bottom()))
+            self._points[OdgGroupItem.PointIndex.BottomLeft].setPosition(QPointF(rect.left(), rect.bottom()))
+            self._points[OdgGroupItem.PointIndex.MiddleLeft].setPosition(QPointF(rect.left(), center.y()))
