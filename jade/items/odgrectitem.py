@@ -17,16 +17,13 @@
 from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath
-from ..odg.odgitem import OdgRectItemBase
-from ..odg.odgitempoint import OdgItemPoint
-from ..odg.odgitemstyle import OdgItemStyle
-from ..odg.odgreader import OdgReader
-from ..odg.odgwriter import OdgWriter
+from .odgitem import OdgRectItemBase
+from .odgitempoint import OdgItemPoint
 
 
 class OdgRectItem(OdgRectItemBase):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    def __init__(self) -> None:
+        super().__init__()
 
         self._cornerRadius: float = 0.0
 
@@ -35,7 +32,7 @@ class OdgRectItem(OdgRectItemBase):
             point.setType(OdgItemPoint.Type.ControlAndConnection)
 
     def __copy__(self) -> 'OdgRectItem':
-        copiedItem = OdgRectItem(self.name())
+        copiedItem = OdgRectItem()
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
@@ -43,17 +40,6 @@ class OdgRectItem(OdgRectItemBase):
         copiedItem.setRect(self.rect())
         copiedItem.setCornerRadius(self.cornerRadius())
         return copiedItem
-
-    # ==================================================================================================================
-
-    def type(self) -> str:
-        return 'rect'
-
-    def prettyType(self) -> str:
-        return 'Rect'
-
-    def qualifiedType(self) -> str:
-        return 'draw:rect'
 
     # ==================================================================================================================
 
@@ -124,20 +110,3 @@ class OdgRectItem(OdgRectItemBase):
     def scale(self, scale: float) -> None:
         super().scale(scale)
         self.setCornerRadius(self._cornerRadius * scale)
-
-    # ==================================================================================================================
-
-    def write(self, writer: OdgWriter) -> None:
-        super().write(writer)
-
-        if (self._cornerRadius != 0):
-            writer.writeLengthAttribute('draw:corner-radius', self._cornerRadius)
-
-    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        super().read(reader, automaticItemStyles)
-
-        attributes = reader.attributes()
-        if (attributes.hasAttribute('draw:corner-radius')):
-            self.setCornerRadius(reader.lengthFromString(attributes.value('draw:corner-radius')))
-
-        reader.skipCurrentElement()

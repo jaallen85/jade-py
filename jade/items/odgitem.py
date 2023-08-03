@@ -23,15 +23,11 @@ from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
 from PySide6.QtGui import QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF, QTransform
 from .odgitempoint import OdgItemPoint
 from .odgitemstyle import OdgItemStyle
-from .odgreader import OdgReader
-from .odgwriter import OdgWriter
 
 
 class OdgItem(ABC):
-    def __init__(self, name: str) -> None:
+    def __init__(self) -> None:
         self._parent: Any = None
-
-        self._name: str = name
 
         self._position: QPointF = QPointF()
         self._rotation: int = 0
@@ -41,7 +37,7 @@ class OdgItem(ABC):
 
         self._points: list[OdgItemPoint] = []
 
-        self._style: OdgItemStyle = OdgItemStyle(name)
+        self._style: OdgItemStyle = OdgItemStyle('')
 
         self._selected: bool = False
 
@@ -51,31 +47,8 @@ class OdgItem(ABC):
 
     # ==================================================================================================================
 
-    @abstractmethod
-    def type(self) -> str:
-        return ''
-
-    @abstractmethod
-    def prettyType(self) -> str:
-        return ''
-
-    @abstractmethod
-    def qualifiedType(self) -> str:
-        return ''
-
-    # ==================================================================================================================
-
     def parent(self) -> Any:
         return self._parent
-
-    # ==================================================================================================================
-
-    def setName(self, name: str) -> None:
-        self._name = name
-        self._style.setName(name)
-
-    def name(self) -> str:
-        return self._name
 
     # ==================================================================================================================
 
@@ -262,70 +235,6 @@ class OdgItem(ABC):
 
     # ==================================================================================================================
 
-    def writeStyles(self, writer: OdgWriter) -> None:
-        if (isinstance(self._style, OdgItemStyle)):
-            writer.writeStartElement('style:style')
-            self._style.write(writer)
-            writer.writeEndElement()
-
-    def write(self, writer: OdgWriter) -> None:
-        if (self._name != ''):
-            writer.writeAttribute('draw:name', self._name)
-        writer.writeAttribute('draw:style-name', self._style.name())
-
-        transformStr = ''
-        if (self._rotation != 0):
-            transformStr = f'{transformStr} rotate({self._rotation * (-math.pi / 2)})'
-        if (self._flipped):
-            transformStr = f'{transformStr} scale(-1, 1)'
-        if (self._position.x() != 0 or self._position.y() != 0):
-            xStr = writer.xCoordinateToString(self._position.x())
-            yStr = writer.yCoordinateToString(self._position.y())
-            transformStr = f'{transformStr} translate({xStr}, {yStr})'
-        transformStr = transformStr.strip()
-        if (transformStr != ''):
-            writer.writeAttribute('draw:transform', transformStr)
-
-    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        self._name = ''
-        self._position = QPointF()
-        self._rotation = 0
-        self._flipped = False
-        self._transform = QTransform()
-        self._transformInverse = QTransform()
-        self._style.clear()
-        self._selected = False
-
-        attributes = reader.attributes()
-        for i in range(attributes.count()):
-            attr = attributes.at(i)
-            match (attr.qualifiedName()):
-                case 'draw:name':
-                    self.setName(attr.value())
-                case 'draw:style-name':
-                    styleName = attr.value()
-                    for style in automaticItemStyles:
-                        if (style.name() == styleName):
-                            self.style().copyFromStyle(style)
-                            break
-                case 'draw:transform':
-                    try:
-                        transformStr = attr.value()
-                        for token in transformStr.split(')'):
-                            strippedToken = token.strip()
-                            if (strippedToken.startswith('translate(')):
-                                coords = strippedToken[10:].split(',')
-                                self.setPosition(QPointF(self.position().x() + reader.xCoordinateFromString(coords[0]),
-                                                         self.position().y() + reader.yCoordinateFromString(coords[1])))
-                            elif (strippedToken.startswith('scale(')):
-                                self.setFlipped(not self.isFlipped())
-                            elif (strippedToken.startswith('rotate(')):
-                                self.setRotation(self.rotation() + int(float(strippedToken[7:]) / (-math.pi / 2)))
-                    except (KeyError, ValueError):
-                        pass
-
-    # ==================================================================================================================
-
     def _updateTransform(self) -> None:
         self._transform.reset()
         if (self._flipped):
@@ -426,53 +335,13 @@ class OdgItem(ABC):
 
     # ==================================================================================================================
 
-    _factoryItems: 'list[OdgItem]' = []
-    _factoryNewItemCount: 'dict[OdgItem, int]' = {}
-
-    @staticmethod
-    def registerFactoryItem(item: 'OdgItem') -> None:
-        # Assumes that the item has a unique OdgItem.type when compared to all previously registered items
-        OdgItem._factoryItems.append(item)
-        OdgItem._factoryNewItemCount[item] = 0
-
-    @staticmethod
-    def resetFactoryCounts() -> None:
-        for item in OdgItem._factoryItems:
-            OdgItem._factoryNewItemCount[item] = 0
-
-    @staticmethod
-    def clearFactoryItems() -> None:
-        OdgItem._factoryNewItemCount = {}
-        del OdgItem._factoryItems[:]
-
-    # ==================================================================================================================
-
-    @staticmethod
-    def createItem(typeKey: str, parentStyle: OdgItemStyle | None) -> 'OdgItem | None':
-        for item in OdgItem._factoryItems:
-            if (typeKey == item.type()):
-                newItem = copy.copy(item)
-
-                count = OdgItem._factoryNewItemCount[item] + 1
-                newItem.setName(f'{item.prettyType()} {count}')
-                OdgItem._factoryNewItemCount[item] = count
-
-                newItem.style().setParent(parentStyle)
-
-                return newItem
-        return None
-
     @staticmethod
     def copyItems(items: 'list[OdgItem]') -> 'list[OdgItem]':
         copiedItems: list[OdgItem] = []
 
         # Copy items
         for item in items:
-            newItem = OdgItem.createItem(item.type(), item.style().parent())
-            if (isinstance(newItem, OdgItem)):
-                copiedItem = copy.copy(item)
-                copiedItem.setName(newItem.name())
-                copiedItems.append(copiedItem)
+            copiedItems.append(copy.copy(item))
 
         # Maintain connections to other items in this list
         for itemIndex, item in enumerate(items):
@@ -496,52 +365,6 @@ class OdgItem(ABC):
 
         return copiedItems
 
-    # ==================================================================================================================
-
-    @staticmethod
-    def writeItems(writer: OdgWriter, items: 'list[OdgItem]') -> None:
-        for item in items:
-            writer.writeStartElement(item.qualifiedType())
-            item.write(writer)
-            writer.writeEndElement()
-
-    @staticmethod
-    def readItems(reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> 'list[OdgItem]':
-        items: list[OdgItem] = []
-        newItem: OdgItem | None = None
-
-        # Read items from XML
-        while (reader.readNextStartElement()):
-            qualifiedName = reader.qualifiedName()
-            newItem = None
-            for item in OdgItem._factoryItems:
-                if (qualifiedName == item.qualifiedType()):
-                    newItem = OdgItem.createItem(item.type(), None)
-                    break
-
-            if (isinstance(newItem, OdgItem)):
-                newItem.read(reader, automaticItemStyles)
-                items.append(newItem)
-            else:
-                reader.skipCurrentElement()
-
-        # Connect items together
-        for itemIndex, item in enumerate(items):
-            for otherItem in items[itemIndex+1:]:
-                for point in item.points():
-                    for otherPoint in otherItem.points():
-                        shouldConnect = (point.isConnectionPoint() and otherPoint.isConnectionPoint() and
-                                         (point.isFree() or otherPoint.isFree()))
-                        if (shouldConnect):
-                            vec = item.mapToScene(point.position())
-                            vec = vec - otherItem.mapToScene(otherPoint.position())
-                            distance = math.sqrt(vec.x() * vec.x() + vec.y() * vec.y())
-                            if (distance <= 0.01):
-                                point.addConnection(otherPoint)
-                                otherPoint.addConnection(point)
-
-        return items
-
 
 # ======================================================================================================================
 # ======================================================================================================================
@@ -560,8 +383,8 @@ class OdgRectItemBase(OdgItem):
 
     # ==================================================================================================================
 
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    def __init__(self) -> None:
+        super().__init__()
 
         self._rect: QRectF = QRectF()
 
@@ -673,31 +496,3 @@ class OdgRectItemBase(OdgItem):
 
     def placeResizeEndPoint(self) -> OdgItemPoint | None:
         return self._points[OdgRectItemBase.PointIndex.BottomRight] if (len(self._points) >= 8) else None
-
-    # ==================================================================================================================
-
-    def write(self, writer: OdgWriter) -> None:
-        super().write(writer)
-
-        writer.writeLengthAttribute('svg:x', self._rect.left())
-        writer.writeLengthAttribute('svg:y', self._rect.top())
-        writer.writeLengthAttribute('svg:width', self._rect.width())
-        writer.writeLengthAttribute('svg:height', self._rect.height())
-
-    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        super().read(reader, automaticItemStyles)
-
-        left, top, width, height = (0.0, 0.0, 0.0, 0.0)
-        attributes = reader.attributes()
-        for i in range(attributes.count()):
-            attr = attributes.at(i)
-            match (attr.qualifiedName()):
-                case 'svg:x':
-                    left = reader.lengthFromString(attr.value())
-                case 'svg:y':
-                    top = reader.lengthFromString(attr.value())
-                case 'svg:width':
-                    width = reader.lengthFromString(attr.value())
-                case 'svg:height':
-                    height = reader.lengthFromString(attr.value())
-        self.setRect(QRectF(left, top, width, height))

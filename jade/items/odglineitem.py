@@ -19,12 +19,9 @@ from enum import IntEnum
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath
-from ..odg.odgitem import OdgItem
-from ..odg.odgitempoint import OdgItemPoint
-from ..odg.odgitemstyle import OdgItemStyle
-from ..odg.odgmarker import OdgMarker
-from ..odg.odgreader import OdgReader
-from ..odg.odgwriter import OdgWriter
+from .odgitem import OdgItem
+from .odgitempoint import OdgItemPoint
+from .odgmarker import OdgMarker
 
 
 class OdgLineItem(OdgItem):
@@ -35,8 +32,8 @@ class OdgLineItem(OdgItem):
 
     # ==================================================================================================================
 
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    def __init__(self) -> None:
+        super().__init__()
 
         self._line: QLineF = QLineF()
 
@@ -45,24 +42,13 @@ class OdgLineItem(OdgItem):
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.FreeControlAndConnection))
 
     def __copy__(self) -> 'OdgLineItem':
-        copiedItem = OdgLineItem(self.name())
+        copiedItem = OdgLineItem()
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
         copiedItem.style().copyFromStyle(self.style())
         copiedItem.setLine(self.line())
         return copiedItem
-
-    # ==================================================================================================================
-
-    def type(self) -> str:
-        return 'line'
-
-    def prettyType(self) -> str:
-        return 'Line'
-
-    def qualifiedType(self) -> str:
-        return 'draw:line'
 
     # ==================================================================================================================
 
@@ -208,36 +194,6 @@ class OdgLineItem(OdgItem):
 
     def placeResizeEndPoint(self) -> OdgItemPoint | None:
         return self._points[OdgLineItem.PointIndex.EndPoint] if (len(self._points) >= 3) else None
-
-    # ==================================================================================================================
-
-    def write(self, writer: OdgWriter) -> None:
-        super().write(writer)
-
-        writer.writeLengthAttribute('svg:x1', self._line.x1())
-        writer.writeLengthAttribute('svg:y1', self._line.y1())
-        writer.writeLengthAttribute('svg:x2', self._line.x2())
-        writer.writeLengthAttribute('svg:y2', self._line.y2())
-
-    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        super().read(reader, automaticItemStyles)
-
-        x1, y1, x2, y2 = (0.0, 0.0, 0.0, 0.0)
-        attributes = reader.attributes()
-        for i in range(attributes.count()):
-            attr = attributes.at(i)
-            match (attr.qualifiedName()):
-                case 'svg:x1':
-                    x1 = reader.lengthFromString(attr.value())
-                case 'svg:y1':
-                    y1 = reader.lengthFromString(attr.value())
-                case 'svg:x2':
-                    x2 = reader.lengthFromString(attr.value())
-                case 'svg:y2':
-                    y2 = reader.lengthFromString(attr.value())
-        self.setLine(QLineF(x1, y1, x2, y2))
-
-        reader.skipCurrentElement()
 
     # ==================================================================================================================
 

@@ -22,9 +22,9 @@ from PySide6.QtGui import (QBrush, QColor, QCursor, QMouseEvent, QPainter, QPain
                            QResizeEvent, QTransform, QWheelEvent)
 from PySide6.QtWidgets import (QAbstractScrollArea, QApplication, QRubberBand, QStyle, QStyleHintReturnMask,
                                QStyleOptionRubberBand)
-from .odgitem import OdgItem
-from .odgitempoint import OdgItemPoint
-from .odgitemstyle import OdgItemStyle
+from ..items.odgitem import OdgItem
+from ..items.odgitempoint import OdgItemPoint
+from ..items.odgitemstyle import OdgItemStyle
 from .odgpage import OdgPage
 from .odgreader import OdgReader
 from .odgunits import OdgUnits
@@ -88,7 +88,8 @@ class OdgDrawingView(QAbstractScrollArea):
         self._gridSpacingMinor: int = 2
 
         # Item styles
-        self._defaultItemStyle: OdgItemStyle = OdgItemStyle.createDefaultStyle(self._units)
+        self._defaultItemStyle: OdgItemStyle = OdgItemStyle.createDefaultStyle(
+            0.01 if (self._units == OdgUnits.Inches) else 0.25)
         self._itemStyles: list[OdgItemStyle] = []
 
         # Pages
@@ -315,8 +316,14 @@ class OdgDrawingView(QAbstractScrollArea):
 
     # ==================================================================================================================
 
+    def addItemStyle(self, style: OdgItemStyle) -> None:
+        self._itemStyles.append(style)
+
     def clearItemStyles(self) -> None:
         del self._itemStyles[:]
+
+    def itemStyles(self) -> list[OdgItemStyle]:
+        return self._itemStyles
 
     def defaultItemStyle(self) -> OdgItemStyle:
         return self._defaultItemStyle
@@ -560,10 +567,7 @@ class OdgDrawingView(QAbstractScrollArea):
                 case OdgDrawingView.Mode.ZoomMode:
                     self.modeTextChanged.emit('Zoom Mode')
                 case OdgDrawingView.Mode.PlaceMode:
-                    if (len(placeItems) == 1):
-                        self.modeTextChanged.emit(f'Place {placeItems[0].prettyType()}')
-                    else:
-                        self.modeTextChanged.emit('Place Mode')
+                    self.modeTextChanged.emit('Place Mode')
 
             # Update cursor
             match (self._mode):
@@ -608,128 +612,35 @@ class OdgDrawingView(QAbstractScrollArea):
 
     def load(self, path: str) -> bool:
         self.clear()
+
         reader = OdgReader(path)
-        self._read(reader)
+
+        self.setUnits(reader.units())
+        self.setPageSize(reader.pageSize())
+        self.setPageMargins(reader.pageMargins())
+        self.setBackgroundColor(reader.backgroundColor())
+        self.setGrid(reader.grid())
+        self.setGridVisible(reader.isGridVisible())
+        self.setGridColor(reader.gridColor())
+        self.setGridSpacingMajor(reader.gridSpacingMajor())
+        self.setGridSpacingMinor(reader.gridSpacingMinor())
+
+        self._defaultItemStyle.copyFromStyle(reader.defaultItemStyle())
+
+        for style in reader.takeItemStyles():
+            if (style.parent() == reader.defaultItemStyle()):
+                style.setParent(self._defaultItemStyle)
+            self.addItemStyle(style)
+
+        for page in reader.takePages():
+            self.addPage(page)
+        self.setCurrentPageIndex(0)
+
         return True
 
     def clear(self) -> None:
         self.clearPages()
         self.clearItemStyles()
-        OdgItem.resetFactoryCounts()
-
-    def _read(self, reader: OdgReader) -> None:
-        reader.startSettingsDocument()
-        self._readSettings(reader)
-        reader.endDocument()
-
-        reader.startStylesDocument()
-        self._readStyles(reader)
-        reader.endDocument()
-
-        reader.startContentDocument()
-        self._readContent(reader)
-        reader.endDocument()
-
-    def _readSettings(self, reader: OdgReader) -> None:
-        while (reader.readNextStartElement()):
-            if (reader.qualifiedName() == 'office:settings'):
-                while (reader.readNextStartElement()):
-                    if (reader.qualifiedName() == 'config:config-item-set'):
-                        attr = reader.attributes()
-                        if (attr.hasAttribute('config:name') and attr.value('config:name') == 'jade:settings'):
-                            while (reader.readNextStartElement()):
-                                if (reader.qualifiedName() == 'config:config-item'):
-                                    attr = reader.attributes()
-                                    text = reader.readElementText()
-                                    if (attr.hasAttribute('config:name') and attr.hasAttribute('config:type')):
-                                        name = attr.value('config:name')
-                                        typeStr = attr.value('config:type')
-                                        if (name == 'units' and typeStr == 'string'):
-                                            self.setUnits(OdgUnits.fromStr(text))
-                                            reader.setUnits(self._units)
-                                        elif (name == 'grid' and typeStr == 'double'):
-                                            self.setGrid(float(text))
-                                        elif (name == 'gridVisible' and typeStr == 'boolean'):
-                                            self.setGridVisible(text.strip().lower() == 'true')
-                                        elif (name == 'gridColor' and typeStr == 'string'):
-                                            self.setGridColor(QColor.fromString(text))
-                                        elif (name == 'gridSpacingMajor' and typeStr == 'int'):
-                                            self.setGridSpacingMajor(int(text))
-                                        elif (name == 'gridSpacingMinor' and typeStr == 'int'):
-                                            self.setGridSpacingMinor(int(text))
-                                else:
-                                    reader.skipCurrentElement()
-                            reader.setPageSize(self._pageSize)
-                            reader.setPageMargins(self._pageMargins)
-                    else:
-                        reader.skipCurrentElement()
-            else:
-                reader.skipCurrentElement()
-
-    def _readStyles(self, reader: OdgReader) -> None:
-        styles: list[OdgItemStyle] = [self._defaultItemStyle]
-
-        while (reader.readNextStartElement()):
-            if (reader.qualifiedName() == 'office:styles'):
-                while (reader.readNextStartElement()):
-                    if (reader.qualifiedName() == 'style:default-style'):
-                        self._defaultItemStyle.read(reader, [])
-                    elif (reader.qualifiedName() == 'style:style'):
-                        attr = reader.attributes()
-                        if (attr.hasAttribute('style:name') and attr.value('style:name') == 'standard'):
-                            self._defaultItemStyle.read(reader, [])
-                        else:
-                            newStyle = OdgItemStyle('')
-                            newStyle.read(reader, styles)
-                            self._itemStyles.append(newStyle)
-                            styles.append(newStyle)
-                    else:
-                        reader.skipCurrentElement()
-            elif (reader.qualifiedName() == 'office:automatic-styles'):
-                while (reader.readNextStartElement()):
-                    if (reader.qualifiedName() == 'style:page-layout'):
-                        self._readPageLayout(reader)
-                    elif (reader.qualifiedName() == 'style:style'):
-                        self._readPageStyle(reader)
-                    else:
-                        reader.skipCurrentElement()
-            else:
-                reader.skipCurrentElement()
-
-    def _readPageLayout(self, reader: OdgReader) -> None:
-        reader.skipCurrentElement()
-
-    def _readPageStyle(self, reader: OdgReader) -> None:
-        reader.skipCurrentElement()
-
-    def _readContent(self, reader: OdgReader) -> None:
-        automaticStyles: list[OdgItemStyle] = []
-        styles: list[OdgItemStyle] = [self._defaultItemStyle]
-        styles.extend(self._itemStyles)
-
-        while (reader.readNextStartElement()):
-            if (reader.qualifiedName() == 'office:automatic-styles'):
-                while (reader.readNextStartElement()):
-                    if (reader.qualifiedName() == 'style:style'):
-                        newStyle = OdgItemStyle('')
-                        newStyle.read(reader, styles)
-                        automaticStyles.append(newStyle)
-                    else:
-                        reader.skipCurrentElement()
-            elif (reader.qualifiedName() == 'office:body'):
-                while (reader.readNextStartElement()):
-                    if (reader.qualifiedName() == 'office:drawing'):
-                        while (reader.readNextStartElement()):
-                            if (reader.qualifiedName() == 'draw:page'):
-                                newPage = OdgPage('')
-                                newPage.read(reader, automaticStyles)
-                                self.addPage(newPage)
-                            else:
-                                reader.skipCurrentElement()
-                    else:
-                        reader.skipCurrentElement()
-            else:
-                reader.skipCurrentElement()
 
     # ==================================================================================================================
 

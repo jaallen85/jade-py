@@ -17,7 +17,7 @@
 from typing import Any
 from PySide6.QtCore import QSize
 from PySide6.QtWidgets import QScrollArea, QStackedWidget
-from .odg.odgitem import OdgItem
+from .items.odgitem import OdgItem
 from .properties.drawingpropertieswidget import DrawingPropertiesWidget
 from .properties.multipleitempropertieswidget import MultipleItemPropertiesWidget
 from .properties.singleitempropertieswidget import SingleItemPropertiesWidget

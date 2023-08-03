@@ -1,4 +1,4 @@
-# stylesbrowser.py
+# __init__.py
 # Copyright (C) 2023  Jason Allen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -13,13 +13,3 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-from PySide6.QtWidgets import QTreeWidget
-from .drawingwidget import DrawingWidget
-
-
-class StylesBrowser(QTreeWidget):
-    def __init__(self, drawing: DrawingWidget) -> None:
-        super().__init__()
-
-        self._drawing: DrawingWidget = drawing

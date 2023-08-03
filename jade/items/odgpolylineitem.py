@@ -18,17 +18,14 @@ import math
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPolygonF
-from ..odg.odgitem import OdgItem
-from ..odg.odgitempoint import OdgItemPoint
-from ..odg.odgitemstyle import OdgItemStyle
-from ..odg.odgmarker import OdgMarker
-from ..odg.odgreader import OdgReader
-from ..odg.odgwriter import OdgWriter
+from .odgitem import OdgItem
+from .odgitempoint import OdgItemPoint
+from .odgmarker import OdgMarker
 
 
 class OdgPolylineItem(OdgItem):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    def __init__(self) -> None:
+        super().__init__()
 
         self._polyline: QPolygonF = QPolygonF()
 
@@ -36,24 +33,13 @@ class OdgPolylineItem(OdgItem):
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.FreeControlAndConnection))
 
     def __copy__(self) -> 'OdgPolylineItem':
-        copiedItem = OdgPolylineItem(self.name())
+        copiedItem = OdgPolylineItem()
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
         copiedItem.style().copyFromStyle(self.style())
         copiedItem.setPolyline(self.polyline())
         return copiedItem
-
-    # ==================================================================================================================
-
-    def type(self) -> str:
-        return 'polyline'
-
-    def prettyType(self) -> str:
-        return 'Polyline'
-
-    def qualifiedType(self) -> str:
-        return 'draw:polyline'
 
     # ==================================================================================================================
 
@@ -254,43 +240,6 @@ class OdgPolylineItem(OdgItem):
 
     def placeResizeEndPoint(self) -> OdgItemPoint | None:
         return self._points[-1] if (len(self._points) >= 2) else None
-
-    # ==================================================================================================================
-
-    def write(self, writer: OdgWriter) -> None:
-        super().write(writer)
-
-        viewBox = self._polyline.boundingRect()
-        writer.writeLengthAttribute('svg:x', viewBox.left())
-        writer.writeLengthAttribute('svg:y', viewBox.top())
-        writer.writeLengthAttribute('svg:width', viewBox.width())
-        writer.writeLengthAttribute('svg:height', viewBox.height())
-        writer.writeAttribute('svg:viewBox', (f'{writer.lengthToNoUnitsString(viewBox.left())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.top())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.width())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.height())}'))
-
-        pointsStr = ''
-        for index in range(self._polyline.count()):
-            point = self._polyline.at(index)
-            pointsStr = f'{pointsStr} {writer.lengthToNoUnitsString(point.x())},{writer.lengthToNoUnitsString(point.y())}'      # noqa
-        writer.writeAttribute('draw:points', pointsStr.strip())
-
-    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        super().read(reader, automaticItemStyles)
-
-        try:
-            attr = reader.attributes()
-            if (attr.hasAttribute('draw:points')):
-                polyline = QPolygonF()
-                for token in attr.value('draw:points').split(' '):
-                    coordTokens = token.split(',')
-                    polyline.append(QPointF(float(coordTokens[0]), float(coordTokens[1])))
-                self.setPolyline(polyline)
-        except (ValueError, KeyError):
-            pass
-
-        reader.skipCurrentElement()
 
     # ==================================================================================================================
 

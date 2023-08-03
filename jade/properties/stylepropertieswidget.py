@@ -18,8 +18,8 @@ from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon
 from PySide6.QtWidgets import (QComboBox, QFontComboBox, QFormLayout, QFrame, QGroupBox, QHBoxLayout, QLineEdit,
                                QToolButton, QVBoxLayout, QWidget)
-from ..odg.odgmarker import OdgMarker
-from ..odg.odgunits import OdgUnits
+from ..items.odgmarker import OdgMarker
+from ..drawing.odgunits import OdgUnits
 from .helperwidgets import ColorWidget, LengthEdit
 
 

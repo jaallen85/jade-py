@@ -18,7 +18,7 @@ import typing
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QAction, QContextMenuEvent, QDropEvent
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QMenu
-from .odg.odgpage import OdgPage
+from .drawing.odgpage import OdgPage
 from .drawingwidget import DrawingWidget
 
 

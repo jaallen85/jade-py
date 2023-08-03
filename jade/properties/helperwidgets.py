@@ -19,7 +19,7 @@ from PySide6.QtCore import Qt, QPointF, QRect, QSize, QSizeF, Signal
 from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QMouseEvent, QPaintEvent, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (QColorDialog, QComboBox, QHBoxLayout, QMenu, QLineEdit, QPushButton, QSizePolicy,
                                QWidget, QWidgetAction)
-from ..odg.odgunits import OdgUnits
+from ..drawing.odgunits import OdgUnits
 
 
 class UnitsCombo(QComboBox):

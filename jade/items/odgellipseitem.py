@@ -17,15 +17,13 @@
 from typing import Any
 from PySide6.QtCore import Qt, QRectF
 from PySide6.QtGui import QColor, QPainter, QPainterPath
-from ..odg.odgitem import OdgRectItemBase
-from ..odg.odgitempoint import OdgItemPoint
-from ..odg.odgitemstyle import OdgItemStyle
-from ..odg.odgreader import OdgReader
+from .odgitem import OdgRectItemBase
+from .odgitempoint import OdgItemPoint
 
 
 class OdgEllipseItem(OdgRectItemBase):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    def __init__(self) -> None:
+        super().__init__()
 
         # Corner points are control but not connection points; edge points are control and connection points
         for index, point in enumerate(self._points):
@@ -35,24 +33,13 @@ class OdgEllipseItem(OdgRectItemBase):
                 point.setType(OdgItemPoint.Type.ControlAndConnection)
 
     def __copy__(self) -> 'OdgEllipseItem':
-        copiedItem = OdgEllipseItem(self.name())
+        copiedItem = OdgEllipseItem()
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
         copiedItem.style().copyFromStyle(self.style())
         copiedItem.setEllipse(self.ellipse())
         return copiedItem
-
-    # ==================================================================================================================
-
-    def type(self) -> str:
-        return 'ellipse'
-
-    def prettyType(self) -> str:
-        return 'Ellipse'
-
-    def qualifiedType(self) -> str:
-        return 'draw:ellipse'
 
     # ==================================================================================================================
 
@@ -113,9 +100,3 @@ class OdgEllipseItem(OdgRectItemBase):
         painter.setBrush(self.style().lookupBrush())
         painter.setPen(self.style().lookupPen())
         painter.drawEllipse(self._rect.normalized())
-
-    # ==================================================================================================================
-
-    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        super().read(reader, automaticItemStyles)
-        reader.skipCurrentElement()

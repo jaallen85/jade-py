@@ -17,16 +17,13 @@
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPolygonF
-from ..odg.odgitem import OdgItem
-from ..odg.odgitempoint import OdgItemPoint
-from ..odg.odgitemstyle import OdgItemStyle
-from ..odg.odgreader import OdgReader
-from ..odg.odgwriter import OdgWriter
+from .odgitem import OdgItem
+from .odgitempoint import OdgItemPoint
 
 
 class OdgPolygonItem(OdgItem):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    def __init__(self) -> None:
+        super().__init__()
 
         self._polygon: QPolygonF = QPolygonF()
 
@@ -38,24 +35,13 @@ class OdgPolygonItem(OdgItem):
             point.setType(OdgItemPoint.Type.ControlAndConnection)
 
     def __copy__(self) -> 'OdgPolygonItem':
-        copiedItem = OdgPolygonItem(self.name())
+        copiedItem = OdgPolygonItem()
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
         copiedItem.style().copyFromStyle(self.style())
         copiedItem.setPolygon(self.polygon())
         return copiedItem
-
-    # ==================================================================================================================
-
-    def type(self) -> str:
-        return 'polygon'
-
-    def prettyType(self) -> str:
-        return 'Polygon'
-
-    def qualifiedType(self) -> str:
-        return 'draw:polygon'
 
     # ==================================================================================================================
 
@@ -222,40 +208,3 @@ class OdgPolygonItem(OdgItem):
         polygon.append(QPointF(size, 0))
         polygon.append(QPointF(-size, size))
         self.setPolygon(polygon)
-
-    # ==================================================================================================================
-
-    def write(self, writer: OdgWriter) -> None:
-        super().write(writer)
-
-        viewBox = self._polygon.boundingRect()
-        writer.writeLengthAttribute('svg:x', viewBox.left())
-        writer.writeLengthAttribute('svg:y', viewBox.top())
-        writer.writeLengthAttribute('svg:width', viewBox.width())
-        writer.writeLengthAttribute('svg:height', viewBox.height())
-        writer.writeAttribute('svg:viewBox', (f'{writer.lengthToNoUnitsString(viewBox.left())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.top())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.width())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.height())}'))
-
-        pointsStr = ''
-        for index in range(self._polygon.count()):
-            point = self._polygon.at(index)
-            pointsStr = f'{pointsStr} {writer.lengthToNoUnitsString(point.x())},{writer.lengthToNoUnitsString(point.y())}'      # noqa
-        writer.writeAttribute('draw:points', pointsStr.strip())
-
-    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        super().read(reader, automaticItemStyles)
-
-        try:
-            attr = reader.attributes()
-            if (attr.hasAttribute('draw:points')):
-                polygon = QPolygonF()
-                for token in attr.value('draw:points').split(' '):
-                    coordTokens = token.split(',')
-                    polygon.append(QPointF(float(coordTokens[0]), float(coordTokens[1])))
-                self.setPolygon(polygon)
-        except (ValueError, KeyError):
-            pass
-
-        reader.skipCurrentElement()

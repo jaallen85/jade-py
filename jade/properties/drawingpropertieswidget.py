@@ -18,7 +18,7 @@ from typing import Any
 from PySide6.QtCore import Qt, QMarginsF, QSizeF, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QIntValidator
 from PySide6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
-from ..odg.odgunits import OdgUnits
+from ..drawing.odgunits import OdgUnits
 from .helperwidgets import ColorWidget, LengthEdit, SizeWidget, UnitsCombo
 
 

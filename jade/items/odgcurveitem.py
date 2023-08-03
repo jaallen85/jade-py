@@ -19,12 +19,9 @@ from enum import IntEnum
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
-from ..odg.odgitem import OdgItem
-from ..odg.odgitempoint import OdgItemPoint
-from ..odg.odgitemstyle import OdgItemStyle
-from ..odg.odgmarker import OdgMarker
-from ..odg.odgreader import OdgReader
-from ..odg.odgwriter import OdgWriter
+from .odgitem import OdgItem
+from .odgitempoint import OdgItemPoint
+from .odgmarker import OdgMarker
 
 
 class OdgCurveItem(OdgItem):
@@ -36,8 +33,8 @@ class OdgCurveItem(OdgItem):
 
     # ==================================================================================================================
 
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    def __init__(self) -> None:
+        super().__init__()
 
         self._curve: QPolygonF = QPolygonF()
         for _ in range(4):
@@ -50,24 +47,13 @@ class OdgCurveItem(OdgItem):
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.FreeControlAndConnection))
 
     def __copy__(self) -> 'OdgCurveItem':
-        copiedItem = OdgCurveItem(self.name())
+        copiedItem = OdgCurveItem()
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
         copiedItem.style().copyFromStyle(self.style())
         copiedItem.setCurve(self.curve())
         return copiedItem
-
-    # ==================================================================================================================
-
-    def type(self) -> str:
-        return 'curve'
-
-    def prettyType(self) -> str:
-        return 'Curve'
-
-    def qualifiedType(self) -> str:
-        return 'draw:path'
 
     # ==================================================================================================================
 
@@ -250,53 +236,6 @@ class OdgCurveItem(OdgItem):
         curve.append(QPointF(0, size))
         curve.append(QPointF(size, size))
         self.setCurve(curve)
-
-    # ==================================================================================================================
-
-    def write(self, writer: OdgWriter) -> None:
-        super().write(writer)
-
-        viewBox = self._curvePath.boundingRect()
-        writer.writeLengthAttribute('svg:x', viewBox.left())
-        writer.writeLengthAttribute('svg:y', viewBox.top())
-        writer.writeLengthAttribute('svg:width', viewBox.width())
-        writer.writeLengthAttribute('svg:height', viewBox.height())
-        writer.writeAttribute('svg:viewBox', (f'{writer.lengthToNoUnitsString(viewBox.left())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.top())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.width())} '
-                                              f'{writer.lengthToNoUnitsString(viewBox.height())}'))
-
-        p1 = self._curve.at(OdgCurveItem.PointIndex.StartPoint)
-        cp1 = self._curve.at(OdgCurveItem.PointIndex.StartControlPoint)
-        cp2 = self._curve.at(OdgCurveItem.PointIndex.EndControlPoint)
-        p2 = self._curve.at(OdgCurveItem.PointIndex.EndPoint)
-        writer.writeAttribute('svg:d', (f'M {writer.lengthToNoUnitsString(p1.x())},{writer.lengthToNoUnitsString(p1.y())} '     # noqa
-                                        f'C {writer.lengthToNoUnitsString(cp1.x())},{writer.lengthToNoUnitsString(cp1.y())} '   # noqa
-                                        f'{writer.lengthToNoUnitsString(cp2.x())},{writer.lengthToNoUnitsString(cp2.y())} '     # noqa
-                                        f'{writer.lengthToNoUnitsString(p2.x())},{writer.lengthToNoUnitsString(p2.y())}'))      # noqa
-
-    def read(self, reader: OdgReader, automaticItemStyles: list[OdgItemStyle]) -> None:
-        super().read(reader, automaticItemStyles)
-
-        try:
-            attr = reader.attributes()
-            if (attr.hasAttribute('svg:d')):
-                tokens = attr.value('svg:d').split(' ')
-                if (len(tokens) == 6 and tokens[0] == 'M' and tokens[2] == 'C'):
-                    curve = QPolygonF()
-                    coordTokens = tokens[1].split(',')
-                    curve.append(QPointF(float(coordTokens[0]), float(coordTokens[1])))
-                    coordTokens = tokens[3].split(',')
-                    curve.append(QPointF(float(coordTokens[0]), float(coordTokens[1])))
-                    coordTokens = tokens[4].split(',')
-                    curve.append(QPointF(float(coordTokens[0]), float(coordTokens[1])))
-                    coordTokens = tokens[5].split(',')
-                    curve.append(QPointF(float(coordTokens[0]), float(coordTokens[1])))
-                    self.setCurve(curve)
-        except (ValueError, KeyError):
-            pass
-
-        reader.skipCurrentElement()
 
     # ==================================================================================================================
 

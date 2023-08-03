@@ -20,22 +20,21 @@ from PySide6.QtCore import Qt, QSize, SignalInstance
 from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QDockWidget, QFileDialog, QHBoxLayout, QLabel, QMainWindow,
                                QMessageBox, QToolBar, QWidget)
-from .odg.odgunits import OdgUnits
+from .drawing.odgunits import OdgUnits
 from .drawingwidget import DrawingWidget
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
-from .stylesbrowser import StylesBrowser
 
 
 # Todo:
-#   - Add cut/copy/paste support
 #   - Add support for text items, custom items
+#   - Add cut/copy/paste support
 #   - Add export to PNG support
 #   - Add export to SVG support
 #   - Add preferences support
 #   - Add about dialog
 #   - Add styles support
-#   - Grouping items should move existing items into the group, not create new items.  Same for ungrouping.
+#   - Add duplicate page feature
 
 
 class MainWindow(QMainWindow):
@@ -49,7 +48,6 @@ class MainWindow(QMainWindow):
         self._promptCloseUnsaved: bool = True
         self._pagesDockVisibleOnClose: bool = True
         self._propertiesDockVisibleOnClose: bool = True
-        self._stylesDockVisibleOnClose: bool = True
 
         # Central widget
         self._drawing: DrawingWidget = DrawingWidget()
@@ -63,11 +61,6 @@ class MainWindow(QMainWindow):
         self._propertiesBrowser: PropertiesBrowser = PropertiesBrowser(self._drawing)
         self._propertiesDock: QDockWidget = self._addDockWidget('Properties', self._propertiesBrowser,
                                                                 Qt.DockWidgetArea.RightDockWidgetArea)
-
-        self._stylesBrowser: StylesBrowser = StylesBrowser(self._drawing)
-        self._stylesDock: QDockWidget = self._addDockWidget('Styles', self._stylesBrowser,
-                                                            Qt.DockWidgetArea.RightDockWidgetArea)
-        self.tabifyDockWidget(self._propertiesDock, self._stylesDock)
 
         # Status bar widgets
         self._modeLabel = self._addStatusBarLabel('Select Mode', 'Select Mode', self._drawing.modeTextChanged)
@@ -122,8 +115,6 @@ class MainWindow(QMainWindow):
 
         self._viewPropertiesAction: QAction = self._addAction('Properties...', self._propertiesDock.show,
                                                               'icons:view-form.png')
-        self._viewStylesAction: QAction = self._addAction('Styles...', self._stylesDock.show,
-                                                          'icons:view-list-tree.png')
         self._viewPagesAction: QAction = self._addAction('Pages...', self._pagesDock.show,
                                                          'icons:view-list-text.png')
 
@@ -193,7 +184,6 @@ class MainWindow(QMainWindow):
 
         viewMenu = self.menuBar().addMenu('View')
         viewMenu.addAction(self._viewPropertiesAction)
-        viewMenu.addAction(self._viewStylesAction)
         viewMenu.addSeparator()
         viewMenu.addAction(self._drawing.insertPageAction)
         viewMenu.addAction(self._drawing.removePageAction)
@@ -417,14 +407,11 @@ class MainWindow(QMainWindow):
         if (visible):
             self._pagesDock.setVisible(self._pagesDockVisibleOnClose)
             self._propertiesDock.setVisible(self._propertiesDockVisibleOnClose)
-            self._stylesDock.setVisible(self._stylesDockVisibleOnClose)
         else:
             self._pagesDockVisibleOnClose = self._pagesDock.isVisibleTo(self)
             self._propertiesDockVisibleOnClose = self._propertiesDock.isVisibleTo(self)
-            self._stylesDockVisibleOnClose = self._stylesDock.isVisibleTo(self)
             self._pagesDock.setVisible(False)
             self._propertiesDock.setVisible(False)
-            self._stylesDock.setVisible(False)
 
         # Update actions
         self._saveAction.setEnabled(visible)

@@ -17,39 +17,27 @@
 from typing import Callable
 from PySide6.QtGui import QAction, QActionGroup, QIcon, QKeySequence, QMouseEvent
 from PySide6.QtWidgets import QMenu
-from .odg.odgdrawingwidget import OdgDrawingWidget
-from .odg.odggroupitem import OdgGroupItem
-from .odg.odgitem import OdgItem
-from .odg.odgpage import OdgPage
 from .items.odgcurveitem import OdgCurveItem
 from .items.odgellipseitem import OdgEllipseItem
+from .items.odggroupitem import OdgGroupItem
+from .items.odgitem import OdgItem
 from .items.odglineitem import OdgLineItem
 from .items.odgpolygonitem import OdgPolygonItem
 from .items.odgpolylineitem import OdgPolylineItem
 from .items.odgrectitem import OdgRectItem
+from .drawing.odgdrawingwidget import OdgDrawingWidget
+from .drawing.odgpage import OdgPage
 
 
 class DrawingWidget(OdgDrawingWidget):
     def __init__(self) -> None:
         super().__init__()
 
-        OdgItem.registerFactoryItem(OdgLineItem('Line'))
-        OdgItem.registerFactoryItem(OdgRectItem('Rect'))
-        OdgItem.registerFactoryItem(OdgEllipseItem('Ellipse'))
-        OdgItem.registerFactoryItem(OdgPolylineItem('Polyline'))
-        OdgItem.registerFactoryItem(OdgPolygonItem('Polygon'))
-        OdgItem.registerFactoryItem(OdgCurveItem('Curve'))
-        OdgItem.registerFactoryItem(OdgGroupItem('Group'))
-
         self._createActions()
         self._createContextMenus()
 
         self.currentItemsChanged.connect(self._updateActionsFromSelection)
         self.currentItemsPropertyChanged.connect(self._updateActionsFromSelection)
-
-    def __del__(self) -> None:
-        OdgItem.clearFactoryItems()
-        super().__del__()
 
     # ==================================================================================================================
 
@@ -108,20 +96,19 @@ class DrawingWidget(OdgDrawingWidget):
         self._modeActionGroup.triggered.connect(self._setModeFromAction)    # type: ignore
         self.modeChanged.connect(self._updateActionsFromMode)
 
-        self.selectModeAction: QAction = self._addModeAction('Select Mode', '', 'icons:edit-select.png', 'Escape')
-        self.scrollModeAction: QAction = self._addModeAction('Scroll Mode', '', 'icons:transform-move.png')
-        self.zoomModeAction: QAction = self._addModeAction('Zoom Mode', '', 'icons:page-zoom.png')
+        self.selectModeAction: QAction = self._addModeAction('Select Mode', 'icons:edit-select.png', 'Escape')
+        self.scrollModeAction: QAction = self._addModeAction('Scroll Mode', 'icons:transform-move.png')
+        self.zoomModeAction: QAction = self._addModeAction('Zoom Mode', 'icons:page-zoom.png')
 
-        self.placeLineAction: QAction = self._addModeAction('Draw Line', 'line', 'icons:draw-line.png')
-        self.placeCurveAction: QAction = self._addModeAction('Draw Curve', 'curve', 'icons:draw-curve.png')
-        self.placePolylineAction: QAction = self._addModeAction('Draw Polyline', 'polyline', 'icons:draw-polyline.png')
-        self.placeRectAction: QAction = self._addModeAction('Draw Rectangle', 'rect', 'icons:draw-rectangle.png')
-        self.placeEllipseAction: QAction = self._addModeAction('Draw Ellipse', 'ellipse', 'icons:draw-ellipse.png')
-        self.placePolygonAction: QAction = self._addModeAction('Draw Polygon', 'polygon', 'icons:draw-polygon.png')
-        self.placeTextAction: QAction = self._addModeAction('Draw Text', 'text', 'icons:draw-text.png')
-        self.placeTextRectAction: QAction = self._addModeAction('Draw Text Rect', 'textRect', 'icons:text-rect.png')
-        self.placeTextEllipseAction: QAction = self._addModeAction('Draw Text Ellipse', 'textEllipse',
-                                                                   'icons:text-ellipse.png')
+        self.placeLineAction: QAction = self._addModeAction('Draw Line', 'icons:draw-line.png')
+        self.placeCurveAction: QAction = self._addModeAction('Draw Curve', 'icons:draw-curve.png')
+        self.placePolylineAction: QAction = self._addModeAction('Draw Polyline', 'icons:draw-polyline.png')
+        self.placeRectAction: QAction = self._addModeAction('Draw Rectangle', 'icons:draw-rectangle.png')
+        self.placeEllipseAction: QAction = self._addModeAction('Draw Ellipse', 'icons:draw-ellipse.png')
+        self.placePolygonAction: QAction = self._addModeAction('Draw Polygon', 'icons:draw-polygon.png')
+        self.placeTextAction: QAction = self._addModeAction('Draw Text', 'icons:draw-text.png')
+        self.placeTextRectAction: QAction = self._addModeAction('Draw Text Rect', 'icons:text-rect.png')
+        self.placeTextEllipseAction: QAction = self._addModeAction('Draw Text Ellipse', 'icons:text-ellipse.png')
 
         self.selectModeAction.setChecked(True)
 
@@ -135,10 +122,8 @@ class DrawingWidget(OdgDrawingWidget):
         self.addAction(action)
         return action
 
-    def _addModeAction(self, text: str, typeKey: str = '', iconPath: str = '', shortcut: str = '') -> QAction:
+    def _addModeAction(self, text: str, iconPath: str = '', shortcut: str = '') -> QAction:
         action = QAction(text, self._modeActionGroup)
-        if (typeKey != ''):
-            action.setProperty('type', typeKey)
         if (iconPath != ''):
             action.setIcon(QIcon(iconPath))
         if (shortcut != ''):
@@ -273,8 +258,32 @@ class DrawingWidget(OdgDrawingWidget):
         elif (action == self.zoomModeAction):
             self.setZoomMode()
         else:
-            item = OdgItem.createItem(action.property('type'), self.defaultItemStyle())
+            item: OdgItem | None = None
+            if (action == self.placeLineAction):
+                item = OdgLineItem()
+            elif (action == self.placeCurveAction):
+                item = OdgCurveItem()
+            elif (action == self.placePolylineAction):
+                item = OdgPolylineItem()
+            elif (action == self.placeRectAction):
+                item = OdgRectItem()
+            elif (action == self.placeEllipseAction):
+                item = OdgEllipseItem()
+            elif (action == self.placePolygonAction):
+                item = OdgPolygonItem()
+            elif (action == self.placeTextAction):
+                # item = OdgTextItem()
+                pass
+            elif (action == self.placeTextRectAction):
+                # item = OdgTextRectItem()
+                pass
+            elif (action == self.placeTextEllipseAction):
+                # item = OdgTextEllipseItem()
+                pass
+
             if (isinstance(item, OdgItem)):
+                item.style().setParent(self._defaultItemStyle)
+
                 # Send the item a placeCreateEvent so it can set its initial geometry as needed
                 item.placeCreateEvent(self.contentRect(), self._grid)
                 placeByMousePressAndRelease = (not item.isValid() and item.placeResizeStartPoint() is not None and

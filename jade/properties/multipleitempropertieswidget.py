@@ -19,10 +19,10 @@ from PySide6.QtCore import Qt, QPointF, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFontComboBox, QFormLayout, QFrame, QGroupBox, QHBoxLayout,
                                QToolButton, QVBoxLayout, QWidget)
+from ..items.odgitem import OdgItem
+from ..items.odgmarker import OdgMarker
+from ..drawing.odgunits import OdgUnits
 from .helperwidgets import ColorWidget, LengthEdit
-from ..odg.odgitem import OdgItem
-from ..odg.odgmarker import OdgMarker
-from ..odg.odgunits import OdgUnits
 
 
 class MultipleItemPropertiesWidget(QWidget):
