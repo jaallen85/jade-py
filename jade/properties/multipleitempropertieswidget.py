@@ -15,14 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Any
-from PySide6.QtCore import Qt, QPointF, Signal
+from PySide6.QtCore import Qt, QPointF, QSizeF, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFontComboBox, QFormLayout, QFrame, QGroupBox, QHBoxLayout,
                                QToolButton, QVBoxLayout, QWidget)
 from ..items.odgitem import OdgItem
+from ..items.odgitemstyle import OdgFontStyle
 from ..items.odgmarker import OdgMarker
 from ..drawing.odgunits import OdgUnits
-from .helperwidgets import ColorWidget, LengthEdit
+from .helperwidgets import ColorWidget, LengthEdit, SizeWidget
 
 
 class MultipleItemPropertiesWidget(QWidget):
@@ -215,7 +216,7 @@ class MultipleItemPropertiesWidget(QWidget):
         self._textAlignmentVCenterButton.clicked.connect(self._handleTextAlignmentChange)   # type: ignore
 
         self._textAlignmentBottomButton: QToolButton = QToolButton()
-        self._textAlignmentBottomButton.setIcon(QIcon('icons:align-vertical-right.png'))
+        self._textAlignmentBottomButton.setIcon(QIcon('icons:align-vertical-bottom.png'))
         self._textAlignmentBottomButton.setToolTip('Align Bottom')
         self._textAlignmentBottomButton.setCheckable(True)
         self._textAlignmentBottomButton.setAutoExclusive(True)
@@ -223,6 +224,11 @@ class MultipleItemPropertiesWidget(QWidget):
 
         self._textAlignmentCheck: QCheckBox = QCheckBox('Text Alignment:')
         self._textAlignmentCheck.clicked.connect(self._handleTextAlignmentCheckClicked)     # type: ignore
+
+        self._textPaddingWidget: SizeWidget = SizeWidget()
+        self._textPaddingWidget.sizeChanged.connect(self._handleTextPaddingChange)
+        self._textPaddingCheck: QCheckBox = QCheckBox('Text Padding:')
+        self._textPaddingCheck.clicked.connect(self._handleTextPaddingCheckClicked)         # type: ignore
 
         self._textColorWidget: ColorWidget = ColorWidget()
         self._textColorWidget.colorChanged.connect(self._handleTextColorChange)
@@ -277,6 +283,7 @@ class MultipleItemPropertiesWidget(QWidget):
         self._textLayout.addRow(self._fontSizeCheck, self._fontSizeEdit)
         self._textLayout.addRow(self._fontStyleCheck, self._fontStyleWidget)
         self._textLayout.addRow(self._textAlignmentCheck, self._textAlignmentWidget)
+        self._textLayout.addRow(self._textPaddingCheck, self._textPaddingWidget)
         self._textLayout.addRow(self._textColorCheck, self._textColorWidget)
         self._textLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
         self._textLayout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -405,13 +412,10 @@ class MultipleItemPropertiesWidget(QWidget):
     def _updateTextGroup(self) -> None:
         (fontFamily, fontFamiliesMatch) = self._checkForProperty('fontFamily')
         (fontSize, fontSizesMatch) = self._checkForProperty('fontSize')
-        (fontBold, fontBoldsMatch) = self._checkForProperty('fontBold')
-        (fontItalic, fontItalicsMatch) = self._checkForProperty('fontItalic')
-        (fontUnderline, fontUnderlinesMatch) = self._checkForProperty('fontUnderline')
-        (fontStrikeOut, fontStrikeOutsMatch) = self._checkForProperty('fontStrikeOut')
+        (fontStyle, fontStylesMatch) = self._checkForProperty('fontStyle')
         (textAlignment, textAlignmentsMatch) = self._checkForProperty('textAlignment')
+        (textPadding, textPaddingsMatch) = self._checkForProperty('textPadding')
         (textColor, textColorsMatch) = self._checkForProperty('textColor')
-        fontStylesMatch = (fontBoldsMatch and fontItalicsMatch and fontUnderlinesMatch and fontStrikeOutsMatch)
 
         # Font family
         showFontFamily = False
@@ -431,13 +435,12 @@ class MultipleItemPropertiesWidget(QWidget):
 
         # Font style
         showFontStyle = False
-        if (isinstance(fontBold, bool) and isinstance(fontItalic, bool) and isinstance(fontUnderline, bool) and
-                isinstance(fontUnderline, bool)):
+        if (isinstance(fontStyle, OdgFontStyle)):
             showFontStyle = True
-            self._fontBoldButton.setChecked(fontBold)
-            self._fontItalicButton.setChecked(fontItalic)
-            self._fontUnderlineButton.setChecked(fontUnderline)
-            self._fontStrikeOutButton.setChecked(fontStrikeOut)
+            self._fontBoldButton.setChecked(fontStyle.bold())
+            self._fontItalicButton.setChecked(fontStyle.italic())
+            self._fontUnderlineButton.setChecked(fontStyle.underline())
+            self._fontStrikeOutButton.setChecked(fontStyle.strikeOut())
             self._fontStyleWidget.setEnabled(fontStylesMatch)
             self._fontStyleCheck.setChecked(fontStylesMatch)
 
@@ -462,6 +465,14 @@ class MultipleItemPropertiesWidget(QWidget):
             self._textAlignmentWidget.setEnabled(textAlignmentsMatch)
             self._textAlignmentCheck.setChecked(textAlignmentsMatch)
 
+        # Text padding
+        showTextPadding = False
+        if (isinstance(textPadding, QSizeF)):
+            showTextPadding = True
+            self._textPaddingWidget.setSize(textPadding)
+            self._textPaddingWidget.setEnabled(textPaddingsMatch)
+            self._textPaddingCheck.setChecked(textPaddingsMatch)
+
         # Text color
         showTextColor = False
         if (isinstance(textColor, QColor)):
@@ -475,9 +486,10 @@ class MultipleItemPropertiesWidget(QWidget):
         self._textLayout.setRowVisible(self._fontSizeEdit, showFontSize)
         self._textLayout.setRowVisible(self._fontStyleWidget, showFontStyle)
         self._textLayout.setRowVisible(self._textAlignmentWidget, showTextAlignment)
+        self._textLayout.setRowVisible(self._textPaddingWidget, showTextPadding)
         self._textLayout.setRowVisible(self._textColorWidget, showTextColor)
         self._textGroup.setVisible(showFontFamily or showFontSize or showFontStyle or showTextAlignment or
-                                   showTextColor)
+                                   showTextPadding or showTextColor)
 
     def _checkForProperty(self, name: str) -> tuple[Any, bool]:
         propertyValue, propertyValuesMatch = (None, False)
@@ -508,6 +520,7 @@ class MultipleItemPropertiesWidget(QWidget):
         self._startMarkerSizeEdit.setUnits(units)
         self._endMarkerSizeEdit.setUnits(units)
         self._fontSizeEdit.setUnits(units)
+        self._textPaddingWidget.setUnits(units)
 
     # ==================================================================================================================
 
@@ -596,12 +609,12 @@ class MultipleItemPropertiesWidget(QWidget):
         self.itemsPropertyChanged.emit('fontSize', size)
 
     def _handleFontStyleChange(self) -> None:
-        styles = []
-        styles.append(self._fontBoldButton.isChecked())
-        styles.append(self._fontItalicButton.isChecked())
-        styles.append(self._fontUnderlineButton.isChecked())
-        styles.append(self._fontStrikeOutButton.isChecked())
-        self.itemsPropertyChanged.emit('fontStyle', styles)
+        style = OdgFontStyle()
+        style.setBold(self._fontBoldButton.isChecked())
+        style.setItalic(self._fontItalicButton.isChecked())
+        style.setUnderline(self._fontUnderlineButton.isChecked())
+        style.setStrikeOut(self._fontStrikeOutButton.isChecked())
+        self.itemsPropertyChanged.emit('fontStyle', style)
 
     def _handleTextAlignmentChange(self) -> None:
         horizontal = Qt.AlignmentFlag.AlignLeft
@@ -609,12 +622,15 @@ class MultipleItemPropertiesWidget(QWidget):
             horizontal = Qt.AlignmentFlag.AlignHCenter
         elif (self._textAlignmentRightButton.isChecked()):
             horizontal = Qt.AlignmentFlag.AlignRight
-        vertical = Qt.AlignmentFlag.AlignLeft
+        vertical = Qt.AlignmentFlag.AlignTop
         if (self._textAlignmentVCenterButton.isChecked()):
             vertical = Qt.AlignmentFlag.AlignVCenter
         elif (self._textAlignmentBottomButton.isChecked()):
             vertical = Qt.AlignmentFlag.AlignBottom
         self.itemsPropertyChanged.emit('textAlignment', horizontal | vertical)
+
+    def _handleTextPaddingChange(self, size: QSizeF) -> None:
+        self.itemsPropertyChanged.emit('textPadding', size)
 
     def _handleTextColorChange(self, color: QColor) -> None:
         self.itemsPropertyChanged.emit('textColor', color)
@@ -638,6 +654,11 @@ class MultipleItemPropertiesWidget(QWidget):
         self._textAlignmentWidget.setEnabled(checked)
         if (checked):
             self._handleTextAlignmentChange()
+
+    def _handleTextPaddingCheckClicked(self, checked: bool) -> None:
+        self._textPaddingWidget.setEnabled(checked)
+        if (checked):
+            self._handleTextPaddingChange(self._textPaddingWidget.size())
 
     def _handleTextColorCheckClicked(self, checked: bool) -> None:
         self._textColorWidget.setEnabled(checked)

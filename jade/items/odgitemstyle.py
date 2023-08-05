@@ -14,10 +14,66 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QBrush, QColor, QPen
+from PySide6.QtCore import Qt, QSizeF
+from PySide6.QtGui import QBrush, QColor, QFont, QPen
 from .odgmarker import OdgMarker
 
+
+class OdgFontStyle:
+    def __init__(self, bold: bool = False, italic: bool = False, underline: bool = False,
+                 strikeOut: bool = False) -> None:
+        self._bold: bool = bold
+        self._italic: bool = italic
+        self._underline: bool = underline
+        self._strikeOut: bool = strikeOut
+
+    def __eq__(self, other: object) -> bool:
+        if (isinstance(other, OdgFontStyle)):
+            return (self._bold == other.bold() and self._italic == other.italic() and
+                    self._underline == other.underline() and self._strikeOut == other.strikeOut())
+        return False
+
+    # ==================================================================================================================
+
+    def setBold(self, bold: bool) -> None:
+        self._bold = bold
+
+    def setItalic(self, italic: bool) -> None:
+        self._italic = italic
+
+    def setUnderline(self, underline: bool) -> None:
+        self._underline = underline
+
+    def setStrikeOut(self, strikeOut: bool) -> None:
+        self._strikeOut = strikeOut
+
+    def bold(self) -> bool:
+        return self._bold
+
+    def italic(self) -> bool:
+        return self._italic
+
+    def underline(self) -> bool:
+        return self._underline
+
+    def strikeOut(self) -> bool:
+        return self._strikeOut
+
+    # ==================================================================================================================
+
+    @classmethod
+    def copy(cls, other: 'OdgFontStyle') -> 'OdgFontStyle':
+        newStyle = cls()
+        newStyle.setBold(other.bold())
+        newStyle.setItalic(other.italic())
+        newStyle.setUnderline(other.underline())
+        newStyle.setStrikeOut(other.strikeOut())
+        return newStyle
+
+
+# ======================================================================================================================
+# ======================================================================================================================
+# ======================================================================================================================
 
 class OdgItemStyle:
     def __init__(self, name: str) -> None:
@@ -36,6 +92,13 @@ class OdgItemStyle:
         self._startMarkerSize: float | None = None
         self._endMarkerStyle: OdgMarker.Style | None = None
         self._endMarkerSize: float | None = None
+
+        self._fontFamily: str | None = None
+        self._fontSize: float | None = None
+        self._fontStyle: OdgFontStyle | None = None
+        self._textAlignment: Qt.AlignmentFlag | None = None
+        self._textPadding: QSizeF | None = None
+        self._textColor: QColor | None = None
 
     # ==================================================================================================================
 
@@ -125,6 +188,53 @@ class OdgItemStyle:
 
     # ==================================================================================================================
 
+    def setFontFamily(self, family: str | None) -> None:
+        self._fontFamily = family
+
+    def setFontSize(self, size: float | None) -> None:
+        self._fontSize = size
+
+    def setFontStyle(self, style: OdgFontStyle | None) -> None:
+        if (isinstance(style, OdgFontStyle)):
+            self._fontStyle = OdgFontStyle.copy(style)
+        else:
+            self._fontStyle = None
+
+    def setTextAlignment(self, alignment: Qt.AlignmentFlag | None) -> None:
+        self._textAlignment = alignment
+
+    def setTextPadding(self, padding: QSizeF | None) -> None:
+        if (isinstance(padding, QSizeF)):
+            self._textPadding = QSizeF(padding)
+        else:
+            self._textPadding = None
+
+    def setTextColor(self, color: QColor | None) -> None:
+        if (isinstance(color, QColor)):
+            self._textColor = QColor(color)
+        else:
+            self._textColor = None
+
+    def fontFamily(self) -> str | None:
+        return self._fontFamily
+
+    def fontSize(self) -> float | None:
+        return self._fontSize
+
+    def fontStyle(self) -> OdgFontStyle | None:
+        return self._fontStyle
+
+    def textAlignment(self) -> Qt.AlignmentFlag | None:
+        return self._textAlignment
+
+    def textPadding(self) -> QSizeF | None:
+        return self._textPadding
+
+    def textColor(self) -> QColor | None:
+        return self._textColor
+
+    # ==================================================================================================================
+
     def clear(self) -> None:
         self.setName('')
         self.setParent(None)
@@ -141,6 +251,13 @@ class OdgItemStyle:
         self.setEndMarkerStyle(None)
         self.setEndMarkerSize(None)
 
+        self.setFontFamily(None)
+        self.setFontSize(None)
+        self.setFontStyle(None)
+        self.setTextAlignment(None)
+        self.setTextPadding(None)
+        self.setTextColor(None)
+
     def copyFromStyle(self, other: 'OdgItemStyle') -> None:
         self.setParent(other.parent())
 
@@ -156,6 +273,13 @@ class OdgItemStyle:
         self.setEndMarkerStyle(other.endMarkerStyle())
         self.setEndMarkerSize(other.endMarkerSize())
 
+        self.setFontFamily(other.fontFamily())
+        self.setFontSize(other.fontSize())
+        self.setFontStyle(other.fontStyle())
+        self.setTextAlignment(other.textAlignment())
+        self.setTextPadding(other.textPadding())
+        self.setTextColor(other.textColor())
+
     def scale(self, scale: float) -> None:
         if (isinstance(self._penWidth, float)):
             self._penWidth = self._penWidth * scale
@@ -163,6 +287,11 @@ class OdgItemStyle:
             self._startMarkerSize = self._startMarkerSize * scale
         if (isinstance(self._endMarkerSize, float)):
             self._endMarkerSize = self._endMarkerSize * scale
+        if (isinstance(self._fontSize, float)):
+            self._endMarkerSize = self._fontSize * scale
+        if (isinstance(self._textPadding, QSizeF)):
+            self._textPadding.setWidth(self._textPadding.width() * scale)
+            self._textPadding.setHeight(self._textPadding.height() * scale)
 
     # ==================================================================================================================
 
@@ -255,6 +384,62 @@ class OdgItemStyle:
 
     # ==================================================================================================================
 
+    def lookupFont(self) -> QFont:
+        font = QFont(self.lookupFontFamily())
+        font.setPointSizeF(self.lookupFontSize())
+
+        style = self.lookupFontStyle()
+        font.setBold(style.bold())
+        font.setItalic(style.italic())
+        font.setUnderline(style.underline())
+        font.setStrikeOut(style.strikeOut())
+
+        return font
+
+    def lookupFontFamily(self) -> str:
+        if (isinstance(self._fontFamily, str)):
+            return self._fontFamily
+        if (isinstance(self._parent, OdgItemStyle)):
+            return self._parent.lookupFontFamily()
+        return ''
+
+    def lookupFontSize(self) -> float:
+        if (isinstance(self._fontSize, float)):
+            return self._fontSize
+        if (isinstance(self._parent, OdgItemStyle)):
+            return self._parent.lookupFontSize()
+        return 0.0
+
+    def lookupFontStyle(self) -> 'OdgFontStyle':
+        if (isinstance(self._fontStyle, OdgFontStyle)):
+            return self._fontStyle
+        if (isinstance(self._parent, OdgItemStyle)):
+            return self._parent.lookupFontStyle()
+        return OdgFontStyle()
+
+    def lookupTextAlignment(self) -> Qt.AlignmentFlag:
+        if (isinstance(self._textAlignment, Qt.AlignmentFlag)):
+            return self._textAlignment
+        if (isinstance(self._parent, OdgItemStyle)):
+            return self._parent.lookupTextAlignment()
+        return (Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+
+    def lookupTextPadding(self) -> QSizeF:
+        if (isinstance(self._textPadding, QSizeF)):
+            return self._textPadding
+        if (isinstance(self._parent, OdgItemStyle)):
+            return self._parent.lookupTextPadding()
+        return QSizeF(0, 0)
+
+    def lookupTextColor(self) -> QColor:
+        if (isinstance(self._textColor, QColor)):
+            return self._textColor
+        if (isinstance(self._parent, OdgItemStyle)):
+            return self._parent.lookupTextColor()
+        return QColor(0, 0, 0)
+
+    # ==================================================================================================================
+
     def setPenStyleIfUnique(self, style: Qt.PenStyle) -> None:
         if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupPenStyle() == style):
             self._penStyle = None
@@ -319,6 +504,44 @@ class OdgItemStyle:
 
     # ==================================================================================================================
 
+    def setFontFamilyIfUnique(self, family: str) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupFontFamily() == family):
+            self._fontFamily = None
+        else:
+            self._fontFamily = family
+
+    def setFontSizeIfUnique(self, size: float) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupFontSize() == size):
+            self._fontSize = None
+        else:
+            self._fontSize = size
+
+    def setFontStyleIfUnique(self, style: OdgFontStyle) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupFontStyle() == style):
+            self._fontStyle = None
+        else:
+            self._fontStyle = OdgFontStyle.copy(style)
+
+    def setTextAlignmentIfUnique(self, alignment: Qt.AlignmentFlag) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupTextAlignment() == alignment):
+            self._textAlignment = None
+        else:
+            self._textAlignment = alignment
+
+    def setTextPaddingIfUnique(self, padding: QSizeF) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupTextPadding() == padding):
+            self._textPadding = None
+        else:
+            self._textPadding = padding
+
+    def setTextColorIfUnique(self, color: QColor) -> None:
+        if (isinstance(self._parent, OdgItemStyle) and self._parent.lookupTextColor() == color):
+            self._textColor = None
+        else:
+            self._textColor = color
+
+    # ==================================================================================================================
+
     @classmethod
     def createDefaultStyle(cls, penWidth: float) -> 'OdgItemStyle':
         style = cls('standard')
@@ -335,5 +558,12 @@ class OdgItemStyle:
         style.setStartMarkerSize(6 * penWidth)
         style.setEndMarkerStyle(OdgMarker.Style.NoMarker)
         style.setEndMarkerSize(6 * penWidth)
+
+        style.setFontFamily('Arial')
+        style.setFontSize(penWidth * 10)
+        style.setFontStyle(OdgFontStyle())
+        style.setTextAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        style.setTextPadding(QSizeF(0.0, 0.0))
+        style.setTextColor(QColor(0, 0, 0))
 
         return style

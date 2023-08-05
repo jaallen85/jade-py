@@ -27,12 +27,12 @@ from .propertiesbrowser import PropertiesBrowser
 
 
 # Todo:
-#   - Add support for text items, custom items
 #   - Add cut/copy/paste support
 #   - Add export to PNG support
 #   - Add export to SVG support
 #   - Add preferences support
 #   - Add about dialog
+#   - Add support for custom items
 #   - Add styles support
 #   - Add duplicate page feature
 

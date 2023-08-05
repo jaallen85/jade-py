@@ -19,16 +19,19 @@ import re
 from zipfile import ZipFile
 from PySide6.QtCore import Qt, QLineF, QMarginsF, QPointF, QRectF, QSizeF, QXmlStreamReader
 from PySide6.QtGui import QColor, QPainterPath, QPolygonF, QTransform
-from ..items.odgcurveitem import OdgCurveItem
+from ..items.odgcurveitem import OdgCurve, OdgCurveItem
 from ..items.odgellipseitem import OdgEllipseItem
 from ..items.odggroupitem import OdgGroupItem
 from ..items.odgitem import OdgItem
-from ..items.odgitemstyle import OdgItemStyle
+from ..items.odgitemstyle import OdgFontStyle, OdgItemStyle
 from ..items.odglineitem import OdgLineItem
 from ..items.odgmarker import OdgMarker
 from ..items.odgpolygonitem import OdgPolygonItem
 from ..items.odgpolylineitem import OdgPolylineItem
 from ..items.odgrectitem import OdgRectItem
+from ..items.odgtextitem import OdgTextItem
+from ..items.odgtextellipseitem import OdgTextEllipseItem
+from ..items.odgtextrectitem import OdgTextRectItem
 from .odgpage import OdgPage
 from .odgunits import OdgUnits
 
@@ -412,6 +415,111 @@ class OdgReader:
                         case 'draw:marker-end-width':
                             newStyle.setEndMarkerSize(self._lengthFromString(attr.value()))
 
+                        # Text alignment
+                        case 'draw:textarea-horizontal-align':
+                            alignment = newStyle.textAlignment()
+                            if (isinstance(alignment, Qt.AlignmentFlag)):
+                                alignment = (alignment & (~Qt.AlignmentFlag.AlignHorizontal_Mask))
+                            else:
+                                alignment = Qt.AlignmentFlag(0)
+                            match (attr.value()):
+                                case 'left':
+                                    alignment = (alignment | Qt.AlignmentFlag.AlignLeft)
+                                case 'right':
+                                    alignment = (alignment | Qt.AlignmentFlag.AlignRight)
+                                case _:
+                                    alignment = (alignment | Qt.AlignmentFlag.AlignHCenter)
+                            newStyle.setTextAlignment(alignment)
+
+                        case 'draw:textarea-vertical-align':
+                            alignment = newStyle.textAlignment()
+                            if (isinstance(alignment, Qt.AlignmentFlag)):
+                                alignment = (alignment & (~Qt.AlignmentFlag.AlignVertical_Mask))
+                            else:
+                                alignment = Qt.AlignmentFlag(0)
+                            match (attr.value()):
+                                case 'top':
+                                    alignment = (alignment | Qt.AlignmentFlag.AlignTop)
+                                case 'bottom':
+                                    alignment = (alignment | Qt.AlignmentFlag.AlignBottom)
+                                case _:
+                                    alignment = (alignment | Qt.AlignmentFlag.AlignVCenter)
+                            newStyle.setTextAlignment(alignment)
+
+                        # Text padding
+                        case 'fo:padding-left':
+                            padding = newStyle.textPadding()
+                            if (isinstance(padding, QSizeF)):
+                                padding.setWidth(0)
+                            else:
+                                padding = QSizeF()
+                            padding.setWidth(self._lengthFromString(attr.value()))
+                            newStyle.setTextPadding(padding)
+
+                        case 'fo:padding-top':
+                            padding = newStyle.textPadding()
+                            if (isinstance(padding, QSizeF)):
+                                padding.setHeight(0)
+                            else:
+                                padding = QSizeF()
+                            padding.setHeight(self._lengthFromString(attr.value()))
+                            newStyle.setTextPadding(padding)
+
+             elif (xml.qualifiedName() == 'style:text-properties'):
+                attributes = xml.attributes()
+                for i in range(attributes.count()):
+                    attr = attributes.at(i)
+                    match (attr.qualifiedName()):
+                        # Font family
+                        case 'style:font-name':
+                            newStyle.setFontFamily(attr.value())
+
+                        # Font size
+                        case 'fo:font-size':
+                            newStyle.setFontSize(self._lengthFromString(attr.value()))
+
+                        # Font style
+                        case 'fo:font-weight':
+                            fontStyle = newStyle.fontStyle()
+                            if (isinstance(fontStyle, OdgFontStyle)):
+                                fontStyle.setBold(attr.value() == 'bold')
+                            else:
+                                fontStyle = OdgFontStyle(attr.value() == 'bold', False, False, False)
+                            newStyle.setFontStyle(fontStyle)
+
+                        case 'fo:font-style':
+                            fontStyle = newStyle.fontStyle()
+                            if (isinstance(fontStyle, OdgFontStyle)):
+                                fontStyle.setItalic(attr.value() == 'italic')
+                            else:
+                                fontStyle = OdgFontStyle(False, attr.value() == 'italic', False, False)
+                            newStyle.setFontStyle(fontStyle)
+
+                        case 'style:text-underline-style':
+                            fontStyle = newStyle.fontStyle()
+                            if (isinstance(fontStyle, OdgFontStyle)):
+                                fontStyle.setUnderline(attr.value() == 'solid')
+                            else:
+                                fontStyle = OdgFontStyle(False, False, attr.value() == 'solid', False)
+                            newStyle.setFontStyle(fontStyle)
+
+                        case 'style:text-line-through-style':
+                            fontStyle = newStyle.fontStyle()
+                            if (isinstance(fontStyle, OdgFontStyle)):
+                                fontStyle.setStrikeOut(attr.value() == 'solid')
+                            else:
+                                fontStyle = OdgFontStyle(False, False, False, attr.value() == 'solid')
+                            newStyle.setFontStyle(fontStyle)
+
+                        # Text color
+                        case 'fo:color':
+                            newStyle.setTextColor(QColor(attr.value()))
+                        case 'loext:opacity':
+                            textColor = newStyle.textColor()
+                            if (isinstance(textColor, QColor)):
+                                textColor.setAlphaF(self._percentFromString(attr.value()))
+                                newStyle.setTextColor(textColor)
+
             xml.skipCurrentElement()
 
         return newStyle
@@ -433,6 +541,8 @@ class OdgReader:
                 item = self._readPolylineItem(xml)
             elif (xml.qualifiedName() == 'draw:polygon'):
                 item = self._readPolygonItem(xml)
+            elif (xml.qualifiedName() == 'draw:path'):
+                item = self._readPathItem(xml)
             elif (xml.qualifiedName() == 'draw:g'):
                 item = self._readGroupItem(xml)
             else:
@@ -490,6 +600,8 @@ class OdgReader:
         position, rotation, flipped = (QPointF(0, 0), 0, False)
         left, top, width, height = (0.0, 0.0, 0.0, 0.0)
         cornerRadius = 0.0
+        isText = False
+        isTextRect = False
 
         attributes = xml.attributes()
         for i in range(attributes.count()):
@@ -509,8 +621,56 @@ class OdgReader:
                     height = self._lengthFromString(attr.value())
                 case 'draw:corner-radius':
                     cornerRadius = self._lengthFromString(attr.value())
+                case 'jade:text-item-hint':
+                    isText = (attr.value() == 'text')
+                    isTextRect = (attr.value() == 'text-rect')
 
-        xml.skipCurrentElement()
+        caption = ''
+        while (xml.readNextStartElement()):
+            if (xml.qualifiedName() == 'text:p'):
+                while (xml.readNextStartElement()):
+                    if (xml.qualifiedName() == 'text:span'):
+                        if (caption == ''):
+                            caption = f'{xml.readElementText()}'
+                        else:
+                            caption = f'{caption}\n{xml.readElementText()}'
+        isTextRect = (isTextRect or caption != '')
+
+        if (isText):
+            # Create text item and return it if valid
+            textItem = OdgTextItem()
+            textItem.setPosition(position)
+            textItem.setRotation(rotation)
+            textItem.setFlipped(flipped)
+            style = self._findAutomaticStyle(styleName)
+            if (isinstance(style, OdgItemStyle)):
+                textItem.style().copyFromStyle(style)
+            textItem.setCaption(caption)
+
+            if (textItem.isValid()):
+                return textItem
+
+            del textItem
+            return None
+
+        if (isTextRect):
+            # Create text rect item and return it if valid
+            textRectItem = OdgTextRectItem()
+            textRectItem.setPosition(position)
+            textRectItem.setRotation(rotation)
+            textRectItem.setFlipped(flipped)
+            style = self._findAutomaticStyle(styleName)
+            if (isinstance(style, OdgItemStyle)):
+                textRectItem.style().copyFromStyle(style)
+            textRectItem.setRect(QRectF(left, top, width, height))
+            textRectItem.setCornerRadius(cornerRadius)
+            textRectItem.setCaption(caption)
+
+            if (textRectItem.isValid()):
+                return textRectItem
+
+            del textRectItem
+            return None
 
         # Create rect item and return it if valid
         rectItem = OdgRectItem()
@@ -534,6 +694,7 @@ class OdgReader:
         styleName = ''
         position, rotation, flipped = (QPointF(0, 0), 0, False)
         left, top, width, height = (0.0, 0.0, 0.0, 0.0)
+        isTextEllipse = False
 
         attributes = xml.attributes()
         for i in range(attributes.count()):
@@ -551,8 +712,37 @@ class OdgReader:
                     width = self._lengthFromString(attr.value())
                 case 'svg:height':
                     height = self._lengthFromString(attr.value())
+                case 'jade:text-item-hint':
+                    isTextEllipse = (attr.value() == 'text-ellipse')
 
-        xml.skipCurrentElement()
+        caption = ''
+        while (xml.readNextStartElement()):
+            if (xml.qualifiedName() == 'text:p'):
+                while (xml.readNextStartElement()):
+                    if (xml.qualifiedName() == 'text:span'):
+                        if (caption == ''):
+                            caption = f'{xml.readElementText()}'
+                        else:
+                            caption = f'{caption}\n{xml.readElementText()}'
+        isTextEllipse = (isTextEllipse or caption != '')
+
+        if (isTextEllipse):
+            # Create text ellipse item and return it if valid
+            textEllipseItem = OdgTextEllipseItem()
+            textEllipseItem.setPosition(position)
+            textEllipseItem.setRotation(rotation)
+            textEllipseItem.setFlipped(flipped)
+            style = self._findAutomaticStyle(styleName)
+            if (isinstance(style, OdgItemStyle)):
+                textEllipseItem.style().copyFromStyle(style)
+            textEllipseItem.setRect(QRectF(left, top, width, height))
+            textEllipseItem.setCaption(caption)
+
+            if (textEllipseItem.isValid()):
+                return textEllipseItem
+
+            del textEllipseItem
+            return None
 
         # Create ellipse item and return it if valid
         ellipseItem = OdgEllipseItem()
@@ -681,10 +871,11 @@ class OdgReader:
 
         if (path.elementCount() == 4 and path.elementAt(0).isMoveTo() and path.elementAt(1).isCurveTo()):
             # Create path item and return it if valid
-            curve = QPolygonF()
-            for elementIndex in range(path.elementCount()):
-                element = path.elementAt(elementIndex)
-                curve.append(QPointF(element.x, element.y))     # type:ignore
+            curve = OdgCurve()
+            curve.setP1(QPointF(path.elementAt(0).x, path.elementAt(0).y))      # type:ignore
+            curve.setCP1(QPointF(path.elementAt(1).x, path.elementAt(1).y))     # type:ignore
+            curve.setCP2(QPointF(path.elementAt(2).x, path.elementAt(2).y))     # type:ignore
+            curve.setP2(QPointF(path.elementAt(3).x, path.elementAt(3).y))      # type:ignore
 
             curveItem = OdgCurveItem()
             curveItem.setPosition(position)

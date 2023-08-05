@@ -25,6 +25,9 @@ from .items.odglineitem import OdgLineItem
 from .items.odgpolygonitem import OdgPolygonItem
 from .items.odgpolylineitem import OdgPolylineItem
 from .items.odgrectitem import OdgRectItem
+from .items.odgtextitem import OdgTextItem
+from .items.odgtextellipseitem import OdgTextEllipseItem
+from .items.odgtextrectitem import OdgTextRectItem
 from .drawing.odgdrawingwidget import OdgDrawingWidget
 from .drawing.odgpage import OdgPage
 
@@ -272,14 +275,11 @@ class DrawingWidget(OdgDrawingWidget):
             elif (action == self.placePolygonAction):
                 item = OdgPolygonItem()
             elif (action == self.placeTextAction):
-                # item = OdgTextItem()
-                pass
+                item = OdgTextItem()
             elif (action == self.placeTextRectAction):
-                # item = OdgTextRectItem()
-                pass
+                item = OdgTextRectItem()
             elif (action == self.placeTextEllipseAction):
-                # item = OdgTextEllipseItem()
-                pass
+                item = OdgTextEllipseItem()
 
             if (isinstance(item, OdgItem)):
                 item.style().setParent(self._defaultItemStyle)

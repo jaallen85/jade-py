@@ -18,8 +18,10 @@ from PySide6.QtCore import Qt, QLineF, QPointF, QRectF, QSizeF, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPolygonF
 from PySide6.QtWidgets import (QComboBox, QFontComboBox, QFormLayout, QFrame, QGroupBox, QHBoxLayout, QPlainTextEdit,
                                QToolButton, QVBoxLayout, QWidget)
+from ..items.odgcurveitem import OdgCurve
 from ..items.odgitem import OdgItem
 from ..items.odgitempoint import OdgItemPoint
+from ..items.odgitemstyle import OdgFontStyle
 from ..items.odgmarker import OdgMarker
 from ..drawing.odgunits import OdgUnits
 from .helperwidgets import ColorWidget, PositionWidget, LengthEdit, SizeWidget
@@ -325,6 +327,9 @@ class SingleItemPropertiesWidget(QWidget):
         self._textAlignmentBottomButton.setAutoExclusive(True)
         self._textAlignmentBottomButton.clicked.connect(self._handleTextAlignmentChange)    # type: ignore
 
+        self._textPaddingWidget: SizeWidget = SizeWidget()
+        self._textPaddingWidget.sizeChanged.connect(self._handleTextPaddingChange)
+
         self._textColorWidget: ColorWidget = ColorWidget()
         self._textColorWidget.colorChanged.connect(self._handleTextColorChange)
 
@@ -380,6 +385,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._textLayout.addRow('Font Size:', self._fontSizeEdit)
         self._textLayout.addRow('Font Style:', self._fontStyleWidget)
         self._textLayout.addRow('Text Alignment:', self._textAlignmentWidget)
+        self._textLayout.addRow('Text Padding:', self._textPaddingWidget)
         self._textLayout.addRow('Text Color:', self._textColorWidget)
         self._textLayout.addRow('Text:', self._textWidget)
         self._textLayout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
@@ -454,12 +460,12 @@ class SingleItemPropertiesWidget(QWidget):
 
             # Curve
             showCurve = False
-            if (isinstance(curve, QPolygonF) and curve.size() >= 4):
+            if (isinstance(curve, OdgCurve)):
                 showCurve = True
-                self._curveStartWidget.setPosition(self._item.mapToScene(curve.at(0)))
-                self._curveStartControlWidget.setPosition(self._item.mapToScene(curve.at(1)))
-                self._curveEndControlWidget.setPosition(self._item.mapToScene(curve.at(2)))
-                self._curveEndWidget.setPosition(self._item.mapToScene(curve.at(3)))
+                self._curveStartWidget.setPosition(self._item.mapToScene(curve.p1()))
+                self._curveStartControlWidget.setPosition(self._item.mapToScene(curve.cp1()))
+                self._curveEndControlWidget.setPosition(self._item.mapToScene(curve.cp2()))
+                self._curveEndWidget.setPosition(self._item.mapToScene(curve.p2()))
 
             # Set curve group visibility
             self._curveGroup.setVisible(showCurve)
@@ -674,6 +680,7 @@ class SingleItemPropertiesWidget(QWidget):
             fontStyle = self._item.property('fontStyle')
             textAlignment = self._item.property('textAlignment')
             textColor = self._item.property('textColor')
+            textPadding = self._item.property('textPadding')
             text = self._item.property('caption')
 
             # Font
@@ -688,18 +695,24 @@ class SingleItemPropertiesWidget(QWidget):
                 self.setFontSize(fontSize)
 
             showFontStyle = False
-            if (isinstance(fontStyle, list) and len(fontStyle) == 4):
+            if (isinstance(fontStyle, OdgFontStyle)):
                 showFontStyle = True
-                self.setFontBold(fontStyle[0])
-                self.setFontItalic(fontStyle[1])
-                self.setFontUnderline(fontStyle[2])
-                self.setFontStrikeOut(fontStyle[3])
+                self.setFontBold(fontStyle.bold())
+                self.setFontItalic(fontStyle.italic())
+                self.setFontUnderline(fontStyle.underline())
+                self.setFontStrikeOut(fontStyle.strikeOut())
 
             # Text Alignment
             showTextAlignment = False
             if (isinstance(textAlignment, Qt.AlignmentFlag)):
                 showTextAlignment = True
                 self.setTextAlignment(textAlignment)
+
+            # Text Padding
+            showTextPadding = False
+            if (isinstance(textPadding, QSizeF)):
+                showTextPadding = True
+                self.setTextPadding(textPadding)
 
             # Text Color
             showTextColor = False
@@ -719,15 +732,17 @@ class SingleItemPropertiesWidget(QWidget):
             self._textLayout.setRowVisible(self._fontSizeEdit, showFontSize)
             self._textLayout.setRowVisible(self._fontStyleWidget, showFontStyle)
             self._textLayout.setRowVisible(self._textAlignmentWidget, showTextAlignment)
+            self._textLayout.setRowVisible(self._textPaddingWidget, showTextPadding)
             self._textLayout.setRowVisible(self._textColorWidget, showTextColor)
             self._textLayout.setRowVisible(self._textWidget, showText)
             self._textGroup.setVisible(showFontFamily or showFontSize or showFontStyle or showTextAlignment or
-                                       showTextColor or showText)
+                                       showTextPadding or showTextColor or showText)
         else:
             self._textLayout.setRowVisible(self._fontFamilyCombo, True)
             self._textLayout.setRowVisible(self._fontSizeEdit, True)
             self._textLayout.setRowVisible(self._fontStyleWidget, True)
             self._textLayout.setRowVisible(self._textAlignmentWidget, True)
+            self._textLayout.setRowVisible(self._textPaddingWidget, True)
             self._textLayout.setRowVisible(self._textColorWidget, True)
             self._textLayout.setRowVisible(self._textWidget, False)
             self._textGroup.setVisible(True)
@@ -762,6 +777,7 @@ class SingleItemPropertiesWidget(QWidget):
         self._startMarkerSizeEdit.setUnits(units)
         self._endMarkerSizeEdit.setUnits(units)
         self._fontSizeEdit.setUnits(units)
+        self._textPaddingWidget.setUnits(units)
 
     # ==================================================================================================================
 
@@ -825,6 +841,9 @@ class SingleItemPropertiesWidget(QWidget):
         else:
             self._textAlignmentTopButton.setChecked(True)
 
+    def setTextPadding(self, padding: QSizeF) -> None:
+        self._textPaddingWidget.setSize(padding)
+
     def setTextColor(self, color: QColor) -> None:
         self._textColorWidget.setColor(color)
 
@@ -876,12 +895,15 @@ class SingleItemPropertiesWidget(QWidget):
             horizontal = Qt.AlignmentFlag.AlignHCenter
         elif (self._textAlignmentRightButton.isChecked()):
             horizontal = Qt.AlignmentFlag.AlignRight
-        vertical = Qt.AlignmentFlag.AlignLeft
+        vertical = Qt.AlignmentFlag.AlignTop
         if (self._textAlignmentVCenterButton.isChecked()):
             vertical = Qt.AlignmentFlag.AlignVCenter
         elif (self._textAlignmentBottomButton.isChecked()):
             vertical = Qt.AlignmentFlag.AlignBottom
         return (horizontal | vertical)
+
+    def textPadding(self) -> QSizeF:
+        return self._textPaddingWidget.size()
 
     def textColor(self) -> QColor:
         return self._textColorWidget.color()
@@ -1018,15 +1040,18 @@ class SingleItemPropertiesWidget(QWidget):
         self.itemPropertyChanged.emit('fontSize', size)
 
     def _handleFontStyleChange(self) -> None:
-        styles = []
-        styles.append(self._fontBoldButton.isChecked())
-        styles.append(self._fontItalicButton.isChecked())
-        styles.append(self._fontUnderlineButton.isChecked())
-        styles.append(self._fontStrikeOutButton.isChecked())
-        self.itemPropertyChanged.emit('fontStyle', styles)
+        style = OdgFontStyle()
+        style.setBold(self._fontBoldButton.isChecked())
+        style.setItalic(self._fontItalicButton.isChecked())
+        style.setUnderline(self._fontUnderlineButton.isChecked())
+        style.setStrikeOut(self._fontStrikeOutButton.isChecked())
+        self.itemPropertyChanged.emit('fontStyle', style)
 
     def _handleTextAlignmentChange(self) -> None:
         self.itemPropertyChanged.emit('textAlignment', self.textAlignment())
+
+    def _handleTextPaddingChange(self, size: QSizeF) -> None:
+        self.itemPropertyChanged.emit('textPadding', size)
 
     def _handleTextColorChange(self, color: QColor) -> None:
         self.itemPropertyChanged.emit('textColor', color)

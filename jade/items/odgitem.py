@@ -19,8 +19,9 @@ import math
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from typing import Any
-from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
-from PySide6.QtGui import QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF, QTransform
+from PySide6.QtCore import Qt, QLineF, QPointF, QRectF, QSizeF
+from PySide6.QtGui import (QBrush, QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPainterPathStroker, QPen,
+                           QPolygonF, QTransform)
 from .odgitempoint import OdgItemPoint
 from .odgitemstyle import OdgItemStyle
 
@@ -332,6 +333,104 @@ class OdgItem(ABC):
 
             return nearestPoint
         return None
+
+    # ==================================================================================================================
+
+    def _calculateTextRect(self, anchorPoint: QPointF, font: QFont, alignment: Qt.AlignmentFlag, padding: QSizeF,
+                           caption: str) -> tuple[QRectF, QRectF, float]:
+        if (self.isValid()):
+            originalFontSize = font.pointSizeF()
+
+            scaleFactor = self._calculateTextScaleFactor(font)
+            font.setPointSizeF(font.pointSizeF() * scaleFactor)
+
+            # Determine text width and height
+            fontMetrics = QFontMetricsF(font)
+            (scaledTextWidth, scaledTextHeight) = (0.0, 0.0)
+            for line in caption.split('\n'):
+                scaledTextWidth = max(scaledTextWidth, fontMetrics.boundingRect(line).width())
+                scaledTextHeight += fontMetrics.lineSpacing()
+            scaledTextHeight -= fontMetrics.leading()
+
+            # Determine text left and top
+            (scaledTextLeft, scaledTextTop) = (anchorPoint.x() * scaleFactor, anchorPoint.y() * scaleFactor)
+            if (alignment & Qt.AlignmentFlag.AlignHCenter):
+                scaledTextLeft = scaledTextLeft - scaledTextWidth / 2
+            elif (alignment & Qt.AlignmentFlag.AlignRight):
+                scaledTextLeft = scaledTextLeft - scaledTextWidth
+            if (alignment & Qt.AlignmentFlag.AlignVCenter):
+                scaledTextTop = scaledTextTop - scaledTextHeight / 2
+            elif (alignment & Qt.AlignmentFlag.AlignBottom):
+                scaledTextTop = scaledTextTop - scaledTextHeight
+
+            if (alignment & Qt.AlignmentFlag.AlignLeft):
+                scaledTextLeft = scaledTextLeft + padding.width() * scaleFactor
+            elif (alignment & Qt.AlignmentFlag.AlignRight):
+                scaledTextLeft = scaledTextLeft - padding.width() * scaleFactor
+            if (alignment & Qt.AlignmentFlag.AlignTop):
+                scaledTextTop = scaledTextTop + padding.height() * scaleFactor
+            elif (alignment & Qt.AlignmentFlag.AlignBottom):
+                scaledTextTop = scaledTextTop - padding.height() * scaleFactor
+
+            # Scale the text rect to item coordinates
+            itemTextWidth = scaledTextWidth / scaleFactor
+            itemTextHeight = scaledTextHeight / scaleFactor
+
+            (itemTextLeft, itemTextTop) = (anchorPoint.x(), anchorPoint.y())
+            if (alignment & Qt.AlignmentFlag.AlignHCenter):
+                itemTextLeft = itemTextLeft - itemTextWidth / 2
+            elif (alignment & Qt.AlignmentFlag.AlignRight):
+                itemTextLeft = itemTextLeft - itemTextWidth
+            if (alignment & Qt.AlignmentFlag.AlignVCenter):
+                itemTextTop = itemTextTop - itemTextHeight / 2
+            elif (alignment & Qt.AlignmentFlag.AlignBottom):
+                itemTextTop = itemTextTop - itemTextHeight
+
+            if (alignment & Qt.AlignmentFlag.AlignLeft):
+                itemTextLeft = itemTextLeft + padding.width()
+            elif (alignment & Qt.AlignmentFlag.AlignRight):
+                itemTextLeft = itemTextLeft - padding.width()
+            if (alignment & Qt.AlignmentFlag.AlignTop):
+                itemTextTop = itemTextTop + padding.height()
+            elif (alignment & Qt.AlignmentFlag.AlignBottom):
+                itemTextTop = itemTextTop - padding.height()
+
+            font.setPointSizeF(originalFontSize)
+
+            return (QRectF(itemTextLeft, itemTextTop, itemTextWidth, itemTextHeight),
+                    QRectF(scaledTextLeft, scaledTextTop, scaledTextWidth, scaledTextHeight), scaleFactor)
+        return (QRectF(), QRectF(), 1.0)
+
+    def _drawText(self, painter: QPainter, anchorPoint: QPointF, font: QFont, alignment: Qt.AlignmentFlag,
+                  padding: QSizeF, color: QColor, caption: str) -> QRectF:
+        if (self.isValid()):
+            (itemTextRect, scaledTextRect, scaleFactor) = self._calculateTextRect(anchorPoint, font, alignment,
+                                                                                  padding, caption)
+
+            originalFontSize = font.pointSizeF()
+            font.setPointSizeF(font.pointSizeF() * scaleFactor)
+
+            painter.scale(1 / scaleFactor, 1 / scaleFactor)
+            painter.setBrush(QBrush(Qt.GlobalColor.transparent))
+            painter.setPen(QPen(QBrush(color), 0.0))
+            painter.setFont(font)
+            painter.drawText(scaledTextRect, alignment, caption)
+            painter.scale(scaleFactor, scaleFactor)
+
+            font.setPointSizeF(originalFontSize)
+
+            return itemTextRect
+        return QRectF()
+
+    def _calculateTextScaleFactor(self, font: QFont) -> float:
+        if (font.pointSizeF() < 10):
+            # For very small point sizes (~0.01), QPainter.drawText gives off the following error:
+            # QWindowsFontEngineDirectWrite::addGlyphsToPath: GetGlyphRunOutline failed (The operation completed
+            # successfully.)
+            # We assume that point sizes in the range 10 to 100 are handled well, so scale the font size to within
+            # this range.
+            return math.pow(10, math.ceil(2 - math.log10(font.pointSizeF())))
+        return 1.0
 
     # ==================================================================================================================
 

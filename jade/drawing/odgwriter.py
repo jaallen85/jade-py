@@ -22,12 +22,15 @@ from ..items.odgcurveitem import OdgCurveItem
 from ..items.odgellipseitem import OdgEllipseItem
 from ..items.odggroupitem import OdgGroupItem
 from ..items.odgitem import OdgItem
-from ..items.odgitemstyle import OdgItemStyle
+from ..items.odgitemstyle import OdgFontStyle, OdgItemStyle
 from ..items.odglineitem import OdgLineItem
 from ..items.odgmarker import OdgMarker
 from ..items.odgpolygonitem import OdgPolygonItem
 from ..items.odgpolylineitem import OdgPolylineItem
 from ..items.odgrectitem import OdgRectItem
+from ..items.odgtextitem import OdgTextItem
+from ..items.odgtextellipseitem import OdgTextEllipseItem
+from ..items.odgtextrectitem import OdgTextRectItem
 from .odgpage import OdgPage
 from .odgunits import OdgUnits
 
@@ -52,7 +55,9 @@ class OdgWriter:
 
         self._pages: list[OdgPage] = []
 
-        self._styleIndex: int = 0
+        self._styleFontFaces: list[str] = []
+        self._contentFontFaces: list[str] = []
+        self._contentStyleIndex: int = 0
 
     # ==================================================================================================================
 
@@ -124,8 +129,8 @@ class OdgWriter:
         manifest = QByteArray()
 
         xml = QXmlStreamWriter(manifest)
-        xml.setAutoFormatting(True)
-        xml.setAutoFormattingIndent(2)
+        # xml.setAutoFormatting(True)
+        # xml.setAutoFormattingIndent(2)
 
         xml.writeStartDocument()
         xml.writeStartElement('manifest:manifest')
@@ -167,8 +172,8 @@ class OdgWriter:
         meta = QByteArray()
 
         xml = QXmlStreamWriter(meta)
-        xml.setAutoFormatting(True)
-        xml.setAutoFormattingIndent(2)
+        # xml.setAutoFormatting(True)
+        # xml.setAutoFormattingIndent(2)
 
         xml.writeStartDocument()
         xml.writeStartElement('office:document-meta')
@@ -184,8 +189,8 @@ class OdgWriter:
         settings = QByteArray()
 
         xml = QXmlStreamWriter(settings)
-        xml.setAutoFormatting(True)
-        xml.setAutoFormattingIndent(2)
+        # xml.setAutoFormatting(True)
+        # xml.setAutoFormattingIndent(2)
 
         xml.writeStartDocument()
         xml.writeStartElement('office:document-settings')
@@ -213,16 +218,24 @@ class OdgWriter:
         styles = QByteArray()
 
         xml = QXmlStreamWriter(styles)
-        xml.setAutoFormatting(True)
-        xml.setAutoFormattingIndent(2)
+        # xml.setAutoFormatting(True)
+        # xml.setAutoFormattingIndent(2)
 
         xml.writeStartDocument()
         xml.writeStartElement('office:document-styles')
         xml.writeAttribute('xmlns:draw', 'urn:oasis:names:tc:opendocument:xmlns:drawing:1.0')
         xml.writeAttribute('xmlns:fo', 'urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0')
+        xml.writeAttribute('xmlns:loext', 'urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0')
         xml.writeAttribute('xmlns:office', 'urn:oasis:names:tc:opendocument:xmlns:office:1.0')
         xml.writeAttribute('xmlns:style', 'urn:oasis:names:tc:opendocument:xmlns:style:1.0')
         xml.writeAttribute('xmlns:svg', 'urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0')
+
+        # Font face declarations
+        xml.writeStartElement('office:font-face-decls')
+        self._writeFontFace(xml, self._defaultItemStyle, automatic=False)
+        for style in self._itemStyles:
+            self._writeFontFace(xml, style, automatic=False)
+        xml.writeEndElement()
 
         # Item styles
         xml.writeStartElement('office:styles')
@@ -261,16 +274,26 @@ class OdgWriter:
         content = QByteArray()
 
         xml = QXmlStreamWriter(content)
-        xml.setAutoFormatting(True)
-        xml.setAutoFormattingIndent(2)
+        # xml.setAutoFormatting(True)
+        # xml.setAutoFormattingIndent(2)
 
         xml.writeStartDocument()
         xml.writeStartElement('office:document-content')
         xml.writeAttribute('xmlns:draw', 'urn:oasis:names:tc:opendocument:xmlns:drawing:1.0')
+        xml.writeAttribute('xmlns:fo', 'urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0')
+        xml.writeAttribute('xmlns:loext', 'urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0')
         xml.writeAttribute('xmlns:office', 'urn:oasis:names:tc:opendocument:xmlns:office:1.0')
         xml.writeAttribute('xmlns:style', 'urn:oasis:names:tc:opendocument:xmlns:style:1.0')
         xml.writeAttribute('xmlns:svg', 'urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0')
+        xml.writeAttribute('xmlns:text', 'urn:oasis:names:tc:opendocument:xmlns:text:1.0')
+        xml.writeAttribute('xmlns:jade', 'https://github.com/jaallen85/jade')
         xml.writeAttribute('office:version', '1.3')
+
+        # Font face declarations
+        xml.writeStartElement('office:font-face-decls')
+        for page in self._pages:
+            self._writeItemFontFaces(xml, page.items())
+        xml.writeEndElement()
 
         # Automatic item styles
         xml.writeStartElement('office:automatic-styles')
@@ -334,6 +357,23 @@ class OdgWriter:
         xml.writeCharacters(str(self._gridSpacingMinor))
         xml.writeEndElement()
 
+    def _writeFontFace(self, xml: QXmlStreamWriter, style: OdgItemStyle, automatic: bool) -> None:
+        family = style.fontFamily()
+        if (isinstance(family, str)):
+            writeXmlElement = False
+            if (automatic and family not in self._contentFontFaces):
+                self._contentFontFaces.append(family)
+                writeXmlElement = True
+            elif (not automatic and family not in self._styleFontFaces):
+                self._styleFontFaces.append(family)
+                writeXmlElement = True
+
+            if (writeXmlElement):
+                xml.writeStartElement('style:font-face')
+                xml.writeAttribute('style:name', family)
+                xml.writeAttribute('svg:font-family', family)
+                xml.writeEndElement()
+
     def _writePageLayout(self, xml: QXmlStreamWriter) -> None:
         xml.writeStartElement('style:page-layout')
         xml.writeAttribute('style:name', 'DefaultPageLayout')
@@ -361,7 +401,7 @@ class OdgWriter:
             xml.writeAttribute('draw:fill', 'solid')
             xml.writeAttribute('draw:fill-color', self._colorToString(self._backgroundColor))
             if (self._backgroundColor.alpha() != 255):
-                xml.writeAttribute('draw:opacity', f'{self._backgroundColor.alphaF():.4f}%')
+                xml.writeAttribute('draw:opacity', f'{self._backgroundColor.alphaF() * 100:.4f}%')
         xml.writeAttribute('draw:background-size', 'border')
         xml.writeEndElement()
 
@@ -429,8 +469,8 @@ class OdgWriter:
         xml.writeStartElement('style:style')
 
         if (automatic):
-            self._styleIndex = self._styleIndex + 1
-            style.setName(f'Style_{self._styleIndex}')
+            self._contentStyleIndex = self._contentStyleIndex + 1
+            style.setName(f'Style_{self._contentStyleIndex}')
 
         if (style.name() != ''):
             xml.writeAttribute('style:name', style.name())
@@ -451,12 +491,15 @@ class OdgWriter:
         startMarkerSize = style.startMarkerSize()
         endMarkerStyle = style.endMarkerStyle()
         endMarkerSize = style.endMarkerSize()
+        textAlignment = style.textAlignment()
+        textPadding = style.textPadding()
 
         hasGraphicProperty = (isinstance(penStyle, Qt.PenStyle) or isinstance(penWidth, float) or
                               isinstance(penColor, QColor) or isinstance(penCapStyle, Qt.PenCapStyle) or
                               isinstance(penJoinStyle, Qt.PenJoinStyle) or isinstance(brushColor, QColor) or
                               isinstance(startMarkerStyle, OdgMarker.Style) or isinstance(startMarkerSize, float) or
-                              isinstance(endMarkerStyle, OdgMarker.Style) or isinstance(endMarkerSize, float))
+                              isinstance(endMarkerStyle, OdgMarker.Style) or isinstance(endMarkerSize, float) or
+                              isinstance(textAlignment, Qt.AlignmentFlag) or isinstance(textPadding, QSizeF))
 
         if (hasGraphicProperty):
             xml.writeStartElement('style:graphic-properties')
@@ -488,8 +531,7 @@ class OdgWriter:
             # Pen color
             if (isinstance(penColor, QColor)):
                 xml.writeAttribute('svg:stroke-color', self._colorToString(penColor))
-                if (penColor.alpha() != 255):
-                    xml.writeAttribute('svg:stroke-opacity', f'{penColor.alphaF() * 100:.1f}%')
+                xml.writeAttribute('svg:stroke-opacity', f'{penColor.alphaF() * 100:.1f}%')
 
             # Pen cap style
             if (isinstance(penCapStyle, Qt.PenCapStyle)):
@@ -518,8 +560,7 @@ class OdgWriter:
                 else:
                     xml.writeAttribute('draw:fill', 'solid')
                     xml.writeAttribute('draw:fill-color', self._colorToString(brushColor))
-                    if (brushColor.alpha() != 255):
-                        xml.writeAttribute('draw:opacity', f'{brushColor.alphaF():.4f}%')
+                    xml.writeAttribute('draw:opacity', f'{brushColor.alphaF() * 100:.4f}%')
 
             # Start marker style
             if (isinstance(startMarkerStyle, OdgMarker.Style)):
@@ -531,7 +572,7 @@ class OdgWriter:
                         xml.writeAttribute('draw:marker-start', 'Circle')
                         xml.writeAttribute('draw:marker-start-center', 'true')
                     case _:
-                        pass
+                        xml.writeAttribute('draw:marker-start', 'None')
 
             # Start marker size
             if (isinstance(startMarkerSize, float)):
@@ -547,13 +588,203 @@ class OdgWriter:
                         xml.writeAttribute('draw:marker-end', 'Circle')
                         xml.writeAttribute('draw:marker-end-center', 'true')
                     case _:
-                        pass
+                        xml.writeAttribute('draw:marker-end', 'None')
 
             # End marker size
             if (isinstance(endMarkerSize, float)):
                 xml.writeAttribute('draw:marker-end-width', self._lengthToString(endMarkerSize))
 
+            # Text alignment
+            if (isinstance(textAlignment, Qt.AlignmentFlag)):
+                if (textAlignment & Qt.AlignmentFlag.AlignLeft):
+                    xml.writeAttribute('draw:textarea-horizontal-align', 'left')
+                elif (textAlignment & Qt.AlignmentFlag.AlignRight):
+                    xml.writeAttribute('draw:textarea-horizontal-align', 'right')
+                else:
+                    xml.writeAttribute('draw:textarea-horizontal-align', 'center')
+
+                if (textAlignment & Qt.AlignmentFlag.AlignTop):
+                    xml.writeAttribute('draw:textarea-vertical-align', 'top')
+                elif (textAlignment & Qt.AlignmentFlag.AlignBottom):
+                    xml.writeAttribute('draw:textarea-vertical-align', 'bottom')
+                else:
+                    xml.writeAttribute('draw:textarea-vertical-align', 'middle')
+
+            # Text padding
+            if (isinstance(textPadding, QSizeF)):
+                xml.writeAttribute('fo:padding-left', self._lengthToString(textPadding.width()))
+                xml.writeAttribute('fo:padding-top', self._lengthToString(textPadding.height()))
+                xml.writeAttribute('fo:padding-right', self._lengthToString(textPadding.width()))
+                xml.writeAttribute('fo:padding-bottom', self._lengthToString(textPadding.height()))
+
             xml.writeEndElement()   # style:graphic-properties
+
+        # Paragraph properties
+        hasParagraphProperty = isinstance(textAlignment, Qt.AlignmentFlag)
+
+        if (hasParagraphProperty):
+            xml.writeStartElement('style:paragraph-properties')
+
+            # Text alignment
+            if (isinstance(textAlignment, Qt.AlignmentFlag)):
+                if (textAlignment & Qt.AlignmentFlag.AlignLeft):
+                    xml.writeAttribute('fo:text-align', 'start')
+                elif (textAlignment & Qt.AlignmentFlag.AlignRight):
+                    xml.writeAttribute('fo:text-align', 'end')
+                else:
+                    xml.writeAttribute('fo:text-align', 'center')
+
+            xml.writeEndElement()   # style:paragraph-properties
+
+        # Text properties
+        fontFamily = style.fontFamily()
+        fontSize = style.fontSize()
+        fontStyle = style.fontStyle()
+        textColor = style.textColor()
+
+        hasTextProperty = (isinstance(fontFamily, str) or isinstance(fontSize, float) or
+                           isinstance(fontStyle, OdgFontStyle) or isinstance(textColor, QColor))
+
+        if (hasTextProperty):
+            xml.writeStartElement('style:text-properties')
+
+            # Font family
+            if (isinstance(fontFamily, str)):
+                xml.writeAttribute('style:font-name', fontFamily)
+
+            # Font size
+            if (isinstance(fontSize, float)):
+                xml.writeAttribute('fo:font-size', self._lengthToString(fontSize))
+
+            # Font style
+            if (isinstance(fontStyle, OdgFontStyle)):
+                if (fontStyle.bold()):
+                    xml.writeAttribute('fo:font-weight', 'bold')
+                else:
+                    xml.writeAttribute('fo:font-weight', 'normal')
+
+                if (fontStyle.italic()):
+                    xml.writeAttribute('fo:font-style', 'italic')
+                else:
+                    xml.writeAttribute('fo:font-style', 'normal')
+
+                if (fontStyle.underline()):
+                    xml.writeAttribute('style:text-underline-style', 'solid')
+                    xml.writeAttribute('style:text-underline-width', 'single')
+                    xml.writeAttribute('style:text-underline-color', 'font-color')
+                else:
+                    xml.writeAttribute('style:text-underline-style', 'none')
+
+                if (fontStyle.strikeOut()):
+                    xml.writeAttribute('style:text-line-through-style', 'solid')
+                    xml.writeAttribute('style:text-line-through-type', 'single')
+                else:
+                    xml.writeAttribute('style:text-line-through-style', 'none')
+
+            # Text color
+            if (isinstance(textColor, QColor)):
+                xml.writeAttribute('fo:color', self._colorToString(textColor))
+                xml.writeAttribute('loext:opacity', f'{textColor.alphaF() * 100:.4f}%')
+
+            xml.writeEndElement()   # style:text-properties
+
+        xml.writeEndElement()   # style:style
+
+    def _writeItemParagraphStyle(self, xml: QXmlStreamWriter, style: OdgItemStyle) -> None:
+        xml.writeStartElement('style:style')
+
+        if (style.name() != ''):
+            xml.writeAttribute('style:name', f'Style_{self._contentStyleIndex}P')
+        xml.writeAttribute('style:family', 'paragraph')
+
+        parent = style.parent()
+        if (isinstance(parent, OdgItemStyle) and parent.name() != ''):
+            xml.writeAttribute('style:parent-style-name', parent.name())
+
+        # Paragraph properties
+        textAlignment = style.textAlignment()
+        # textPadding = style.textPadding()
+
+        hasParagraphProperty = isinstance(textAlignment, Qt.AlignmentFlag)
+
+        if (hasParagraphProperty):
+            xml.writeStartElement('style:paragraph-properties')
+
+            # Text alignment
+            if (isinstance(textAlignment, Qt.AlignmentFlag)):
+                if (textAlignment & Qt.AlignmentFlag.AlignLeft):
+                    xml.writeAttribute('fo:text-align', 'start')
+                elif (textAlignment & Qt.AlignmentFlag.AlignRight):
+                    xml.writeAttribute('fo:text-align', 'end')
+                else:
+                    xml.writeAttribute('fo:text-align', 'center')
+
+            xml.writeEndElement()   # style:paragraph-properties
+
+        xml.writeEndElement()   # style:style
+
+    def _writeItemTextStyle(self, xml: QXmlStreamWriter, style: OdgItemStyle) -> None:
+        xml.writeStartElement('style:style')
+
+        if (style.name() != ''):
+            xml.writeAttribute('style:name', f'Style_{self._contentStyleIndex}T')
+        xml.writeAttribute('style:family', 'text')
+
+        parent = style.parent()
+        if (isinstance(parent, OdgItemStyle) and parent.name() != ''):
+            xml.writeAttribute('style:parent-style-name', parent.name())
+
+        # Text properties
+        fontFamily = style.fontFamily()
+        fontSize = style.fontSize()
+        fontStyle = style.fontStyle()
+        textColor = style.textColor()
+
+        hasTextProperty = (isinstance(fontFamily, str) or isinstance(fontSize, float) or
+                           isinstance(fontStyle, OdgFontStyle) or isinstance(textColor, QColor))
+
+        if (hasTextProperty):
+            xml.writeStartElement('style:text-properties')
+
+            # Font family
+            if (isinstance(fontFamily, str)):
+                xml.writeAttribute('style:font-name', fontFamily)
+
+            # Font size
+            if (isinstance(fontSize, float)):
+                xml.writeAttribute('fo:font-size', self._lengthToString(fontSize))
+
+            # Font style
+            if (isinstance(fontStyle, OdgFontStyle)):
+                if (fontStyle.bold()):
+                    xml.writeAttribute('fo:font-weight', 'bold')
+                else:
+                    xml.writeAttribute('fo:font-weight', 'normal')
+
+                if (fontStyle.italic()):
+                    xml.writeAttribute('fo:font-style', 'italic')
+                else:
+                    xml.writeAttribute('fo:font-style', 'normal')
+
+                if (fontStyle.underline()):
+                    xml.writeAttribute('style:text-underline-style', 'solid')
+                    xml.writeAttribute('style:text-underline-width', 'single')
+                    xml.writeAttribute('style:text-underline-color', 'font-color')
+                else:
+                    xml.writeAttribute('style:text-underline-style', 'none')
+
+                if (fontStyle.strikeOut()):
+                    xml.writeAttribute('style:text-line-through-style', 'solid')
+                    xml.writeAttribute('style:text-line-through-type', 'single')
+                else:
+                    xml.writeAttribute('style:text-line-through-style', 'none')
+
+            # Text color
+            if (isinstance(textColor, QColor)):
+                xml.writeAttribute('fo:color', self._colorToString(textColor))
+                xml.writeAttribute('loext:opacity', f'{textColor.alphaF() * 100:.4f}%')
+
+            xml.writeEndElement()   # style:text-properties
 
         xml.writeEndElement()   # style:style
 
@@ -569,12 +800,22 @@ class OdgWriter:
 
     # ==================================================================================================================
 
+    def _writeItemFontFaces(self, xml: QXmlStreamWriter, items: list[OdgItem]) -> None:
+        for item in items:
+            if (isinstance(item, OdgGroupItem)):
+                self._writeItemFontFaces(xml, item.items())
+            else:
+                self._writeFontFace(xml, item.style(), automatic=True)
+
     def _writeItemStyles(self, xml: QXmlStreamWriter, items: list[OdgItem]) -> None:
         for item in items:
             if (isinstance(item, OdgGroupItem)):
                 self._writeItemStyles(xml, item.items())
             else:
                 self._writeItemStyle(xml, item.style(), automatic=True)
+                if (isinstance(item, (OdgTextItem, OdgTextEllipseItem, OdgTextRectItem))):
+                    self._writeItemParagraphStyle(xml, item.style())
+                    self._writeItemTextStyle(xml, item.style())
 
     def _writeItems(self, xml: QXmlStreamWriter, items: list[OdgItem]) -> None:
         for item in items:
@@ -590,6 +831,12 @@ class OdgWriter:
                 self._writePolygonItem(xml, item)
             elif (isinstance(item, OdgCurveItem)):
                 self._writeCurveItem(xml, item)
+            elif (isinstance(item, OdgTextItem)):
+                self._writeTextItem(xml, item)
+            elif (isinstance(item, OdgTextRectItem)):
+                self._writeTextRectItem(xml, item)
+            elif (isinstance(item, OdgTextEllipseItem)):
+                self._writeTextEllipseItem(xml, item)
             elif (isinstance(item, OdgGroupItem)):
                 self._writeGroupItem(xml, item)
 
@@ -711,8 +958,8 @@ class OdgWriter:
         # Curve-specific attributes
         curve = item.curve()
         curvePath = QPainterPath()
-        curvePath.moveTo(curve.at(0))
-        curvePath.cubicTo(curve.at(1), curve.at(2), curve.at(3))
+        curvePath.moveTo(curve.p1())
+        curvePath.cubicTo(curve.cp1(), curve.cp2(), curve.p2())
         curvePathBoundingRect = curvePath.boundingRect()
 
         xml.writeAttribute('svg:x', self._lengthToString(curvePathBoundingRect.left()))
@@ -721,6 +968,109 @@ class OdgWriter:
         xml.writeAttribute('svg:height', self._lengthToString(curvePathBoundingRect.height()))
         xml.writeAttribute('svg:viewBox', self._viewBoxToString(curvePathBoundingRect))
         xml.writeAttribute('svg:d', self._pathToString(curvePath))
+
+        xml.writeEndElement()
+
+    def _writeTextItem(self, xml: QXmlStreamWriter, item: OdgTextItem) -> None:
+        xml.writeStartElement('draw:rect')
+
+        # Common item attributes
+        xml.writeAttribute('draw:style-name', item.style().name())
+        xml.writeAttribute('draw:text-style-name', item.style().name() + 'P')
+
+        transform = self._transformToString(item.position(), item.rotation(), item.isFlipped())
+        if (transform != ''):
+            xml.writeAttribute('draw:transform', transform)
+
+        # Text-specific attributes
+        rect = item.boundingRect()
+
+        if (self._grid > 0):
+            # Snap the edges of the rect to the grid
+            left = self._grid * math.floor(rect.left() / self._grid)
+            top = self._grid * math.floor(rect.top() / self._grid)
+            right = self._grid * math.ceil(rect.right() / self._grid)
+            bottom = self._grid * math.ceil(rect.bottom() / self._grid)
+            rect = QRectF(left, top, right - left, bottom - top)
+
+        xml.writeAttribute('svg:x', self._lengthToString(rect.left()))
+        xml.writeAttribute('svg:y', self._lengthToString(rect.top()))
+        xml.writeAttribute('svg:width', self._lengthToString(rect.width()))
+        xml.writeAttribute('svg:height', self._lengthToString(rect.height()))
+        xml.writeAttribute('jade:text-item-hint', 'text')
+
+        for line in item.caption().split('\n'):
+            xml.writeStartElement('text:p')
+            xml.writeAttribute('text:style-name', item.style().name() + 'P')
+            xml.writeStartElement('text:span')
+            xml.writeAttribute('text:style-name', item.style().name() + 'T')
+            xml.writeCharacters(line)
+            xml.writeEndElement()
+            xml.writeEndElement()
+
+        xml.writeEndElement()
+
+    def _writeTextRectItem(self, xml: QXmlStreamWriter, item: OdgTextRectItem) -> None:
+        xml.writeStartElement('draw:rect')
+
+        # Common item attributes
+        xml.writeAttribute('draw:style-name', item.style().name())
+        xml.writeAttribute('draw:text-style-name', item.style().name() + 'P')
+
+        transform = self._transformToString(item.position(), item.rotation(), item.isFlipped())
+        if (transform != ''):
+            xml.writeAttribute('draw:transform', transform)
+
+        # Rect-specific attributes
+        rect = item.rect()
+        xml.writeAttribute('svg:x', self._lengthToString(rect.left()))
+        xml.writeAttribute('svg:y', self._lengthToString(rect.top()))
+        xml.writeAttribute('svg:width', self._lengthToString(rect.width()))
+        xml.writeAttribute('svg:height', self._lengthToString(rect.height()))
+        if (item.cornerRadius() != 0):
+            xml.writeAttribute('draw:corner-radius', self._lengthToString(item.cornerRadius()))
+        xml.writeAttribute('jade:text-item-hint', 'text-rect')
+
+        # Text
+        for line in item.caption().split('\n'):
+            xml.writeStartElement('text:p')
+            xml.writeAttribute('text:style-name', item.style().name() + 'P')
+            xml.writeStartElement('text:span')
+            xml.writeAttribute('text:style-name', item.style().name() + 'T')
+            xml.writeCharacters(line)
+            xml.writeEndElement()
+            xml.writeEndElement()
+
+        xml.writeEndElement()
+
+    def _writeTextEllipseItem(self, xml: QXmlStreamWriter, item: OdgTextEllipseItem) -> None:
+        xml.writeStartElement('draw:ellipse')
+
+        # Common item attributes
+        xml.writeAttribute('draw:style-name', item.style().name())
+        xml.writeAttribute('draw:text-style-name', item.style().name() + 'P')
+
+        transform = self._transformToString(item.position(), item.rotation(), item.isFlipped())
+        if (transform != ''):
+            xml.writeAttribute('draw:transform', transform)
+
+        # Ellipse-specific attributes
+        ellipse = item.ellipse()
+        xml.writeAttribute('svg:x', self._lengthToString(ellipse.left()))
+        xml.writeAttribute('svg:y', self._lengthToString(ellipse.top()))
+        xml.writeAttribute('svg:width', self._lengthToString(ellipse.width()))
+        xml.writeAttribute('svg:height', self._lengthToString(ellipse.height()))
+        xml.writeAttribute('jade:text-item-hint', 'text-ellipse')
+
+        # Text
+        for line in item.caption().split('\n'):
+            xml.writeStartElement('text:p')
+            xml.writeAttribute('text:style-name', item.style().name() + 'P')
+            xml.writeStartElement('text:span')
+            xml.writeAttribute('text:style-name', item.style().name() + 'T')
+            xml.writeCharacters(line)
+            xml.writeEndElement()
+            xml.writeEndElement()
 
         xml.writeEndElement()
 
