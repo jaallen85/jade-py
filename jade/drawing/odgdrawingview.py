@@ -88,9 +88,8 @@ class OdgDrawingView(QAbstractScrollArea):
         self._gridSpacingMinor: int = 2
 
         # Item styles
-        self._defaultItemStyle: OdgItemStyle = OdgItemStyle.createDefaultStyle(
-            0.01 if (self._units == OdgUnits.Inches) else 0.25)
-        self._itemStyles: list[OdgItemStyle] = []
+        defaultPenWidth = (0.01 if (self._units == OdgUnits.Inches) else 0.25)
+        self._defaultItemStyle: OdgItemStyle = OdgItemStyle.createDefaultStyle(defaultPenWidth)
 
         # Pages
         self._pages: list[OdgPage] = []
@@ -133,7 +132,6 @@ class OdgDrawingView(QAbstractScrollArea):
 
     def __del__(self) -> None:
         self.clearPages()
-        self.clearItemStyles()
         del self._defaultItemStyle
 
     # ==================================================================================================================
@@ -154,8 +152,6 @@ class OdgDrawingView(QAbstractScrollArea):
             scaleFactor = OdgUnits.convert(1, oldUnits, self._units)
 
             self._defaultItemStyle.scale(scaleFactor)
-            for style in self._itemStyles:
-                style.scale(scaleFactor)
 
             for page in self._pages:
                 for item in page.items():
@@ -315,15 +311,6 @@ class OdgDrawingView(QAbstractScrollArea):
         return None
 
     # ==================================================================================================================
-
-    def addItemStyle(self, style: OdgItemStyle) -> None:
-        self._itemStyles.append(style)
-
-    def clearItemStyles(self) -> None:
-        del self._itemStyles[:]
-
-    def itemStyles(self) -> list[OdgItemStyle]:
-        return self._itemStyles
 
     def defaultItemStyle(self) -> OdgItemStyle:
         return self._defaultItemStyle
@@ -625,12 +612,8 @@ class OdgDrawingView(QAbstractScrollArea):
         self.setGridSpacingMajor(reader.gridSpacingMajor())
         self.setGridSpacingMinor(reader.gridSpacingMinor())
 
-        self._defaultItemStyle.copyFromStyle(reader.defaultItemStyle())
-
-        for style in reader.takeItemStyles():
-            if (style.parent() == reader.defaultItemStyle()):
-                style.setParent(self._defaultItemStyle)
-            self.addItemStyle(style)
+        del self._defaultItemStyle
+        self._defaultItemStyle = reader.takeDefaultItemStyle()
 
         for page in reader.takePages():
             self.addPage(page)
@@ -640,7 +623,6 @@ class OdgDrawingView(QAbstractScrollArea):
 
     def clear(self) -> None:
         self.clearPages()
-        self.clearItemStyles()
 
     # ==================================================================================================================
 

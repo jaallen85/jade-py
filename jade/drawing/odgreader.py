@@ -52,7 +52,6 @@ class OdgReader:
         self._gridSpacingMinor: int = 2
 
         self._defaultItemStyle: OdgItemStyle = OdgItemStyle('standard')
-        self._itemStyles: list[OdgItemStyle] = []
         self._automaticItemStyles: list[OdgItemStyle] = []
 
         self._pages: list[OdgPage] = []
@@ -67,7 +66,6 @@ class OdgReader:
 
     def __del__(self) -> None:
         del self._defaultItemStyle
-        del self._itemStyles[:]
         del self._automaticItemStyles[:]
         del self._pages[:]
 
@@ -112,13 +110,11 @@ class OdgReader:
     def defaultItemStyle(self) -> OdgItemStyle:
         return self._defaultItemStyle
 
-    def itemStyles(self) -> list[OdgItemStyle]:
-        return self._itemStyles
-
-    def takeItemStyles(self) -> list[OdgItemStyle]:
-        styles = self._itemStyles.copy()
-        self._itemStyles = []
-        return styles
+    def takeDefaultItemStyle(self) -> OdgItemStyle:
+        style = self._defaultItemStyle
+        self._defaultItemStyle = OdgItemStyle(style.name())
+        self._defaultItemStyle.copyFromStyle(style)
+        return style
 
     # ==================================================================================================================
 
@@ -283,8 +279,6 @@ class OdgReader:
                 newStyle = self._readItemStyle(xml)
                 if (automatic):
                     self._automaticItemStyles.append(newStyle)
-                else:
-                    self._itemStyles.append(newStyle)
         else:
             xml.skipCurrentElement()
 
@@ -312,12 +306,6 @@ class OdgReader:
             match (attr.qualifiedName()):
                 case 'style:name':
                     newStyle.setName(attr.value())
-                case 'style:parent-style-name':
-                    parentStyleName = attr.value()
-                    for style in self._itemStyles:
-                        if (style.name() == parentStyleName):
-                            newStyle.setParent(style)
-                            break
 
         while (xml.readNextStartElement()):
             if (xml.qualifiedName() == 'style:graphic-properties'):
@@ -465,7 +453,7 @@ class OdgReader:
                             padding.setHeight(self._lengthFromString(attr.value()))
                             newStyle.setTextPadding(padding)
 
-             elif (xml.qualifiedName() == 'style:text-properties'):
+            elif (xml.qualifiedName() == 'style:text-properties'):
                 attributes = xml.attributes()
                 for i in range(attributes.count()):
                     attr = attributes.at(i)

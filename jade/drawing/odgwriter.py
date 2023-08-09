@@ -51,7 +51,6 @@ class OdgWriter:
         self._gridSpacingMinor: int = 2
 
         self._defaultItemStyle: OdgItemStyle = OdgItemStyle('standard')
-        self._itemStyles: list[OdgItemStyle] = []
 
         self._pages: list[OdgPage] = []
 
@@ -97,9 +96,8 @@ class OdgWriter:
 
     # ==================================================================================================================
 
-    def setItemStyles(self, defaultStyle: OdgItemStyle, itemStyles: list[OdgItemStyle]) -> None:
+    def setItemStyles(self, defaultStyle: OdgItemStyle) -> None:
         self._defaultItemStyle = defaultStyle
-        self._itemStyles = itemStyles
 
     # ==================================================================================================================
 
@@ -233,8 +231,6 @@ class OdgWriter:
         # Font face declarations
         xml.writeStartElement('office:font-face-decls')
         self._writeFontFace(xml, self._defaultItemStyle, automatic=False)
-        for style in self._itemStyles:
-            self._writeFontFace(xml, style, automatic=False)
         xml.writeEndElement()
 
         # Item styles
@@ -242,8 +238,6 @@ class OdgWriter:
         self._writeDashStyles(xml)
         self._writeMarkerStyles(xml)
         self._writeItemStyle(xml, self._defaultItemStyle, automatic=False)
-        for style in self._itemStyles:
-            self._writeItemStyle(xml, style, automatic=False)
         xml.writeEndElement()
 
         # Page layout and style

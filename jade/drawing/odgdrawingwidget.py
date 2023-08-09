@@ -236,7 +236,7 @@ class OdgDrawingWidget(OdgDrawingView):
         writer.setGridColor(self.gridColor())
         writer.setGridSpacingMajor(self.gridSpacingMajor())
         writer.setGridSpacingMinor(self.gridSpacingMinor())
-        writer.setItemStyles(self.defaultItemStyle(), self.itemStyles())
+        writer.setItemStyles(self.defaultItemStyle())
         writer.setPages(self.pages())
 
         writer.commit()
