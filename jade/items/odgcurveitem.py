@@ -14,124 +14,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import math
 from enum import IntEnum
 from typing import Any
-from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
+from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
+from .odgcurve import OdgCurve
 from .odgitem import OdgItem
 from .odgitempoint import OdgItemPoint
 from .odgmarker import OdgMarker
 
-
-class OdgCurve:
-    def __init__(self, p1: QPointF = QPointF(), cp1: QPointF = QPointF(), cp2: QPointF = QPointF(),
-                 p2: QPointF = QPointF()) -> None:
-        self._p1: QPointF = QPointF(p1)
-        self._cp1: QPointF = QPointF(cp1)
-        self._cp2: QPointF = QPointF(cp2)
-        self._p2: QPointF = QPointF(p2)
-
-    def __eq__(self, other: object) -> bool:
-        if (isinstance(other, OdgCurve)):
-            return (self._p1 == other.p1() and self._cp1 == other.cp1() and
-                    self._cp2 == other.cp2() and self._p2 == other.p2())
-        return False
-
-    # ==================================================================================================================
-
-    def setP1(self, p1: QPointF) -> None:
-        self._p1 = QPointF(p1)
-
-    def setCP1(self, cp1: QPointF) -> None:
-        self._cp1 = QPointF(cp1)
-
-    def setCP2(self, cp2: QPointF) -> None:
-        self._cp2 = QPointF(cp2)
-
-    def setP2(self, p2: QPointF) -> None:
-        self._p2 = QPointF(p2)
-
-    def p1(self) -> QPointF:
-        return self._p1
-
-    def cp1(self) -> QPointF:
-        return self._cp1
-
-    def cp2(self) -> QPointF:
-        return self._cp2
-
-    def p2(self) -> QPointF:
-        return self._p2
-
-    # ==================================================================================================================
-
-    def center(self) -> QPointF:
-        return QLineF(self._p1, self._p2).center()
-
-    def length(self) -> float:
-        return QLineF(self._p1, self._p2).length()
-
-    def startAngle(self) -> float:
-        p1 = self._p1
-        p2 = self._pointFromRatio(0.05)
-        return math.atan2(p1.y() - p2.y(), p1.x() - p2.x()) * 180 / math.pi
-
-    def endAngle(self) -> float:
-        p1 = self._p2
-        p2 = self._pointFromRatio(0.95)
-        return math.atan2(p1.y() - p2.y(), p1.x() - p2.x()) * 180 / math.pi
-
-    # ==================================================================================================================
-
-    def translate(self, offset: QPointF) -> None:
-        self._p1.setX(self._p1.x() + offset.x())
-        self._p1.setY(self._p1.y() + offset.y())
-        self._cp1.setX(self._cp1.x() + offset.x())
-        self._cp1.setY(self._cp1.y() + offset.y())
-        self._cp2.setX(self._cp2.x() + offset.x())
-        self._cp2.setY(self._cp2.y() + offset.y())
-        self._p2.setX(self._p2.x() + offset.x())
-        self._p2.setY(self._p2.y() + offset.y())
-
-    def scale(self, scale: float) -> None:
-        self._p1.setX(self._p1.x() * scale)
-        self._p1.setY(self._p1.y() * scale)
-        self._cp1.setX(self._cp1.x() * scale)
-        self._cp1.setY(self._cp1.y() * scale)
-        self._cp2.setX(self._cp2.x() * scale)
-        self._cp2.setY(self._cp2.y() * scale)
-        self._p2.setX(self._p2.x() * scale)
-        self._p2.setY(self._p2.y() * scale)
-
-    # ==================================================================================================================
-
-    def _pointFromRatio(self, ratio: float) -> QPointF:
-        x = ((1 - ratio) * (1 - ratio) * (1 - ratio) * self._p1.x() +
-             3 * ratio * (1 - ratio) * (1 - ratio) * self._cp1.x() +
-             3 * ratio * ratio * (1 - ratio) * self._cp2.x() +
-             ratio * ratio * ratio * self._p2.x())
-        y = ((1 - ratio) * (1 - ratio) * (1 - ratio) * self._p1.y() +
-             3 * ratio * (1 - ratio) * (1 - ratio) * self._cp1.y() +
-             3 * ratio * ratio * (1 - ratio) * self._cp2.y() +
-             ratio * ratio * ratio * self._p2.y())
-        return QPointF(x, y)
-
-    # ==================================================================================================================
-
-    @classmethod
-    def copy(cls, other: 'OdgCurve') -> 'OdgCurve':
-        newCurve = cls()
-        newCurve.setP1(other.p1())
-        newCurve.setCP1(other.cp1())
-        newCurve.setCP2(other.cp2())
-        newCurve.setP2(other.p2())
-        return newCurve
-
-
-# ======================================================================================================================
-# ======================================================================================================================
-# ======================================================================================================================
 
 class OdgCurveItem(OdgItem):
     class PointIndex(IntEnum):
@@ -148,6 +39,10 @@ class OdgCurveItem(OdgItem):
         self._curve: OdgCurve = OdgCurve()
         self._curvePath: QPainterPath = QPainterPath()
 
+        self._pen: QPen = QPen()
+        self._startMarker: OdgMarker = OdgMarker()
+        self._endMarker: OdgMarker = OdgMarker()
+
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.FreeControlAndConnection))
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.Control))
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.Control))
@@ -158,8 +53,10 @@ class OdgCurveItem(OdgItem):
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setCurve(self.curve())
+        copiedItem.setPen(self.pen())
+        copiedItem.setStartMarker(self.startMarker())
+        copiedItem.setEndMarker(self.endMarker())
         return copiedItem
 
     # ==================================================================================================================
@@ -188,39 +85,85 @@ class OdgCurveItem(OdgItem):
 
     # ==================================================================================================================
 
+    def setPen(self, pen: QPen) -> None:
+        self._pen = QPen(pen)
+
+    def setStartMarker(self, marker: OdgMarker) -> None:
+        self._startMarker = OdgMarker(marker.style(), marker.size())
+
+    def setEndMarker(self, marker: OdgMarker) -> None:
+        self._endMarker = OdgMarker(marker.style(), marker.size())
+
+    def pen(self) -> QPen:
+        return self._pen
+
+    def startMarker(self) -> OdgMarker:
+        return self._startMarker
+
+    def endMarker(self) -> OdgMarker:
+        return self._endMarker
+
+    # ==================================================================================================================
+
     def setProperty(self, name: str, value: Any) -> None:
-        if (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
-            self._style.setPenStyleIfUnique(Qt.PenStyle(value))
+        if (name == 'pen' and isinstance(value, QPen)):
+            self.setPen(value)
+        elif (name == 'penStyle' and isinstance(value, int)):
+            pen = self.pen()
+            pen.setStyle(Qt.PenStyle(value))
+            self.setPen(pen)
         elif (name == 'penWidth' and isinstance(value, float)):
-            self._style.setPenWidthIfUnique(value)
+            pen = self.pen()
+            pen.setWidthF(value)
+            self.setPen(pen)
         elif (name == 'penColor' and isinstance(value, QColor)):
-            self._style.setPenColorIfUnique(value)
-        elif (name == 'startMarkerStyle' and isinstance(value, OdgMarker.Style)):
-            self._style.setStartMarkerStyleIfUnique(OdgMarker.Style(value))
+            pen = self.pen()
+            pen.setBrush(QBrush(QColor(value)))
+            self.setPen(pen)
+        elif (name == 'startMarker' and isinstance(value, OdgMarker)):
+            self.setStartMarker(value)
+        elif (name == 'startMarkerStyle' and isinstance(value, int)):
+            marker = self.startMarker()
+            marker.setStyle(OdgMarker.Style(value))
+            self.setStartMarker(marker)
         elif (name == 'startMarkerSize' and isinstance(value, float)):
-            self._style.setStartMarkerSizeIfUnique(value)
-        elif (name == 'endMarkerStyle' and isinstance(value, OdgMarker.Style)):
-            self._style.setEndMarkerStyleIfUnique(OdgMarker.Style(value))
+            marker = self.startMarker()
+            marker.setSize(value)
+            self.setStartMarker(marker)
+        elif (name == 'endMarker' and isinstance(value, OdgMarker)):
+            self.setEndMarker(value)
+        elif (name == 'endMarkerStyle' and isinstance(value, int)):
+            marker = self.endMarker()
+            marker.setStyle(OdgMarker.Style(value))
+            self.setEndMarker(marker)
         elif (name == 'endMarkerSize' and isinstance(value, float)):
-            self._style.setEndMarkerSizeIfUnique(value)
+            marker = self.endMarker()
+            marker.setSize(value)
+            self.setEndMarker(marker)
 
     def property(self, name: str) -> Any:
         if (name == 'curve'):
             return self.curve()
+        if (name == 'pen'):
+            return self.pen()
         if (name == 'penStyle'):
-            return self._style.lookupPenStyle()
+            return self.pen().style().value
         if (name == 'penWidth'):
-            return self._style.lookupPenWidth()
+            return self.pen().widthF()
         if (name == 'penColor'):
-            return self._style.lookupPenColor()
+            return self.pen().brush().color()
+        if (name == 'startMarker'):
+            return self.startMarker()
         if (name == 'startMarkerStyle'):
-            return self._style.lookupStartMarkerStyle()
+            return self.startMarker().style().value
         if (name == 'startMarkerSize'):
-            return self._style.lookupStartMarkerSize()
+            return self.startMarker().size()
+        if (name == 'endMarker'):
+            return self.endMarker()
         if (name == 'endMarkerStyle'):
-            return self._style.lookupEndMarkerStyle()
+            return self.endMarker().style().value
         if (name == 'endMarkerSize'):
-            return self._style.lookupEndMarkerSize()
+            return self.endMarker().size()
         return None
 
     # ==================================================================================================================
@@ -229,7 +172,7 @@ class OdgCurveItem(OdgItem):
         rect = self._curvePath.boundingRect()
 
         # Adjust for pen width
-        halfPenWidth = self.style().lookupPenWidth() / 2
+        halfPenWidth = self._pen.widthF() / 2
         rect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)
 
         return rect
@@ -238,18 +181,14 @@ class OdgCurveItem(OdgItem):
         shape = QPainterPath()
 
         # Calculate curve shape
-        pen = self.style().lookupPen()
-
-        shape = self._strokePath(self._curvePath, pen)
+        shape = self._strokePath(self._curvePath, self._pen)
 
         # Add shape for each marker, if necessary
-        startMarker = self.style().lookupStartMarker()
-        if (self._shouldShowStartMarker(startMarker.size())):
-            shape.addPath(startMarker.shape(pen, self._curve.p1(), self._startMarkerAngle()))
+        if (self._shouldShowStartMarker(self._startMarker.size())):
+            shape.addPath(self._startMarker.shape(self._pen, self._curve.p1(), self._startMarkerAngle()))
 
-        endMarker = self.style().lookupEndMarker()
-        if (self._shouldShowEndMarker(endMarker.size())):
-            shape.addPath(endMarker.shape(pen, self._curve.p2(), self._endMarkerAngle()))
+        if (self._shouldShowEndMarker(self._endMarker.size())):
+            shape.addPath(self._endMarker.shape(self._pen, self._curve.p2(), self._endMarkerAngle()))
 
         return shape
 
@@ -261,26 +200,22 @@ class OdgCurveItem(OdgItem):
 
     def paint(self, painter: QPainter) -> None:
         # Draw line
-        pen = self.style().lookupPen()
-
         painter.setBrush(QBrush(Qt.GlobalColor.transparent))
-        painter.setPen(pen)
+        painter.setPen(self._pen)
         painter.drawPath(self._curvePath)
 
         # Draw markers if necessary
-        startMarker = self.style().lookupStartMarker()
-        if (self._shouldShowStartMarker(startMarker.size())):
-            startMarker.paint(painter, pen, self._curve.p1(), self._startMarkerAngle())
+        if (self._shouldShowStartMarker(self._startMarker.size())):
+            self._startMarker.paint(painter, self._pen, self._curve.p1(), self._startMarkerAngle())
 
-        endMarker = self.style().lookupEndMarker()
-        if (self._shouldShowEndMarker(endMarker.size())):
-            endMarker.paint(painter, pen, self._curve.p2(), self._endMarkerAngle())
+        if (self._shouldShowEndMarker(self._endMarker.size())):
+            self._endMarker.paint(painter, self._pen, self._curve.p2(), self._endMarkerAngle())
 
-        # Draw control lines, if necessary
+        # Draw control lines if necessary
         if (self.isSelected()):
-            controlPen = QPen(pen)
+            controlPen = QPen(self._pen)
             controlPen.setStyle(Qt.PenStyle.DotLine)
-            controlPen.setWidthF(pen.width() * 0.75)
+            controlPen.setWidthF(self._pen.width() * 0.75)
 
             painter.setPen(controlPen)
             painter.drawLine(self._curve.p1(), self._curve.cp1())
@@ -317,6 +252,10 @@ class OdgCurveItem(OdgItem):
         scaledCurve = OdgCurve.copy(self._curve)
         scaledCurve.scale(scale)
         self.setCurve(scaledCurve)
+
+        self._pen.setWidthF(self._pen.widthF() * scale)
+        self._startMarker.setSize(self._startMarker.size() * scale)
+        self._endMarker.setSize(self._endMarker.size() * scale)
 
     # ==================================================================================================================
 

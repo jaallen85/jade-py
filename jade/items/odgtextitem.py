@@ -16,10 +16,10 @@
 
 from typing import Any
 from PySide6.QtCore import Qt, QPointF, QRectF, QSizeF
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter
+from .odgfontstyle import OdgFontStyle
 from .odgitem import OdgItem
 from .odgitempoint import OdgItemPoint
-from .odgitemstyle import OdgFontStyle
 
 
 class OdgTextItem(OdgItem):
@@ -28,20 +28,25 @@ class OdgTextItem(OdgItem):
 
         self._caption: str = ''
 
+        self._font: QFont = QFont()
+        self._alignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
+        self._padding: QSizeF = QSizeF(0, 0)
+        self._brush: QBrush = QBrush()
+
         self._textRect: QRectF = QRectF()
 
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.NoType))
-
-        self.style().setPenStyle(Qt.PenStyle.NoPen)
-        self.style().setBrushColor(QColor(0, 0, 0, 0))
 
     def __copy__(self) -> 'OdgTextItem':
         copiedItem = OdgTextItem()
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setCaption(self.caption())
+        copiedItem.setFont(self.font())
+        copiedItem.setAlignment(self.alignment())
+        copiedItem.setPadding(self.padding())
+        copiedItem.setBrush(self.brush())
         return copiedItem
 
     # ==================================================================================================================
@@ -54,49 +59,94 @@ class OdgTextItem(OdgItem):
 
     # ==================================================================================================================
 
+    def setFont(self, font: QFont) -> None:
+        self._font = QFont(font)
+
+    def setAlignment(self, alignment: Qt.AlignmentFlag) -> None:
+        self._alignment = alignment
+
+    def setPadding(self, padding: QSizeF) -> None:
+        self._padding = QSizeF(padding)
+
+    def setBrush(self, brush: QBrush) -> None:
+        self._brush = QBrush(brush)
+
+    def font(self) -> QFont:
+        return self._font
+
+    def alignment(self) -> Qt.AlignmentFlag:
+        return self._alignment
+
+    def padding(self) -> QSizeF:
+        return self._padding
+
+    def brush(self) -> QBrush:
+        return self._brush
+
+    # ==================================================================================================================
+
     def setProperty(self, name: str, value: Any) -> None:
         if (name == 'caption' and isinstance(value, str)):
             self.setCaption(value)
+        elif (name == 'font' and isinstance(value, QFont)):
+            self.setFont(value)
         elif (name == 'fontFamily' and isinstance(value, str)):
-            self._style.setFontFamilyIfUnique(value)
+            font = self.font()
+            font.setFamily(value)
+            self.setFont(font)
         elif (name == 'fontSize' and isinstance(value, float)):
-            self._style.setFontSizeIfUnique(value)
+            font = self.font()
+            font.setPointSizeF(value)
+            self.setFont(font)
         elif (name == 'fontStyle' and isinstance(value, OdgFontStyle)):
-            self._style.setFontStyleIfUnique(value)
+            font = self.font()
+            font.setBold(value.bold())
+            font.setItalic(value.italic())
+            font.setUnderline(value.underline())
+            font.setStrikeOut(value.strikeOut())
+            self.setFont(font)
         elif (name == 'textAlignment' and isinstance(value, Qt.AlignmentFlag)):
-            self._style.setTextAlignmentIfUnique(value)
+            self.setAlignment(value)
         elif (name == 'textPadding' and isinstance(value, QSizeF)):
-            self._style.setTextPaddingIfUnique(value)
+            self.setPadding(value)
+        elif (name == 'textBrush' and isinstance(value, QBrush)):
+            self.setBrush(value)
         elif (name == 'textColor' and isinstance(value, QColor)):
-            self._style.setTextColorIfUnique(value)
+            self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> Any:
         if (name == 'position'):
             return self.position()
         if (name == 'caption'):
             return self.caption()
+        if (name == 'font'):
+            return self.font()
         if (name == 'fontFamily'):
-            return self._style.lookupFontFamily()
+            return self.font().family()
         if (name == 'fontSize'):
-            return self._style.lookupFontSize()
+            return self.font().pointSizeF()
         if (name == 'fontStyle'):
-            return self._style.lookupFontStyle()
+            style = OdgFontStyle()
+            style.setBold(self.font().bold())
+            style.setItalic(self.font().italic())
+            style.setUnderline(self.font().underline())
+            style.setStrikeOut(self.font().strikeOut())
+            return style
         if (name == 'textAlignment'):
-            return self._style.lookupTextAlignment()
+            return self.alignment()
         if (name == 'textPadding'):
-            return self._style.lookupTextPadding()
+            return self.padding()
+        if (name == 'textBrush'):
+            return self.brush()
         if (name == 'textColor'):
-            return self._style.lookupTextColor()
+            return self.brush().color()
         return None
 
     # ==================================================================================================================
 
     def boundingRect(self) -> QRectF:
         if (self._textRect.isNull()):
-            font = self._style.lookupFont()
-            textAlignment = self._style.lookupTextAlignment()
-            textPadding = self._style.lookupTextPadding()
-            (self._textRect, _, _) = self._calculateTextRect(QPointF(0, 0), font, textAlignment, textPadding,
+            (self._textRect, _, _) = self._calculateTextRect(QPointF(0, 0), self._font, self._alignment, self._padding,
                                                              self._caption)
         return QRectF(self._textRect)
 
@@ -106,12 +156,16 @@ class OdgTextItem(OdgItem):
     # ==================================================================================================================
 
     def paint(self, painter: QPainter) -> None:
-        font = self._style.lookupFont()
-        textAlignment = self._style.lookupTextAlignment()
-        textPadding = self._style.lookupTextPadding()
-        textColor = self._style.lookupTextColor()
-        self._textRect = self._drawText(painter, QPointF(0, 0), font, textAlignment, textPadding, textColor,
-                                        self._caption)
+        self._textRect = self._drawText(painter, QPointF(0, 0), self._font, self._alignment, self._padding,
+                                        self._brush, self._caption)
+
+    # ==================================================================================================================
+
+    def scale(self, scale: float) -> None:
+        super().scale(scale)
+        self._font.setPointSizeF(self._font.pointSizeF() * scale)
+        self._padding.setWidth(self._padding.width() * scale)
+        self._padding.setHeight(self._padding.height() * scale)
 
     # ==================================================================================================================
 

@@ -16,7 +16,7 @@
 
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPolygonF
+from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
 from .odgitem import OdgItem
 from .odgitempoint import OdgItemPoint
 
@@ -26,6 +26,9 @@ class OdgPolygonItem(OdgItem):
         super().__init__()
 
         self._polygon: QPolygonF = QPolygonF()
+
+        self._brush: QBrush = QBrush()
+        self._pen: QPen = QPen()
 
         for _ in range(3):
             self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.Control))
@@ -39,8 +42,9 @@ class OdgPolygonItem(OdgItem):
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setPolygon(self.polygon())
+        copiedItem.setBrush(self.brush())
+        copiedItem.setPen(self.pen())
         return copiedItem
 
     # ==================================================================================================================
@@ -71,27 +75,55 @@ class OdgPolygonItem(OdgItem):
 
     # ==================================================================================================================
 
+    def setBrush(self, brush: QBrush) -> None:
+        self._brush = QBrush(brush)
+
+    def setPen(self, pen: QPen) -> None:
+        self._pen = QPen(pen)
+
+    def brush(self) -> QBrush:
+        return self._brush
+
+    def pen(self) -> QPen:
+        return self._pen
+
+    # ==================================================================================================================
+
     def setProperty(self, name: str, value: Any) -> None:
-        if (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
-            self._style.setPenStyleIfUnique(Qt.PenStyle(value))
+        if (name == 'pen' and isinstance(value, QPen)):
+            self.setPen(value)
+        elif (name == 'penStyle' and isinstance(value, int)):
+            pen = self.pen()
+            pen.setStyle(Qt.PenStyle(value))
+            self.setPen(pen)
         elif (name == 'penWidth' and isinstance(value, float)):
-            self._style.setPenWidthIfUnique(value)
+            pen = self.pen()
+            pen.setWidthF(value)
+            self.setPen(pen)
         elif (name == 'penColor' and isinstance(value, QColor)):
-            self._style.setPenColorIfUnique(value)
+            pen = self.pen()
+            pen.setBrush(QBrush(QColor(value)))
+            self.setPen(pen)
+        elif (name == 'brush' and isinstance(value, QBrush)):
+            self.setBrush(value)
         elif (name == 'brushColor' and isinstance(value, QColor)):
-            self._style.setBrushColorIfUnique(value)
+            self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> Any:
         if (name == 'polygon'):
             return self.polygon()
+        if (name == 'pen'):
+            return self.pen()
         if (name == 'penStyle'):
-            return self._style.lookupPenStyle()
+            return self.pen().style().value
         if (name == 'penWidth'):
-            return self._style.lookupPenWidth()
+            return self.pen().widthF()
         if (name == 'penColor'):
-            return self._style.lookupPenColor()
+            return self.pen().brush().color()
+        if (name == 'brush'):
+            return self.brush()
         if (name == 'brushColor'):
-            return self._style.lookupBrushColor()
+            return self.brush().color()
         return None
 
     # ==================================================================================================================
@@ -100,24 +132,21 @@ class OdgPolygonItem(OdgItem):
         rect = self._polygon.boundingRect()
 
         # Adjust for pen width
-        if (self.style().lookupPenStyle() != Qt.PenStyle.NoPen):
-            halfPenWidth = self.style().lookupPenWidth() / 2
+        if (self._pen.style() != Qt.PenStyle.NoPen):
+            halfPenWidth = self._pen.widthF() / 2
             rect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)
 
         return rect
 
     def shape(self) -> QPainterPath:
-        pen = self.style().lookupPen()
-        brush = self.style().lookupBrush()
-
         shape = QPainterPath()
-        if (pen.style() != Qt.PenStyle.NoPen):
+        if (self._pen.style() != Qt.PenStyle.NoPen):
             polygonPath = QPainterPath()
             polygonPath.addPolygon(self._polygon)
             polygonPath.closeSubpath()
 
-            shape = self._strokePath(polygonPath, pen)
-            if (brush.color().alpha() > 0):
+            shape = self._strokePath(polygonPath, self._pen)
+            if (self._brush.color().alpha() > 0):
                 shape = shape.united(polygonPath)
         else:
             shape.addPolygon(self._polygon)
@@ -132,8 +161,8 @@ class OdgPolygonItem(OdgItem):
     # ==================================================================================================================
 
     def paint(self, painter: QPainter) -> None:
-        painter.setBrush(self.style().lookupBrush())
-        painter.setPen(self.style().lookupPen())
+        painter.setBrush(self._brush)
+        painter.setPen(self._pen)
         painter.drawPolygon(self._polygon)
 
     # ==================================================================================================================
@@ -158,6 +187,8 @@ class OdgPolygonItem(OdgItem):
             point = self._polygon.at(index)
             scaledPolygon.append(QPointF(point.x() * scale, point.y() * scale))
         self.setPolygon(scaledPolygon)
+
+        self._pen.setWidthF(self._pen.widthF() * scale)
 
     # ==================================================================================================================
 

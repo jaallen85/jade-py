@@ -17,7 +17,7 @@
 import math
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF
-from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPolygonF
+from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
 from .odgitem import OdgItem
 from .odgitempoint import OdgItemPoint
 from .odgmarker import OdgMarker
@@ -29,6 +29,10 @@ class OdgPolylineItem(OdgItem):
 
         self._polyline: QPolygonF = QPolygonF()
 
+        self._pen: QPen = QPen()
+        self._startMarker: OdgMarker = OdgMarker()
+        self._endMarker: OdgMarker = OdgMarker()
+
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.FreeControlAndConnection))
         self.addPoint(OdgItemPoint(QPointF(0, 0), OdgItemPoint.Type.FreeControlAndConnection))
 
@@ -37,8 +41,10 @@ class OdgPolylineItem(OdgItem):
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setPolyline(self.polyline())
+        copiedItem.setPen(self.pen())
+        copiedItem.setStartMarker(self.startMarker())
+        copiedItem.setEndMarker(self.endMarker())
         return copiedItem
 
     # ==================================================================================================================
@@ -69,39 +75,85 @@ class OdgPolylineItem(OdgItem):
 
     # ==================================================================================================================
 
+    def setPen(self, pen: QPen) -> None:
+        self._pen = QPen(pen)
+
+    def setStartMarker(self, marker: OdgMarker) -> None:
+        self._startMarker = OdgMarker(marker.style(), marker.size())
+
+    def setEndMarker(self, marker: OdgMarker) -> None:
+        self._endMarker = OdgMarker(marker.style(), marker.size())
+
+    def pen(self) -> QPen:
+        return self._pen
+
+    def startMarker(self) -> OdgMarker:
+        return self._startMarker
+
+    def endMarker(self) -> OdgMarker:
+        return self._endMarker
+
+    # ==================================================================================================================
+
     def setProperty(self, name: str, value: Any) -> None:
-        if (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
-            self._style.setPenStyleIfUnique(Qt.PenStyle(value))
+        if (name == 'pen' and isinstance(value, QPen)):
+            self.setPen(value)
+        elif (name == 'penStyle' and isinstance(value, int)):
+            pen = self.pen()
+            pen.setStyle(Qt.PenStyle(value))
+            self.setPen(pen)
         elif (name == 'penWidth' and isinstance(value, float)):
-            self._style.setPenWidthIfUnique(value)
+            pen = self.pen()
+            pen.setWidthF(value)
+            self.setPen(pen)
         elif (name == 'penColor' and isinstance(value, QColor)):
-            self._style.setPenColorIfUnique(value)
-        elif (name == 'startMarkerStyle' and isinstance(value, OdgMarker.Style)):
-            self._style.setStartMarkerStyleIfUnique(OdgMarker.Style(value))
+            pen = self.pen()
+            pen.setBrush(QBrush(QColor(value)))
+            self.setPen(pen)
+        elif (name == 'startMarker' and isinstance(value, OdgMarker)):
+            self.setStartMarker(value)
+        elif (name == 'startMarkerStyle' and isinstance(value, int)):
+            marker = self.startMarker()
+            marker.setStyle(OdgMarker.Style(value))
+            self.setStartMarker(marker)
         elif (name == 'startMarkerSize' and isinstance(value, float)):
-            self._style.setStartMarkerSizeIfUnique(value)
-        elif (name == 'endMarkerStyle' and isinstance(value, OdgMarker.Style)):
-            self._style.setEndMarkerStyleIfUnique(OdgMarker.Style(value))
+            marker = self.startMarker()
+            marker.setSize(value)
+            self.setStartMarker(marker)
+        elif (name == 'endMarker' and isinstance(value, OdgMarker)):
+            self.setEndMarker(value)
+        elif (name == 'endMarkerStyle' and isinstance(value, int)):
+            marker = self.endMarker()
+            marker.setStyle(OdgMarker.Style(value))
+            self.setEndMarker(marker)
         elif (name == 'endMarkerSize' and isinstance(value, float)):
-            self._style.setEndMarkerSizeIfUnique(value)
+            marker = self.endMarker()
+            marker.setSize(value)
+            self.setEndMarker(marker)
 
     def property(self, name: str) -> Any:
         if (name == 'polyline'):
             return self.polyline()
+        if (name == 'pen'):
+            return self.pen()
         if (name == 'penStyle'):
-            return self._style.lookupPenStyle()
+            return self.pen().style().value
         if (name == 'penWidth'):
-            return self._style.lookupPenWidth()
+            return self.pen().widthF()
         if (name == 'penColor'):
-            return self._style.lookupPenColor()
+            return self.pen().brush().color()
+        if (name == 'startMarker'):
+            return self.startMarker()
         if (name == 'startMarkerStyle'):
-            return self._style.lookupStartMarkerStyle()
+            return self.startMarker().style().value
         if (name == 'startMarkerSize'):
-            return self._style.lookupStartMarkerSize()
+            return self.startMarker().size()
+        if (name == 'endMarker'):
+            return self.endMarker()
         if (name == 'endMarkerStyle'):
-            return self._style.lookupEndMarkerStyle()
+            return self.endMarker().style().value
         if (name == 'endMarkerSize'):
-            return self._style.lookupEndMarkerSize()
+            return self.endMarker().size()
         return None
 
     # ==================================================================================================================
@@ -110,7 +162,7 @@ class OdgPolylineItem(OdgItem):
         rect = self._polyline.boundingRect()
 
         # Adjust for pen width
-        halfPenWidth = self.style().lookupPenWidth() / 2
+        halfPenWidth = self._pen.widthF() / 2
         rect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)
 
         return rect
@@ -119,22 +171,18 @@ class OdgPolylineItem(OdgItem):
         shape = QPainterPath()
 
         # Calculate polyline shape
-        pen = self.style().lookupPen()
-
         polylinePath = QPainterPath()
         polylinePath.moveTo(self._polyline.at(0))
         for index in range(1, self._polyline.size()):
             polylinePath.lineTo(self._polyline.at(index))
-        shape = self._strokePath(polylinePath, pen)
+        shape = self._strokePath(polylinePath, self._pen)
 
         # Add shape for each marker, if necessary
-        startMarker = self.style().lookupStartMarker()
-        if (self._shouldShowStartMarker(startMarker.size())):
-            shape.addPath(startMarker.shape(pen, self._polyline.at(0), self._startMarkerAngle()))
-
-        endMarker = self.style().lookupEndMarker()
-        if (self._shouldShowEndMarker(endMarker.size())):
-            shape.addPath(endMarker.shape(pen, self._polyline.at(self._polyline.size() - 1), self._endMarkerAngle()))
+        if (self._shouldShowStartMarker(self._startMarker.size())):
+            shape.addPath(self._startMarker.shape(self._pen, self._polyline.at(0), self._startMarkerAngle()))
+        if (self._shouldShowEndMarker(self._endMarker.size())):
+            shape.addPath(self._endMarker.shape(self._pen, self._polyline.at(self._polyline.size() - 1),
+                                                self._endMarkerAngle()))
 
         return shape
 
@@ -146,20 +194,16 @@ class OdgPolylineItem(OdgItem):
 
     def paint(self, painter: QPainter) -> None:
         # Draw line
-        pen = self.style().lookupPen()
-
         painter.setBrush(QBrush(Qt.GlobalColor.transparent))
-        painter.setPen(pen)
+        painter.setPen(self._pen)
         painter.drawPolyline(self._polyline)
 
         # Draw markers if necessary
-        startMarker = self.style().lookupStartMarker()
-        if (self._shouldShowStartMarker(startMarker.size())):
-            startMarker.paint(painter, pen, self._polyline.at(0), self._startMarkerAngle())
-
-        endMarker = self.style().lookupEndMarker()
-        if (self._shouldShowEndMarker(endMarker.size())):
-            endMarker.paint(painter, pen, self._polyline.at(self._polyline.size() - 1), self._endMarkerAngle())
+        if (self._shouldShowStartMarker(self._startMarker.size())):
+            self._startMarker.paint(painter, self._pen, self._polyline.at(0), self._startMarkerAngle())
+        if (self._shouldShowEndMarker(self._endMarker.size())):
+            self._endMarker.paint(painter, self._pen, self._polyline.at(self._polyline.size() - 1),
+                                  self._endMarkerAngle())
 
     # ==================================================================================================================
 
@@ -186,6 +230,10 @@ class OdgPolylineItem(OdgItem):
             point = self._polyline.at(index)
             scaledPolyline.append(QPointF(point.x() * scale, point.y() * scale))
         self.setPolyline(scaledPolyline)
+
+        self._pen.setWidthF(self._pen.widthF() * scale)
+        self._startMarker.setSize(self._startMarker.size() * scale)
+        self._endMarker.setSize(self._endMarker.size() * scale)
 
     # ==================================================================================================================
 

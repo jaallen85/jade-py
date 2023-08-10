@@ -16,13 +16,25 @@
 
 from enum import IntEnum
 from typing import Any
-from PySide6.QtCore import Qt, QPointF, QRectF, Signal
-from PySide6.QtGui import QCursor, QMouseEvent, QUndoCommand, QUndoStack
+from PySide6.QtCore import Qt, QPointF, QRectF, QSizeF, Signal
+from PySide6.QtGui import QBrush, QColor, QCursor, QFont, QMouseEvent, QPen, QUndoCommand, QUndoStack
+from ..items.odgcurveitem import OdgCurveItem
+from ..items.odgellipseitem import OdgEllipseItem
 from ..items.odggroupitem import OdgGroupItem
 from ..items.odgitem import OdgItem
 from ..items.odgitempoint import OdgItemPoint
+from ..items.odglineitem import OdgLineItem
+from ..items.odgmarker import OdgMarker
+from ..items.odgpolygonitem import OdgPolygonItem
+from ..items.odgpolylineitem import OdgPolylineItem
+from ..items.odgrectitem import OdgRectItem
+from ..items.odgtextitem import OdgTextItem
+from ..items.odgtextellipseitem import OdgTextEllipseItem
+from ..items.odgtextrectitem import OdgTextRectItem
 from .odgdrawingview import OdgDrawingView
 from .odgpage import OdgPage
+from .odgreader import OdgReader
+from .odgunits import OdgUnits
 from .odgwriter import OdgWriter
 
 
@@ -37,6 +49,17 @@ class OdgDrawingWidget(OdgDrawingView):
 
     def __init__(self) -> None:
         super().__init__()
+
+        self._defaultItemBrush: QBrush = QBrush(QColor(255, 255, 255))
+        self._defaultItemPen: QPen = QPen(QBrush(QColor(0, 0, 0)), 0.01, Qt.PenStyle.SolidLine,
+                                          Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+        self._defaultItemStartMarker: OdgMarker = OdgMarker(OdgMarker.Style.NoMarker, 0.06)
+        self._defaultItemEndMarker: OdgMarker = OdgMarker(OdgMarker.Style.NoMarker, 0.06)
+        self._defaultItemFont: QFont = QFont('Arial')
+        self._defaultItemFont.setPointSizeF(0.1)
+        self._defaultItemTextAlignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
+        self._defaultItemTextPadding: QSizeF = QSizeF(0, 0)
+        self._defaultItemTextBrush: QBrush = QBrush(QColor(0, 0, 0))
 
         self._newPageCount: int = 0
 
@@ -55,6 +78,90 @@ class OdgDrawingWidget(OdgDrawingView):
         self.currentItemsChanged.connect(self._updateSelectionCenter)
         self.currentItemsPropertyChanged.connect(self._updateSelectionCenter)
         self.modeChanged.connect(self._clearModeStateVariables)
+
+    # ==================================================================================================================
+
+    def setDefaultItemBrush(self, brush: QBrush) -> None:
+        self._defaultItemBrush = QBrush(brush)
+
+    def setDefaultItemPen(self, pen: QPen) -> None:
+        self._defaultItemPen = QPen(pen)
+
+    def setDefaultItemStartMarker(self, marker: OdgMarker) -> None:
+        self._defaultItemStartMarker = OdgMarker(marker.style(), marker.size())
+
+    def setDefaultItemEndMarker(self, marker: OdgMarker) -> None:
+        self._defaultItemEndMarker = OdgMarker(marker.style(), marker.size())
+
+    def setDefaultItemFont(self, font: QFont) -> None:
+        self._defaultItemFont = QFont(font)
+
+    def setDefaultItemTextAlignment(self, alignment: Qt.AlignmentFlag) -> None:
+        self._defaultItemTextAlignment = alignment
+
+    def setDefaultItemTextPadding(self, padding: QSizeF) -> None:
+        self._defaultItemTextPadding = QSizeF(padding)
+
+    def setDefaultItemTextBrush(self, brush: QBrush) -> None:
+        self._defaultItemTextBrush = QBrush(brush)
+
+    def defaultItemBrush(self) -> QBrush:
+        return self._defaultItemBrush
+
+    def defaultItemPen(self) -> QPen:
+        return self._defaultItemPen
+
+    def defaultItemStartMarker(self) -> OdgMarker:
+        return self._defaultItemStartMarker
+
+    def defaultItemEndMarker(self) -> OdgMarker:
+        return self._defaultItemEndMarker
+
+    def defaultItemFont(self) -> QFont:
+        return self._defaultItemFont
+
+    def defaultItemTextAlignment(self) -> Qt.AlignmentFlag:
+        return self._defaultItemTextAlignment
+
+    def defaultItemTextPadding(self) -> QSizeF:
+        return self._defaultItemTextPadding
+
+    def defaultItemTextBrush(self) -> QBrush:
+        return self._defaultItemTextBrush
+
+    def createItem(self, key: str) -> OdgItem | None:
+        item: OdgItem | None = None
+
+        if (key == 'line'):
+            item = OdgLineItem()
+        elif (key == 'curve'):
+            item = OdgCurveItem()
+        elif (key == 'polyline'):
+            item = OdgPolylineItem()
+        elif (key == 'rect'):
+            item = OdgRectItem()
+        elif (key == 'ellipse'):
+            item = OdgEllipseItem()
+        elif (key == 'polygon'):
+            item = OdgPolygonItem()
+        elif (key == 'text'):
+            item = OdgTextItem()
+        elif (key == 'textRect'):
+            item = OdgTextRectItem()
+        elif (key == 'textEllipse'):
+            item = OdgTextEllipseItem()
+
+        if (isinstance(item, OdgItem)):
+            item.setProperty('brush', self._defaultItemBrush)
+            item.setProperty('pen', self._defaultItemPen)
+            item.setProperty('startMarker', self._defaultItemStartMarker)
+            item.setProperty('endMarker', self._defaultItemEndMarker)
+            item.setProperty('font', self._defaultItemFont)
+            item.setProperty('textAlignment', self._defaultItemTextAlignment)
+            item.setProperty('textPadding', self._defaultItemTextPadding)
+            item.setProperty('textBrush', self._defaultItemTextBrush)
+
+        return item
 
     # ==================================================================================================================
 
@@ -225,33 +332,70 @@ class OdgDrawingWidget(OdgDrawingView):
         self._undoStack.clear()
 
     def save(self, path: str) -> bool:
-        writer = OdgWriter(path)
+        writer = OdgWriter()
 
         writer.setUnits(self.units())
         writer.setPageSize(self.pageSize())
         writer.setPageMargins(self.pageMargins())
         writer.setBackgroundColor(self.backgroundColor())
+
         writer.setGrid(self.grid())
         writer.setGridVisible(self.isGridVisible())
         writer.setGridColor(self.gridColor())
         writer.setGridSpacingMajor(self.gridSpacingMajor())
         writer.setGridSpacingMinor(self.gridSpacingMinor())
-        writer.setItemStyles(self.defaultItemStyle())
+
+        writer.setDefaultItemBrush(self.defaultItemBrush())
+        writer.setDefaultItemPen(self.defaultItemPen())
+        writer.setDefaultItemStartMarker(self.defaultItemStartMarker())
+        writer.setDefaultItemEndMarker(self.defaultItemEndMarker())
+        writer.setDefaultItemFont(self.defaultItemFont())
+        writer.setDefaultItemTextAlignment(self.defaultItemTextAlignment())
+        writer.setDefaultItemTextPadding(self.defaultItemTextPadding())
+        writer.setDefaultItemTextBrush(self.defaultItemTextBrush())
+
         writer.setPages(self.pages())
 
-        writer.commit()
-        self._undoStack.setClean()
+        writer.writeToFile(path)
 
+        self._undoStack.setClean()
         return True
 
     def load(self, path: str) -> bool:
-        result = super().load(path)
-        if (result):
-            self._undoStack.setClean()
-        return result
+        self.clear()
+
+        reader = OdgReader()
+        reader.readFromFile(path)
+
+        self.setUnits(reader.units())
+        self.setPageSize(reader.pageSize())
+        self.setPageMargins(reader.pageMargins())
+        self.setBackgroundColor(reader.backgroundColor())
+
+        self.setGrid(reader.grid())
+        self.setGridVisible(reader.isGridVisible())
+        self.setGridColor(reader.gridColor())
+        self.setGridSpacingMajor(reader.gridSpacingMajor())
+        self.setGridSpacingMinor(reader.gridSpacingMinor())
+
+        self.setDefaultItemBrush(reader.defaultItemBrush())
+        self.setDefaultItemPen(reader.defaultItemPen())
+        self.setDefaultItemStartMarker(reader.defaultItemStartMarker())
+        self.setDefaultItemEndMarker(reader.defaultItemEndMarker())
+        self.setDefaultItemFont(reader.defaultItemFont())
+        self.setDefaultItemTextAlignment(reader.defaultItemTextAlignment())
+        self.setDefaultItemTextPadding(reader.defaultItemTextPadding())
+        self.setDefaultItemTextBrush(reader.defaultItemTextBrush())
+
+        for page in reader.takePages():
+            self.addPage(page)
+        self.setCurrentPageIndex(0)
+
+        self._undoStack.setClean()
+        return True
 
     def clear(self) -> None:
-        super().clear()
+        self.clearPages()
         self._undoStack.clear()
         self._newPageCount = 0
 
@@ -300,13 +444,40 @@ class OdgDrawingWidget(OdgDrawingView):
     # ==================================================================================================================
 
     def cut(self) -> None:
-        pass
+        self.copy()
+        self.delete()
 
     def copy(self) -> None:
-        pass
+        if (self._mode == OdgDrawingWidget.Mode.SelectMode and len(self._selectedItems) > 0):
+            writer = OdgWriter()
+
+            writer.setUnits(self.units())
+            writer.setPageSize(self.pageSize())
+            writer.setPageMargins(self.pageMargins())
+
+            writer.setDefaultItemBrush(self.defaultItemBrush())
+            writer.setDefaultItemPen(self.defaultItemPen())
+            writer.setDefaultItemStartMarker(self.defaultItemStartMarker())
+            writer.setDefaultItemEndMarker(self.defaultItemEndMarker())
+            writer.setDefaultItemFont(self.defaultItemFont())
+            writer.setDefaultItemTextAlignment(self.defaultItemTextAlignment())
+            writer.setDefaultItemTextPadding(self.defaultItemTextPadding())
+            writer.setDefaultItemTextBrush(self.defaultItemTextBrush())
+
+            writer.writeToClipboard(self._selectedItems)
 
     def paste(self) -> None:
-        pass
+        if (self._mode == OdgDrawingWidget.Mode.SelectMode):
+            reader = OdgReader()
+
+            newItems = reader.readFromClipboard()
+            if (len(newItems) > 0):
+                if (reader.units() != self.units()):
+                    scaleFactor = OdgUnits.convert(1.0, reader.units(), self.units())
+                    for item in newItems:
+                        item.scale(scaleFactor)
+
+                self.setPlaceMode(newItems, False)
 
     def delete(self) -> None:
         if (isinstance(self._currentPage, OdgPage) and self._mode == OdgDrawingWidget.Mode.SelectMode):

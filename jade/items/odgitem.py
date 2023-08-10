@@ -20,10 +20,9 @@ from abc import ABC, abstractmethod
 from enum import IntEnum
 from typing import Any
 from PySide6.QtCore import Qt, QLineF, QPointF, QRectF, QSizeF
-from PySide6.QtGui import (QBrush, QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPainterPathStroker, QPen,
+from PySide6.QtGui import (QBrush, QFont, QFontMetricsF, QPainter, QPainterPath, QPainterPathStroker, QPen,
                            QPolygonF, QTransform)
 from .odgitempoint import OdgItemPoint
-from .odgitemstyle import OdgItemStyle
 
 
 class OdgItem(ABC):
@@ -38,13 +37,10 @@ class OdgItem(ABC):
 
         self._points: list[OdgItemPoint] = []
 
-        self._style: OdgItemStyle = OdgItemStyle('')
-
         self._selected: bool = False
 
     def __del__(self) -> None:
         self.clearPoints()
-        del self._style
 
     # ==================================================================================================================
 
@@ -139,11 +135,6 @@ class OdgItem(ABC):
 
     # ==================================================================================================================
 
-    def style(self) -> OdgItemStyle:
-        return self._style
-
-    # ==================================================================================================================
-
     def setSelected(self, selected: bool) -> None:
         self._selected = selected
 
@@ -207,7 +198,6 @@ class OdgItem(ABC):
         self._position = QPointF(self._position.x() * scale, self._position.y() * scale)
         for point in self._points:
             point.setPosition(QPointF(point.position().x() * scale, point.position().y() * scale))
-        self._style.scale(scale)
 
     # ==================================================================================================================
 
@@ -402,7 +392,7 @@ class OdgItem(ABC):
         return (QRectF(), QRectF(), 1.0)
 
     def _drawText(self, painter: QPainter, anchorPoint: QPointF, font: QFont, alignment: Qt.AlignmentFlag,
-                  padding: QSizeF, color: QColor, caption: str) -> QRectF:
+                  padding: QSizeF, brush: QBrush, caption: str) -> QRectF:
         if (self.isValid()):
             (itemTextRect, scaledTextRect, scaleFactor) = self._calculateTextRect(anchorPoint, font, alignment,
                                                                                   padding, caption)
@@ -412,7 +402,7 @@ class OdgItem(ABC):
 
             painter.scale(1 / scaleFactor, 1 / scaleFactor)
             painter.setBrush(QBrush(Qt.GlobalColor.transparent))
-            painter.setPen(QPen(QBrush(color), 0.0))
+            painter.setPen(QPen(brush, 0.0))
             painter.setFont(font)
             painter.drawText(scaledTextRect, alignment, caption)
             painter.scale(scaleFactor, scaleFactor)
@@ -525,8 +515,12 @@ class OdgRectItemBase(OdgItem):
         rect = QRectF(self._rect.normalized())
 
         # Adjust for pen width
-        if (self.style().lookupPenStyle() != Qt.PenStyle.NoPen):
-            halfPenWidth = self.style().lookupPenWidth() / 2
+        # pylint: disable-next=E1128
+        penStyle = self.property('penStyle')
+        # pylint: disable-next=E1128
+        penWidth = self.property('penWidth')
+        if (isinstance(penStyle, Qt.PenStyle) and penStyle != Qt.PenStyle.NoPen and isinstance(penWidth, float)):
+            halfPenWidth = penWidth / 2
             rect.adjust(-halfPenWidth, -halfPenWidth, halfPenWidth, halfPenWidth)
 
         return rect

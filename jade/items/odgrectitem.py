@@ -16,7 +16,7 @@
 
 from typing import Any
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath
+from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 from .odgitem import OdgRectItemBase
 from .odgitempoint import OdgItemPoint
 
@@ -27,6 +27,9 @@ class OdgRectItem(OdgRectItemBase):
 
         self._cornerRadius: float = 0.0
 
+        self._brush: QBrush = QBrush()
+        self._pen: QPen = QPen()
+
         # All points are control and connection points
         for point in self._points:
             point.setType(OdgItemPoint.Type.ControlAndConnection)
@@ -36,9 +39,10 @@ class OdgRectItem(OdgRectItemBase):
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setRect(self.rect())
         copiedItem.setCornerRadius(self.cornerRadius())
+        copiedItem.setBrush(self.brush())
+        copiedItem.setPen(self.pen())
         return copiedItem
 
     # ==================================================================================================================
@@ -51,47 +55,73 @@ class OdgRectItem(OdgRectItemBase):
 
     # ==================================================================================================================
 
+    def setBrush(self, brush: QBrush) -> None:
+        self._brush = QBrush(brush)
+
+    def setPen(self, pen: QPen) -> None:
+        self._pen = QPen(pen)
+
+    def brush(self) -> QBrush:
+        return self._brush
+
+    def pen(self) -> QPen:
+        return self._pen
+
+    # ==================================================================================================================
+
     def setProperty(self, name: str, value: Any) -> None:
         if (name == 'cornerRadius' and isinstance(value, float)):
             self.setCornerRadius(value)
-        elif (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
-            self._style.setPenStyleIfUnique(Qt.PenStyle(value))
+        elif (name == 'pen' and isinstance(value, QPen)):
+            self.setPen(value)
+        elif (name == 'penStyle' and isinstance(value, int)):
+            pen = self.pen()
+            pen.setStyle(Qt.PenStyle(value))
+            self.setPen(pen)
         elif (name == 'penWidth' and isinstance(value, float)):
-            self._style.setPenWidthIfUnique(value)
+            pen = self.pen()
+            pen.setWidthF(value)
+            self.setPen(pen)
         elif (name == 'penColor' and isinstance(value, QColor)):
-            self._style.setPenColorIfUnique(value)
+            pen = self.pen()
+            pen.setBrush(QBrush(QColor(value)))
+            self.setPen(pen)
+        elif (name == 'brush' and isinstance(value, QBrush)):
+            self.setBrush(value)
         elif (name == 'brushColor' and isinstance(value, QColor)):
-            self._style.setBrushColorIfUnique(value)
+            self.setBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> Any:
         if (name == 'rect'):
             return self.rect()
         if (name == 'cornerRadius'):
             return self.cornerRadius()
+        if (name == 'pen'):
+            return self.pen()
         if (name == 'penStyle'):
-            return self._style.lookupPenStyle()
+            return self.pen().style().value
         if (name == 'penWidth'):
-            return self._style.lookupPenWidth()
+            return self.pen().widthF()
         if (name == 'penColor'):
-            return self._style.lookupPenColor()
+            return self.pen().brush().color()
+        if (name == 'brush'):
+            return self.brush()
         if (name == 'brushColor'):
-            return self._style.lookupBrushColor()
+            return self.brush().color()
         return None
 
     # ==================================================================================================================
 
     def shape(self) -> QPainterPath:
         normalizedRect = self._rect.normalized()
-        pen = self.style().lookupPen()
-        brush = self.style().lookupBrush()
 
         shape = QPainterPath()
-        if (pen.style() != Qt.PenStyle.NoPen):
+        if (self._pen.style() != Qt.PenStyle.NoPen):
             rectPath = QPainterPath()
             rectPath.addRoundedRect(normalizedRect, self._cornerRadius, self._cornerRadius)
 
-            shape = self._strokePath(rectPath, pen)
-            if (brush.color().alpha() > 0):
+            shape = self._strokePath(rectPath, self._pen)
+            if (self._brush.color().alpha() > 0):
                 shape = shape.united(rectPath)
         else:
             shape.addRoundedRect(normalizedRect, self._cornerRadius, self._cornerRadius)
@@ -101,12 +131,13 @@ class OdgRectItem(OdgRectItemBase):
     # ==================================================================================================================
 
     def paint(self, painter: QPainter) -> None:
-        painter.setBrush(self.style().lookupBrush())
-        painter.setPen(self.style().lookupPen())
+        painter.setBrush(self._brush)
+        painter.setPen(self._pen)
         painter.drawRoundedRect(self._rect.normalized(), self._cornerRadius, self._cornerRadius)
 
     # ==================================================================================================================
 
     def scale(self, scale: float) -> None:
         super().scale(scale)
-        self.setCornerRadius(self._cornerRadius * scale)
+        self._cornerRadius = self._cornerRadius * scale
+        self._pen.setWidthF(self._pen.widthF() * scale)

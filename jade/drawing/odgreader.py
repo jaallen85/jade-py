@@ -18,12 +18,13 @@ import math
 import re
 from zipfile import ZipFile
 from PySide6.QtCore import Qt, QLineF, QMarginsF, QPointF, QRectF, QSizeF, QXmlStreamReader
-from PySide6.QtGui import QColor, QPainterPath, QPolygonF, QTransform
+from PySide6.QtGui import QBrush, QColor, QFont, QPainterPath, QPen, QPolygonF, QTransform
+from PySide6.QtWidgets import QApplication
 from ..items.odgcurveitem import OdgCurve, OdgCurveItem
 from ..items.odgellipseitem import OdgEllipseItem
+from ..items.odgfontstyle import OdgFontStyle
 from ..items.odggroupitem import OdgGroupItem
 from ..items.odgitem import OdgItem
-from ..items.odgitemstyle import OdgFontStyle, OdgItemStyle
 from ..items.odglineitem import OdgLineItem
 from ..items.odgmarker import OdgMarker
 from ..items.odgpolygonitem import OdgPolygonItem
@@ -36,10 +37,319 @@ from .odgpage import OdgPage
 from .odgunits import OdgUnits
 
 
-class OdgReader:
-    def __init__(self, path: str) -> None:
-        self._path: str = path
+class OdgReaderStyle:
+    def __init__(self, name: str) -> None:
+        self._name: str = name
 
+        self._parent: OdgReaderStyle | None = None
+
+        self._penStyle: Qt.PenStyle | None = None
+        self._penWidth: float | None = None
+        self._penColor: QColor | None = None
+        self._penCapStyle: Qt.PenCapStyle | None = None
+        self._penJoinStyle: Qt.PenJoinStyle | None = None
+        self._brushColor: QColor | None = None
+
+        self._startMarkerStyle: OdgMarker.Style | None = None
+        self._startMarkerSize: float | None = None
+        self._endMarkerStyle: OdgMarker.Style | None = None
+        self._endMarkerSize: float | None = None
+
+        self._fontFamily: str | None = None
+        self._fontSize: float | None = None
+        self._fontStyle: OdgFontStyle | None = None
+        self._textAlignment: Qt.AlignmentFlag | None = None
+        self._textPadding: QSizeF | None = None
+        self._textColor: QColor | None = None
+
+    # ==================================================================================================================
+
+    def setName(self, name: str) -> None:
+        self._name = name
+
+    def name(self) -> str:
+        return self._name
+
+    # ==================================================================================================================
+
+    def setParent(self, parent: 'OdgReaderStyle | None') -> None:
+        self._parent = parent
+
+    def parent(self) -> 'OdgReaderStyle | None':
+        return self._parent
+
+    # ==================================================================================================================
+
+    def setPenStyle(self, style: Qt.PenStyle | None) -> None:
+        self._penStyle = style
+
+    def setPenWidth(self, width: float | None) -> None:
+        self._penWidth = width
+
+    def setPenColor(self, color: QColor | None) -> None:
+        if (isinstance(color, QColor)):
+            self._penColor = QColor(color)
+        else:
+            self._penColor = None
+
+    def setPenCapStyle(self, style: Qt.PenCapStyle | None) -> None:
+        self._penCapStyle = style
+
+    def setPenJoinStyle(self, style: Qt.PenJoinStyle | None) -> None:
+        self._penJoinStyle = style
+
+    def setBrushColor(self, color: QColor | None) -> None:
+        if (isinstance(color, QColor)):
+            self._brushColor = QColor(color)
+        else:
+            self._brushColor = None
+
+    def penStyle(self) -> Qt.PenStyle | None:
+        return self._penStyle
+
+    def penWidth(self) -> float | None:
+        return self._penWidth
+
+    def penColor(self) -> QColor | None:
+        return self._penColor
+
+    def penCapStyle(self) -> Qt.PenCapStyle | None:
+        return self._penCapStyle
+
+    def penJoinStyle(self) -> Qt.PenJoinStyle | None:
+        return self._penJoinStyle
+
+    def brushColor(self) -> QColor | None:
+        return self._brushColor
+
+    # ==================================================================================================================
+
+    def setStartMarkerStyle(self, style: OdgMarker.Style | None) -> None:
+        self._startMarkerStyle = style
+
+    def setStartMarkerSize(self, size: float | None) -> None:
+        self._startMarkerSize = size
+
+    def setEndMarkerStyle(self, style: OdgMarker.Style | None) -> None:
+        self._endMarkerStyle = style
+
+    def setEndMarkerSize(self, size: float | None) -> None:
+        self._endMarkerSize = size
+
+    def startMarkerStyle(self) -> OdgMarker.Style | None:
+        return self._startMarkerStyle
+
+    def startMarkerSize(self) -> float | None:
+        return self._startMarkerSize
+
+    def endMarkerStyle(self) -> OdgMarker.Style | None:
+        return self._endMarkerStyle
+
+    def endMarkerSize(self) -> float | None:
+        return self._endMarkerSize
+
+    # ==================================================================================================================
+
+    def setFontFamily(self, family: str | None) -> None:
+        self._fontFamily = family
+
+    def setFontSize(self, size: float | None) -> None:
+        self._fontSize = size
+
+    def setFontStyle(self, style: OdgFontStyle | None) -> None:
+        if (isinstance(style, OdgFontStyle)):
+            self._fontStyle = OdgFontStyle.copy(style)
+        else:
+            self._fontStyle = None
+
+    def setTextAlignment(self, alignment: Qt.AlignmentFlag | None) -> None:
+        self._textAlignment = alignment
+
+    def setTextPadding(self, padding: QSizeF | None) -> None:
+        if (isinstance(padding, QSizeF)):
+            self._textPadding = QSizeF(padding)
+        else:
+            self._textPadding = None
+
+    def setTextColor(self, color: QColor | None) -> None:
+        if (isinstance(color, QColor)):
+            self._textColor = QColor(color)
+        else:
+            self._textColor = None
+
+    def fontFamily(self) -> str | None:
+        return self._fontFamily
+
+    def fontSize(self) -> float | None:
+        return self._fontSize
+
+    def fontStyle(self) -> OdgFontStyle | None:
+        return self._fontStyle
+
+    def textAlignment(self) -> Qt.AlignmentFlag | None:
+        return self._textAlignment
+
+    def textPadding(self) -> QSizeF | None:
+        return self._textPadding
+
+    def textColor(self) -> QColor | None:
+        return self._textColor
+
+    # ==================================================================================================================
+
+    def lookupPen(self) -> QPen:
+        return QPen(QBrush(self.lookupPenColor()), self.lookupPenWidth(), self.lookupPenStyle(),
+                    self.lookupPenCapStyle(), self.lookupPenJoinStyle())
+
+    def lookupPenStyle(self) -> Qt.PenStyle:
+        if (isinstance(self._penStyle, Qt.PenStyle)):
+            return self._penStyle
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupPenStyle()
+        return Qt.PenStyle.NoPen
+
+    def lookupPenColor(self) -> QColor:
+        if (isinstance(self._penColor, QColor)):
+            return self._penColor
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupPenColor()
+        return QColor(0, 0, 0)
+
+    def lookupPenWidth(self) -> float:
+        if (isinstance(self._penWidth, float)):
+            return self._penWidth
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupPenWidth()
+        return 1.0
+
+    def lookupPenCapStyle(self) -> Qt.PenCapStyle:
+        if (isinstance(self._penCapStyle, Qt.PenCapStyle)):
+            return self._penCapStyle
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupPenCapStyle()
+        return Qt.PenCapStyle.RoundCap
+
+    def lookupPenJoinStyle(self) -> Qt.PenJoinStyle:
+        if (isinstance(self._penJoinStyle, Qt.PenJoinStyle)):
+            return self._penJoinStyle
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupPenJoinStyle()
+        return Qt.PenJoinStyle.RoundJoin
+
+    # ==================================================================================================================
+
+    def lookupBrush(self) -> QBrush:
+        return QBrush(self.lookupBrushColor())
+
+    def lookupBrushColor(self) -> QColor:
+        if (isinstance(self._brushColor, QColor)):
+            return self._brushColor
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupBrushColor()
+        return QColor(255, 255, 255)
+
+    # ==================================================================================================================
+
+    def lookupStartMarker(self) -> OdgMarker:
+        return OdgMarker(self.lookupStartMarkerStyle(), self.lookupStartMarkerSize())
+
+    def lookupEndMarker(self) -> OdgMarker:
+        return OdgMarker(self.lookupEndMarkerStyle(), self.lookupEndMarkerSize())
+
+    def lookupStartMarkerStyle(self) -> OdgMarker.Style:
+        if (isinstance(self._startMarkerStyle, OdgMarker.Style)):
+            return self._startMarkerStyle
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupStartMarkerStyle()
+        return OdgMarker.Style.NoMarker
+
+    def lookupStartMarkerSize(self) -> float:
+        if (isinstance(self._startMarkerSize, float)):
+            return self._startMarkerSize
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupStartMarkerSize()
+        return 0.0
+
+    def lookupEndMarkerStyle(self) -> OdgMarker.Style:
+        if (isinstance(self._endMarkerStyle, OdgMarker.Style)):
+            return self._endMarkerStyle
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupEndMarkerStyle()
+        return OdgMarker.Style.NoMarker
+
+    def lookupEndMarkerSize(self) -> float:
+        if (isinstance(self._endMarkerSize, float)):
+            return self._endMarkerSize
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupEndMarkerSize()
+        return 0.0
+
+    # ==================================================================================================================
+
+    def lookupFont(self) -> QFont:
+        font = QFont(self.lookupFontFamily())
+        font.setPointSizeF(self.lookupFontSize())
+
+        style = self.lookupFontStyle()
+        font.setBold(style.bold())
+        font.setItalic(style.italic())
+        font.setUnderline(style.underline())
+        font.setStrikeOut(style.strikeOut())
+
+        return font
+
+    def lookupFontFamily(self) -> str:
+        if (isinstance(self._fontFamily, str)):
+            return self._fontFamily
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupFontFamily()
+        return ''
+
+    def lookupFontSize(self) -> float:
+        if (isinstance(self._fontSize, float)):
+            return self._fontSize
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupFontSize()
+        return 0.0
+
+    def lookupFontStyle(self) -> 'OdgFontStyle':
+        if (isinstance(self._fontStyle, OdgFontStyle)):
+            return self._fontStyle
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupFontStyle()
+        return OdgFontStyle()
+
+    def lookupTextAlignment(self) -> Qt.AlignmentFlag:
+        if (isinstance(self._textAlignment, Qt.AlignmentFlag)):
+            return self._textAlignment
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupTextAlignment()
+        return (Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+
+    def lookupTextPadding(self) -> QSizeF:
+        if (isinstance(self._textPadding, QSizeF)):
+            return self._textPadding
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupTextPadding()
+        return QSizeF(0, 0)
+
+    def lookupTextBrush(self) -> QBrush:
+        return QBrush(self.lookupTextColor())
+
+    def lookupTextColor(self) -> QColor:
+        if (isinstance(self._textColor, QColor)):
+            return self._textColor
+        if (isinstance(self._parent, OdgReaderStyle)):
+            return self._parent.lookupTextColor()
+        return QColor(0, 0, 0)
+
+
+# ======================================================================================================================
+# ======================================================================================================================
+# ======================================================================================================================
+
+class OdgReader:
+    def __init__(self) -> None:
         self._units: OdgUnits = OdgUnits.Inches
         self._pageSize: QSizeF = QSizeF(8.2, 6.2)
         self._pageMargins: QMarginsF = QMarginsF(0.1, 0.1, 0.1, 0.1)
@@ -51,28 +361,17 @@ class OdgReader:
         self._gridSpacingMajor: int = 8
         self._gridSpacingMinor: int = 2
 
-        self._defaultItemStyle: OdgItemStyle = OdgItemStyle('standard')
-        self._automaticItemStyles: list[OdgItemStyle] = []
-
         self._pages: list[OdgPage] = []
 
-        with ZipFile(self._path, 'r') as odgFile:
-            with odgFile.open('settings.xml', 'r') as settingsFile:
-                self._readSettings(settingsFile.read().decode('utf-8'))
-            with odgFile.open('styles.xml', 'r') as stylesFile:
-                self._readStyles(stylesFile.read().decode('utf-8'))
-            with odgFile.open('content.xml', 'r') as contentFile:
-                self._readContent(contentFile.read().decode('utf-8'))
+        self._defaultItemStyle: OdgReaderStyle = OdgReaderStyle('standard')
+        self._itemStyles: list[OdgReaderStyle] = []
+        self._automaticItemStyles: list[OdgReaderStyle] = []
 
     def __del__(self) -> None:
-        del self._defaultItemStyle
-        del self._automaticItemStyles[:]
         del self._pages[:]
-
-    # ==================================================================================================================
-
-    def path(self) -> str:
-        return self._path
+        del self._defaultItemStyle
+        del self._itemStyles[:]
+        del self._automaticItemStyles[:]
 
     # ==================================================================================================================
 
@@ -107,14 +406,29 @@ class OdgReader:
 
     # ==================================================================================================================
 
-    def defaultItemStyle(self) -> OdgItemStyle:
-        return self._defaultItemStyle
+    def defaultItemBrush(self) -> QBrush:
+        return self._defaultItemStyle.lookupBrush()
 
-    def takeDefaultItemStyle(self) -> OdgItemStyle:
-        style = self._defaultItemStyle
-        self._defaultItemStyle = OdgItemStyle(style.name())
-        self._defaultItemStyle.copyFromStyle(style)
-        return style
+    def defaultItemPen(self) -> QPen:
+        return self._defaultItemStyle.lookupPen()
+
+    def defaultItemStartMarker(self) -> OdgMarker:
+        return self._defaultItemStyle.lookupStartMarker()
+
+    def defaultItemEndMarker(self) -> OdgMarker:
+        return self._defaultItemStyle.lookupEndMarker()
+
+    def defaultItemFont(self) -> QFont:
+        return self._defaultItemStyle.lookupFont()
+
+    def defaultItemTextAlignment(self) -> Qt.AlignmentFlag:
+        return self._defaultItemStyle.lookupTextAlignment()
+
+    def defaultItemTextPadding(self) -> QSizeF:
+        return self._defaultItemStyle.lookupTextPadding()
+
+    def defaultItemTextBrush(self) -> QBrush:
+        return self._defaultItemStyle.lookupTextBrush()
 
     # ==================================================================================================================
 
@@ -125,6 +439,61 @@ class OdgReader:
         pages = self._pages.copy()
         self._pages = []
         return pages
+
+    # ==================================================================================================================
+
+    def readFromFile(self, path: str) -> None:
+        with ZipFile(path, 'r') as odgFile:
+            with odgFile.open('settings.xml', 'r') as settingsFile:
+                self._readSettings(settingsFile.read().decode('utf-8'))
+            with odgFile.open('styles.xml', 'r') as stylesFile:
+                self._readStyles(stylesFile.read().decode('utf-8'))
+            with odgFile.open('content.xml', 'r') as contentFile:
+                self._readContent(contentFile.read().decode('utf-8'))
+
+    def readFromClipboard(self) -> list[OdgItem]:
+        items: list[OdgItem] = []
+
+        xml = QXmlStreamReader(QApplication.clipboard().text())
+        if (xml.readNextStartElement() and xml.qualifiedName() == 'jade-items'):
+            attributes = xml.attributes()
+            for index in range(attributes.count()):
+                attr = attributes.at(index)
+                match (attr.name()):
+                    case 'units':
+                        self._units = OdgUnits.fromStr(attr.value())
+                    case 'page-width':
+                        self._pageSize.setWidth(self._lengthFromString(attr.value()))
+                    case 'page-height':
+                        self._pageSize.setHeight(self._lengthFromString(attr.value()))
+                    case 'margin-left':
+                        self._pageMargins.setLeft(self._lengthFromString(attr.value()))
+                    case 'margin-top':
+                        self._pageMargins.setTop(self._lengthFromString(attr.value()))
+                    case 'margin-right':
+                        self._pageMargins.setRight(self._lengthFromString(attr.value()))
+                    case 'margin-bottom':
+                        self._pageMargins.setBottom(self._lengthFromString(attr.value()))
+
+            while (xml.readNextStartElement()):
+                if (xml.qualifiedName() == 'styles'):
+                    while (xml.readNextStartElement()):
+                        if (xml.qualifiedName() in ('style:default-style', 'style:style')):
+                            self._readStyle(xml, automatic=False)
+                        else:
+                            xml.skipCurrentElement()
+                elif (xml.qualifiedName() == 'automatic-styles'):
+                    while (xml.readNextStartElement()):
+                        if (xml.qualifiedName() == 'style:style'):
+                            self._readStyle(xml, automatic=True)
+                        else:
+                            xml.skipCurrentElement()
+                elif (xml.qualifiedName() == 'items'):
+                    items.extend(self._readItems(xml))
+                else:
+                    xml.skipCurrentElement()
+
+        return items
 
     # ==================================================================================================================
 
@@ -266,19 +635,17 @@ class OdgReader:
 
     def _readStyle(self, xml: QXmlStreamReader, automatic: bool) -> None:
         if (xml.qualifiedName() == 'style:default-style'):
-            newStyle = self._readItemStyle(xml)
-            newStyle.setParent(None)
-            self._defaultItemStyle.copyFromStyle(newStyle)
+            self._defaultItemStyle = self._readItemStyle(xml, self._defaultItemStyle)
         elif (xml.qualifiedName() == 'style:style'):
             attributes = xml.attributes()
             if (attributes.hasAttribute('style:name') and attributes.value('style:name') == 'standard'):
-                newStyle = self._readItemStyle(xml)
-                newStyle.setParent(None)
-                self._defaultItemStyle.copyFromStyle(newStyle)
+                self._defaultItemStyle = self._readItemStyle(xml, self._defaultItemStyle)
             else:
-                newStyle = self._readItemStyle(xml)
+                newStyle = self._readItemStyle(xml, OdgReaderStyle(attributes.value('style:name')))
                 if (automatic):
                     self._automaticItemStyles.append(newStyle)
+                else:
+                    self._itemStyles.append(newStyle)
         else:
             xml.skipCurrentElement()
 
@@ -296,9 +663,9 @@ class OdgReader:
 
     # ==================================================================================================================
 
-    def _readItemStyle(self, xml: QXmlStreamReader) -> OdgItemStyle:
-        newStyle = OdgItemStyle('')
-        newStyle.setParent(self._defaultItemStyle)
+    def _readItemStyle(self, xml: QXmlStreamReader, newStyle: OdgReaderStyle) -> OdgReaderStyle:
+        if (newStyle != self._defaultItemStyle):
+            newStyle.setParent(self._defaultItemStyle)
 
         attributes = xml.attributes()
         for i in range(attributes.count()):
@@ -306,6 +673,12 @@ class OdgReader:
             match (attr.qualifiedName()):
                 case 'style:name':
                     newStyle.setName(attr.value())
+                case 'style:parent-name':
+                    parentStyleName = attr.value()
+                    for style in self._itemStyles:
+                        if (style.name() == parentStyleName):
+                            newStyle.setParent(style)
+                            break
 
         while (xml.readNextStartElement()):
             if (xml.qualifiedName() == 'style:graphic-properties'):
@@ -571,14 +944,16 @@ class OdgReader:
         lineItem.setPosition(position)
         lineItem.setRotation(rotation)
         lineItem.setFlipped(flipped)
-        style = self._findAutomaticStyle(styleName)
-        if (isinstance(style, OdgItemStyle)):
-            lineItem.style().copyFromStyle(style)
         lineItem.setLine(QLineF(x1, y1, x2, y2))
+
+        style = self._findAutomaticStyle(styleName)
+        if (isinstance(style, OdgReaderStyle)):
+            lineItem.setPen(style.lookupPen())
+            lineItem.setStartMarker(style.lookupStartMarker())
+            lineItem.setEndMarker(style.lookupEndMarker())
 
         if (lineItem.isValid()):
             return lineItem
-
         del lineItem
         return None
 
@@ -630,14 +1005,17 @@ class OdgReader:
             textItem.setPosition(position)
             textItem.setRotation(rotation)
             textItem.setFlipped(flipped)
-            style = self._findAutomaticStyle(styleName)
-            if (isinstance(style, OdgItemStyle)):
-                textItem.style().copyFromStyle(style)
             textItem.setCaption(caption)
+
+            style = self._findAutomaticStyle(styleName)
+            if (isinstance(style, OdgReaderStyle)):
+                textItem.setFont(style.lookupFont())
+                textItem.setAlignment(style.lookupTextAlignment())
+                textItem.setPadding(style.lookupTextPadding())
+                textItem.setBrush(style.lookupTextBrush())
 
             if (textItem.isValid()):
                 return textItem
-
             del textItem
             return None
 
@@ -647,16 +1025,21 @@ class OdgReader:
             textRectItem.setPosition(position)
             textRectItem.setRotation(rotation)
             textRectItem.setFlipped(flipped)
-            style = self._findAutomaticStyle(styleName)
-            if (isinstance(style, OdgItemStyle)):
-                textRectItem.style().copyFromStyle(style)
             textRectItem.setRect(QRectF(left, top, width, height))
             textRectItem.setCornerRadius(cornerRadius)
             textRectItem.setCaption(caption)
 
+            style = self._findAutomaticStyle(styleName)
+            if (isinstance(style, OdgReaderStyle)):
+                textRectItem.setBrush(style.lookupBrush())
+                textRectItem.setPen(style.lookupPen())
+                textRectItem.setFont(style.lookupFont())
+                textRectItem.setTextAlignment(style.lookupTextAlignment())
+                textRectItem.setTextPadding(style.lookupTextPadding())
+                textRectItem.setTextBrush(style.lookupTextBrush())
+
             if (textRectItem.isValid()):
                 return textRectItem
-
             del textRectItem
             return None
 
@@ -665,15 +1048,16 @@ class OdgReader:
         rectItem.setPosition(position)
         rectItem.setRotation(rotation)
         rectItem.setFlipped(flipped)
-        style = self._findAutomaticStyle(styleName)
-        if (isinstance(style, OdgItemStyle)):
-            rectItem.style().copyFromStyle(style)
         rectItem.setRect(QRectF(left, top, width, height))
         rectItem.setCornerRadius(cornerRadius)
 
+        style = self._findAutomaticStyle(styleName)
+        if (isinstance(style, OdgReaderStyle)):
+            rectItem.setBrush(style.lookupBrush())
+            rectItem.setPen(style.lookupPen())
+
         if (rectItem.isValid()):
             return rectItem
-
         del rectItem
         return None
 
@@ -720,15 +1104,20 @@ class OdgReader:
             textEllipseItem.setPosition(position)
             textEllipseItem.setRotation(rotation)
             textEllipseItem.setFlipped(flipped)
-            style = self._findAutomaticStyle(styleName)
-            if (isinstance(style, OdgItemStyle)):
-                textEllipseItem.style().copyFromStyle(style)
             textEllipseItem.setRect(QRectF(left, top, width, height))
             textEllipseItem.setCaption(caption)
 
+            style = self._findAutomaticStyle(styleName)
+            if (isinstance(style, OdgReaderStyle)):
+                textEllipseItem.setBrush(style.lookupBrush())
+                textEllipseItem.setPen(style.lookupPen())
+                textEllipseItem.setFont(style.lookupFont())
+                textEllipseItem.setTextAlignment(style.lookupTextAlignment())
+                textEllipseItem.setTextPadding(style.lookupTextPadding())
+                textEllipseItem.setTextBrush(style.lookupTextBrush())
+
             if (textEllipseItem.isValid()):
                 return textEllipseItem
-
             del textEllipseItem
             return None
 
@@ -737,14 +1126,15 @@ class OdgReader:
         ellipseItem.setPosition(position)
         ellipseItem.setRotation(rotation)
         ellipseItem.setFlipped(flipped)
-        style = self._findAutomaticStyle(styleName)
-        if (isinstance(style, OdgItemStyle)):
-            ellipseItem.style().copyFromStyle(style)
         ellipseItem.setRect(QRectF(left, top, width, height))
+
+        style = self._findAutomaticStyle(styleName)
+        if (isinstance(style, OdgReaderStyle)):
+            ellipseItem.setBrush(style.lookupBrush())
+            ellipseItem.setPen(style.lookupPen())
 
         if (ellipseItem.isValid()):
             return ellipseItem
-
         del ellipseItem
         return None
 
@@ -772,14 +1162,16 @@ class OdgReader:
         polylineItem.setPosition(position)
         polylineItem.setRotation(rotation)
         polylineItem.setFlipped(flipped)
-        style = self._findAutomaticStyle(styleName)
-        if (isinstance(style, OdgItemStyle)):
-            polylineItem.style().copyFromStyle(style)
         polylineItem.setPolyline(points)
+
+        style = self._findAutomaticStyle(styleName)
+        if (isinstance(style, OdgReaderStyle)):
+            polylineItem.setPen(style.lookupPen())
+            polylineItem.setStartMarker(style.lookupStartMarker())
+            polylineItem.setEndMarker(style.lookupEndMarker())
 
         if (polylineItem.isValid()):
             return polylineItem
-
         del polylineItem
         return None
 
@@ -807,14 +1199,15 @@ class OdgReader:
         polygonItem.setPosition(position)
         polygonItem.setRotation(rotation)
         polygonItem.setFlipped(flipped)
-        style = self._findAutomaticStyle(styleName)
-        if (isinstance(style, OdgItemStyle)):
-            polygonItem.style().copyFromStyle(style)
         polygonItem.setPolygon(points)
+
+        style = self._findAutomaticStyle(styleName)
+        if (isinstance(style, OdgReaderStyle)):
+            polygonItem.setBrush(style.lookupBrush())
+            polygonItem.setPen(style.lookupPen())
 
         if (polygonItem.isValid()):
             return polygonItem
-
         del polygonItem
         return None
 
@@ -869,14 +1262,16 @@ class OdgReader:
             curveItem.setPosition(position)
             curveItem.setRotation(rotation)
             curveItem.setFlipped(flipped)
-            style = self._findAutomaticStyle(styleName)
-            if (isinstance(style, OdgItemStyle)):
-                curveItem.style().copyFromStyle(style)
             curveItem.setCurve(curve)
+
+            style = self._findAutomaticStyle(styleName)
+            if (isinstance(style, OdgReaderStyle)):
+                curveItem.setPen(style.lookupPen())
+                curveItem.setStartMarker(style.lookupStartMarker())
+                curveItem.setEndMarker(style.lookupEndMarker())
 
             if (curveItem.isValid()):
                 return curveItem
-
             del curveItem
             return None
 
@@ -904,7 +1299,7 @@ class OdgReader:
         del groupItem
         return None
 
-    def _findAutomaticStyle(self, name: str) -> OdgItemStyle | None:
+    def _findAutomaticStyle(self, name: str) -> OdgReaderStyle | None:
         for style in self._automaticItemStyles:
             if (style.name() == name):
                 return style

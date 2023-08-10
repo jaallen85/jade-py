@@ -24,9 +24,7 @@ from PySide6.QtWidgets import (QAbstractScrollArea, QApplication, QRubberBand, Q
                                QStyleOptionRubberBand)
 from ..items.odgitem import OdgItem
 from ..items.odgitempoint import OdgItemPoint
-from ..items.odgitemstyle import OdgItemStyle
 from .odgpage import OdgPage
-from .odgreader import OdgReader
 from .odgunits import OdgUnits
 
 
@@ -87,10 +85,6 @@ class OdgDrawingView(QAbstractScrollArea):
         self._gridSpacingMajor: int = 8
         self._gridSpacingMinor: int = 2
 
-        # Item styles
-        defaultPenWidth = (0.01 if (self._units == OdgUnits.Inches) else 0.25)
-        self._defaultItemStyle: OdgItemStyle = OdgItemStyle.createDefaultStyle(defaultPenWidth)
-
         # Pages
         self._pages: list[OdgPage] = []
         self._currentPage: OdgPage | None = None
@@ -132,7 +126,6 @@ class OdgDrawingView(QAbstractScrollArea):
 
     def __del__(self) -> None:
         self.clearPages()
-        del self._defaultItemStyle
 
     # ==================================================================================================================
 
@@ -150,8 +143,6 @@ class OdgDrawingView(QAbstractScrollArea):
             self._grid = OdgUnits.convert(self._grid, oldUnits, self._units)
 
             scaleFactor = OdgUnits.convert(1, oldUnits, self._units)
-
-            self._defaultItemStyle.scale(scaleFactor)
 
             for page in self._pages:
                 for item in page.items():
@@ -309,11 +300,6 @@ class OdgDrawingView(QAbstractScrollArea):
             case 'gridSpacingMinor':
                 return self.gridSpacingMinor()
         return None
-
-    # ==================================================================================================================
-
-    def defaultItemStyle(self) -> OdgItemStyle:
-        return self._defaultItemStyle
 
     # ==================================================================================================================
 
@@ -590,39 +576,6 @@ class OdgDrawingView(QAbstractScrollArea):
 
     def placeItems(self) -> list[OdgItem]:
         return self._placeModeItems
-
-    # ==================================================================================================================
-
-    def save(self, path: str) -> bool:
-        # Saving to file is disabled for OdgDrawingView
-        return False
-
-    def load(self, path: str) -> bool:
-        self.clear()
-
-        reader = OdgReader(path)
-
-        self.setUnits(reader.units())
-        self.setPageSize(reader.pageSize())
-        self.setPageMargins(reader.pageMargins())
-        self.setBackgroundColor(reader.backgroundColor())
-        self.setGrid(reader.grid())
-        self.setGridVisible(reader.isGridVisible())
-        self.setGridColor(reader.gridColor())
-        self.setGridSpacingMajor(reader.gridSpacingMajor())
-        self.setGridSpacingMinor(reader.gridSpacingMinor())
-
-        del self._defaultItemStyle
-        self._defaultItemStyle = reader.takeDefaultItemStyle()
-
-        for page in reader.takePages():
-            self.addPage(page)
-        self.setCurrentPageIndex(0)
-
-        return True
-
-    def clear(self) -> None:
-        self.clearPages()
 
     # ==================================================================================================================
 
@@ -1305,13 +1258,12 @@ class OdgDrawingView(QAbstractScrollArea):
         minimumPenWidth = max(abs(mappedPenSize.x()), abs(mappedPenSize.y()))
 
         # Override item's default pen width if needed
-        penWidth = item.style().lookupPenWidth()
+        originalPenWidth = item.property('penWidth')
 
-        if (0 < penWidth < minimumPenWidth):
-            originalPenWidth = item.style().penWidth()
-            item.style().setPenWidth(minimumPenWidth)
+        if (isinstance(originalPenWidth, float) and 0 < originalPenWidth < minimumPenWidth):
+            item.setProperty('penWidth', minimumPenWidth)
             adjustedShape = QPainterPath(item.shape())
-            item.style().setPenWidth(originalPenWidth)
+            item.setProperty('penWidth', originalPenWidth)
         else:
             adjustedShape = QPainterPath(item.shape())
 

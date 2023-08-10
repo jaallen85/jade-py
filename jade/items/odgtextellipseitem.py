@@ -17,17 +17,25 @@
 import math
 from typing import Any
 from PySide6.QtCore import Qt, QPointF, QRectF, QSizeF
-from PySide6.QtGui import QColor, QPainter, QPainterPath
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
+from .odgfontstyle import OdgFontStyle
 from .odgitem import OdgRectItemBase
 from .odgitempoint import OdgItemPoint
-from .odgitemstyle import OdgFontStyle
 
 
 class OdgTextEllipseItem(OdgRectItemBase):
     def __init__(self) -> None:
         super().__init__()
 
+        self._brush: QBrush = QBrush()
+        self._pen: QPen = QPen()
+
         self._caption: str = ''
+
+        self._font: QFont = QFont()
+        self._textAlignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
+        self._textPadding: QSizeF = QSizeF(0, 0)
+        self._textBrush: QBrush = QBrush()
 
         self._textRect: QRectF = QRectF()
 
@@ -43,9 +51,14 @@ class OdgTextEllipseItem(OdgRectItemBase):
         copiedItem.setPosition(self.position())
         copiedItem.setRotation(self.rotation())
         copiedItem.setFlipped(self.isFlipped())
-        copiedItem.style().copyFromStyle(self.style())
         copiedItem.setEllipse(self.ellipse())
+        copiedItem.setBrush(self.brush())
+        copiedItem.setPen(self.pen())
         copiedItem.setCaption(self.caption())
+        copiedItem.setFont(self.font())
+        copiedItem.setTextAlignment(self.textAlignment())
+        copiedItem.setTextPadding(self.textPadding())
+        copiedItem.setTextBrush(self.textBrush())
         return copiedItem
 
     # ==================================================================================================================
@@ -58,6 +71,20 @@ class OdgTextEllipseItem(OdgRectItemBase):
 
     # ==================================================================================================================
 
+    def setBrush(self, brush: QBrush) -> None:
+        self._brush = QBrush(brush)
+
+    def setPen(self, pen: QPen) -> None:
+        self._pen = QPen(pen)
+
+    def brush(self) -> QBrush:
+        return self._brush
+
+    def pen(self) -> QPen:
+        return self._pen
+
+    # ==================================================================================================================
+
     def setCaption(self, caption: str) -> None:
         self._caption = str(caption)
 
@@ -66,90 +93,146 @@ class OdgTextEllipseItem(OdgRectItemBase):
 
     # ==================================================================================================================
 
+    def setFont(self, font: QFont) -> None:
+        self._font = QFont(font)
+
+    def setTextAlignment(self, alignment: Qt.AlignmentFlag) -> None:
+        self._textAlignment = alignment
+
+    def setTextPadding(self, padding: QSizeF) -> None:
+        self._textPadding = QSizeF(padding)
+
+    def setTextBrush(self, brush: QBrush) -> None:
+        self._textBrush = QBrush(brush)
+
+    def font(self) -> QFont:
+        return self._font
+
+    def textAlignment(self) -> Qt.AlignmentFlag:
+        return self._textAlignment
+
+    def textPadding(self) -> QSizeF:
+        return self._textPadding
+
+    def textBrush(self) -> QBrush:
+        return self._textBrush
+
+    # ==================================================================================================================
+
     def setProperty(self, name: str, value: Any) -> None:
-        if (name == 'caption' and isinstance(value, str)):
-            self.setCaption(value)
-        elif (name == 'penStyle' and isinstance(value, Qt.PenStyle)):
-            self._style.setPenStyleIfUnique(Qt.PenStyle(value))
+        if (name == 'pen' and isinstance(value, QPen)):
+            self.setPen(value)
+        elif (name == 'penStyle' and isinstance(value, int)):
+            pen = self.pen()
+            pen.setStyle(Qt.PenStyle(value))
+            self.setPen(pen)
         elif (name == 'penWidth' and isinstance(value, float)):
-            self._style.setPenWidthIfUnique(value)
+            pen = self.pen()
+            pen.setWidthF(value)
+            self.setPen(pen)
         elif (name == 'penColor' and isinstance(value, QColor)):
-            self._style.setPenColorIfUnique(value)
+            pen = self.pen()
+            pen.setBrush(QBrush(QColor(value)))
+            self.setPen(pen)
+        elif (name == 'brush' and isinstance(value, QBrush)):
+            self.setBrush(value)
         elif (name == 'brushColor' and isinstance(value, QColor)):
-            self._style.setBrushColorIfUnique(value)
+            self.setBrush(QBrush(QColor(value)))
+        elif (name == 'caption' and isinstance(value, str)):
+            self.setCaption(value)
+        elif (name == 'font' and isinstance(value, QFont)):
+            self.setFont(value)
         elif (name == 'fontFamily' and isinstance(value, str)):
-            self._style.setFontFamilyIfUnique(value)
+            font = self.font()
+            font.setFamily(value)
+            self.setFont(font)
         elif (name == 'fontSize' and isinstance(value, float)):
-            self._style.setFontSizeIfUnique(value)
+            font = self.font()
+            font.setPointSizeF(value)
+            self.setFont(font)
         elif (name == 'fontStyle' and isinstance(value, OdgFontStyle)):
-            self._style.setFontStyleIfUnique(value)
+            font = self.font()
+            font.setBold(value.bold())
+            font.setItalic(value.italic())
+            font.setUnderline(value.underline())
+            font.setStrikeOut(value.strikeOut())
+            self.setFont(font)
         elif (name == 'textAlignment' and isinstance(value, Qt.AlignmentFlag)):
-            self._style.setTextAlignmentIfUnique(value)
+            self.setTextAlignment(value)
         elif (name == 'textPadding' and isinstance(value, QSizeF)):
-            self._style.setTextPaddingIfUnique(value)
+            self.setTextPadding(value)
+        elif (name == 'textBrush' and isinstance(value, QBrush)):
+            self.setTextBrush(value)
         elif (name == 'textColor' and isinstance(value, QColor)):
-            self._style.setTextColorIfUnique(value)
+            self.setTextBrush(QBrush(QColor(value)))
 
     def property(self, name: str) -> Any:
         if (name == 'ellipse'):
             return self.ellipse()
+        if (name == 'pen'):
+            return self.pen()
+        if (name == 'penStyle'):
+            return self.pen().style().value
+        if (name == 'penWidth'):
+            return self.pen().widthF()
+        if (name == 'penColor'):
+            return self.pen().brush().color()
+        if (name == 'brush'):
+            return self.brush()
+        if (name == 'brushColor'):
+            return self.brush().color()
         if (name == 'caption'):
             return self.caption()
-        if (name == 'penStyle'):
-            return self._style.lookupPenStyle()
-        if (name == 'penWidth'):
-            return self._style.lookupPenWidth()
-        if (name == 'penColor'):
-            return self._style.lookupPenColor()
-        if (name == 'brushColor'):
-            return self._style.lookupBrushColor()
+        if (name == 'font'):
+            return self.font()
         if (name == 'fontFamily'):
-            return self._style.lookupFontFamily()
+            return self.font().family()
         if (name == 'fontSize'):
-            return self._style.lookupFontSize()
+            return self.font().pointSizeF()
         if (name == 'fontStyle'):
-            return self._style.lookupFontStyle()
+            style = OdgFontStyle()
+            style.setBold(self.font().bold())
+            style.setItalic(self.font().italic())
+            style.setUnderline(self.font().underline())
+            style.setStrikeOut(self.font().strikeOut())
+            return style
         if (name == 'textAlignment'):
-            return self._style.lookupTextAlignment()
+            return self.textAlignment()
         if (name == 'textPadding'):
-            return self._style.lookupTextPadding()
+            return self.textPadding()
+        if (name == 'textBrush'):
+            return self.textBrush()
         if (name == 'textColor'):
-            return self._style.lookupTextColor()
+            return self.textBrush().color()
         return None
 
     # ==================================================================================================================
 
     def boundingRect(self) -> QRectF:
         if (self._textRect.isNull()):
-            font = self._style.lookupFont()
-            textAlignment = self._style.lookupTextAlignment()
-            textPadding = self._style.lookupTextPadding()
-            (self._textRect, _, _) = self._calculateTextRect(self._calculateAnchorPoint(textAlignment), font,
-                                                             textAlignment, textPadding, self._caption)
+            (self._textRect, _, _) = self._calculateTextRect(self._calculateAnchorPoint(self._textAlignment),
+                                                             self._font, self._textAlignment, self._textPadding,
+                                                             self._caption)
         return super().boundingRect().united(self._textRect)
 
     def shape(self) -> QPainterPath:
         normalizedRect = self._rect.normalized()
-        pen = self.style().lookupPen()
-        brush = self.style().lookupBrush()
 
         shape = QPainterPath()
-        if (pen.style() != Qt.PenStyle.NoPen):
+        if (self._pen.style() != Qt.PenStyle.NoPen):
             ellipsePath = QPainterPath()
             ellipsePath.addEllipse(normalizedRect)
 
-            shape = self._strokePath(ellipsePath, pen)
-            if (brush.color().alpha() > 0):
+            shape = self._strokePath(ellipsePath, self._pen)
+            if (self._brush.color().alpha() > 0):
                 shape = shape.united(ellipsePath)
         else:
             shape.addEllipse(normalizedRect)
 
         if (self._textRect.isNull()):
-            font = self._style.lookupFont()
-            textAlignment = self._style.lookupTextAlignment()
-            textPadding = self._style.lookupTextPadding()
-            (self._textRect, _, _) = self._calculateTextRect(self._calculateAnchorPoint(textAlignment), font,
-                                                             textAlignment, textPadding, self._caption)
+            (self._textRect, _, _) = self._calculateTextRect(self._calculateAnchorPoint(self._textAlignment),
+                                                             self._font, self._textAlignment, self._textPadding,
+                                                             self._caption)
         textPath = QPainterPath()
         textPath.addRect(self._textRect)
         shape = shape.united(textPath)
@@ -160,17 +243,22 @@ class OdgTextEllipseItem(OdgRectItemBase):
 
     def paint(self, painter: QPainter) -> None:
         # Draw rect
-        painter.setBrush(self.style().lookupBrush())
-        painter.setPen(self.style().lookupPen())
+        painter.setBrush(self._brush)
+        painter.setPen(self._pen)
         painter.drawEllipse(self._rect.normalized())
 
         # Draw text
-        font = self._style.lookupFont()
-        textAlignment = self._style.lookupTextAlignment()
-        textPadding = self._style.lookupTextPadding()
-        textColor = self._style.lookupTextColor()
-        self._textRect = self._drawText(painter, self._calculateAnchorPoint(textAlignment), font, textAlignment,
-                                        textPadding, textColor, self._caption)
+        self._textRect = self._drawText(painter, self._calculateAnchorPoint(self._textAlignment), self._font,
+                                        self._textAlignment, self._textPadding, self._textBrush, self._caption)
+
+    # ==================================================================================================================
+
+    def scale(self, scale: float) -> None:
+        super().scale(scale)
+        self._pen.setWidthF(self._pen.widthF() * scale)
+        self._font.setPointSizeF(self._font.pointSizeF() * scale)
+        self._textPadding.setWidth(self._textPadding.width() * scale)
+        self._textPadding.setHeight(self._textPadding.height() * scale)
 
     # ==================================================================================================================
 
