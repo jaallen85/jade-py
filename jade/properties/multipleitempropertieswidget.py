@@ -326,9 +326,9 @@ class MultipleItemPropertiesWidget(QWidget):
 
         # Pen style
         showPenStyle = False
-        if (isinstance(penStyle, Qt.PenStyle)):
+        if (isinstance(penStyle, int)):
             showPenStyle = True
-            self._penStyleCombo.setCurrentIndex(penStyle.value)     # type: ignore
+            self._penStyleCombo.setCurrentIndex(penStyle)
             self._penStyleCombo.setEnabled(penStylesMatch)
             self._penStyleCheck.setChecked(penStylesMatch)
 
@@ -371,9 +371,9 @@ class MultipleItemPropertiesWidget(QWidget):
 
         # Start marker style
         showStartMarkerStyle = False
-        if (isinstance(startMarkerStyle, OdgMarker.Style)):
+        if (isinstance(startMarkerStyle, int)):
             showStartMarkerStyle = True
-            self._startMarkerStyleCombo.setCurrentIndex(startMarkerStyle.value)
+            self._startMarkerStyleCombo.setCurrentIndex(startMarkerStyle)
             self._startMarkerStyleCombo.setEnabled(startMarkerStylesMatch)
             self._startMarkerStyleCheck.setChecked(startMarkerStylesMatch)
 
@@ -387,9 +387,9 @@ class MultipleItemPropertiesWidget(QWidget):
 
         # End marker style
         showEndMarkerStyle = False
-        if (isinstance(endMarkerStyle, OdgMarker.Style)):
+        if (isinstance(endMarkerStyle, int)):
             showEndMarkerStyle = True
-            self._endMarkerStyleCombo.setCurrentIndex(endMarkerStyle.value)
+            self._endMarkerStyleCombo.setCurrentIndex(endMarkerStyle)
             self._endMarkerStyleCombo.setEnabled(endMarkerStylesMatch)
             self._endMarkerStyleCheck.setChecked(endMarkerStylesMatch)
 
@@ -535,7 +535,7 @@ class MultipleItemPropertiesWidget(QWidget):
     # ==================================================================================================================
 
     def _handlePenStyleChange(self, index: int) -> None:
-        self.itemsPropertyChanged.emit('penStyle', Qt.PenStyle(index))
+        self.itemsPropertyChanged.emit('penStyle', index)
 
     def _handlePenWidthChange(self, width: float) -> None:
         self.itemsPropertyChanged.emit('penWidth', width)
@@ -569,13 +569,13 @@ class MultipleItemPropertiesWidget(QWidget):
     # ==================================================================================================================
 
     def _handleStartMarkerStyleChange(self, index: int) -> None:
-        self.itemsPropertyChanged.emit('startMarkerStyle', OdgMarker.Style(index))
+        self.itemsPropertyChanged.emit('startMarkerStyle', index)
 
     def _handleStartMarkerSizeChange(self, size: float) -> None:
         self.itemsPropertyChanged.emit('startMarkerSize', size)
 
     def _handleEndMarkerStyleChange(self, index: int) -> None:
-        self.itemsPropertyChanged.emit('endMarkerStyle', OdgMarker.Style(index))
+        self.itemsPropertyChanged.emit('endMarkerStyle', index)
 
     def _handleEndMarkerSizeChange(self, size: float) -> None:
         self.itemsPropertyChanged.emit('endMarkerSize', size)

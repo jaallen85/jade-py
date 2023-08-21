@@ -537,7 +537,7 @@ class OdgWriter:
             self._writeBrushStyle(xml, brush, default)
             self._writePenStyle(xml, pen, default)
             self._writeStartMarkerStyle(xml, startMarker, default)
-            self._writeEndMarkerStyle(xml, startMarker, default)
+            self._writeEndMarkerStyle(xml, endMarker, default)
             self._writeTextAlignmentStyle(xml, textAlignment, default)
             self._writeTextPaddingStyle(xml, textPadding, default)
             xml.writeEndElement()

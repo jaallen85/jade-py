@@ -597,9 +597,9 @@ class SingleItemPropertiesWidget(QWidget):
 
             # Pen
             showPenStyle = False
-            if (isinstance(penStyle, Qt.PenStyle)):
+            if (isinstance(penStyle, int)):
                 showPenStyle = True
-                self.setPenStyle(penStyle)
+                self.setPenStyle(Qt.PenStyle(penStyle))
 
             showPenWidth = False
             if (isinstance(penWidth, float)):
@@ -639,9 +639,9 @@ class SingleItemPropertiesWidget(QWidget):
 
             # Start marker
             showStartMarkerStyle = False
-            if (isinstance(startMarkerStyle, OdgMarker.Style)):
+            if (isinstance(startMarkerStyle, int)):
                 showStartMarkerStyle = True
-                self.setStartMarkerStyle(startMarkerStyle)
+                self.setStartMarkerStyle(OdgMarker.Style(startMarkerStyle))
 
             showStartMarkerSize = False
             if (isinstance(startMarkerSize, float)):
@@ -650,9 +650,9 @@ class SingleItemPropertiesWidget(QWidget):
 
             # End marker
             showEndMarkerStyle = False
-            if (isinstance(endMarkerStyle, OdgMarker.Style)):
+            if (isinstance(endMarkerStyle, int)):
                 showEndMarkerStyle = True
-                self.setEndMarkerStyle(endMarkerStyle)
+                self.setEndMarkerStyle(OdgMarker.Style(endMarkerStyle))
 
             showEndMarkerSize = False
             if (isinstance(endMarkerSize, float)):
@@ -1006,7 +1006,7 @@ class SingleItemPropertiesWidget(QWidget):
     # ==================================================================================================================
 
     def _handlePenStyleChange(self, index: int) -> None:
-        self.itemPropertyChanged.emit('penStyle', Qt.PenStyle(index))
+        self.itemPropertyChanged.emit('penStyle', index)
 
     def _handlePenWidthChange(self, width: float) -> None:
         self.itemPropertyChanged.emit('penWidth', width)
@@ -1020,13 +1020,13 @@ class SingleItemPropertiesWidget(QWidget):
     # ==================================================================================================================
 
     def _handleStartMarkerStyleChange(self, index: int) -> None:
-        self.itemPropertyChanged.emit('startMarkerStyle', OdgMarker.Style(index))
+        self.itemPropertyChanged.emit('startMarkerStyle', index)
 
     def _handleStartMarkerSizeChange(self, size: float) -> None:
         self.itemPropertyChanged.emit('startMarkerSize', size)
 
     def _handleEndMarkerStyleChange(self, index: int) -> None:
-        self.itemPropertyChanged.emit('endMarkerStyle', OdgMarker.Style(index))
+        self.itemPropertyChanged.emit('endMarkerStyle', index)
 
     def _handleEndMarkerSizeChange(self, size: float) -> None:
         self.itemPropertyChanged.emit('endMarkerSize', size)
