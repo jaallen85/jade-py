@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QFontComboBox, QFormLayout,
                                QToolButton, QVBoxLayout, QWidget)
 from ..items.odgfontstyle import OdgFontStyle
 from ..items.odgitem import OdgItem
-from ..items.odgmarker import OdgMarker
 from ..drawing.odgunits import OdgUnits
 from .helperwidgets import ColorWidget, LengthEdit, SizeWidget
 

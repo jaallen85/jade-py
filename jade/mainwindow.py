@@ -16,18 +16,19 @@
 
 import os
 from typing import Callable
-from PySide6.QtCore import Qt, QSize, SignalInstance
-from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QKeySequence, QShowEvent
+from PySide6.QtCore import Qt, QRectF, QSize, SignalInstance
+from PySide6.QtGui import QAction, QCloseEvent, QFontMetrics, QIcon, QImage, QKeySequence, QPainter, QShowEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QDockWidget, QFileDialog, QHBoxLayout, QLabel, QMainWindow,
                                QMessageBox, QToolBar, QWidget)
+from .drawing.odgpage import OdgPage
 from .drawing.odgunits import OdgUnits
 from .drawingwidget import DrawingWidget
+from .exportdialog import ExportDialog
 from .pagesbrowser import PagesBrowser
 from .propertiesbrowser import PropertiesBrowser
 
 
 # Todo:
-#   - Add export to PNG support
 #   - Add export to SVG support
 #   - Add preferences support
 #   - Add about dialog
@@ -44,6 +45,8 @@ class MainWindow(QMainWindow):
         self._workingDir: str = os.getcwd()
         self._promptOverwrite: bool = True
         self._promptCloseUnsaved: bool = True
+        self._exportPageContentOnly: bool = True
+        self._exportPixelsPerInch: float = 200.0
         self._pagesDockVisibleOnClose: bool = True
         self._propertiesDockVisibleOnClose: bool = True
 
@@ -383,10 +386,79 @@ class MainWindow(QMainWindow):
     # ==================================================================================================================
 
     def exportPng(self) -> None:
-        pass
+        if (self.isDrawingVisible()):
+            page = self._drawing.currentPage()
+            if (isinstance(page, OdgPage)):
+                # Determine export file path
+                if (self._filePath.startswith('Untitled')):
+                    path = os.path.join(self._workingDir, f'{page.name()}.png')
+                else:
+                    path = os.path.join(os.path.dirname(self._filePath), f'{page.name()}.png')
+
+                # Calculate page and items' bounding rects
+                pageRect = self._drawing.pageRect()
+
+                itemsRect = QRectF()
+                for item in page.items():
+                    itemsRect = itemsRect.united(item.mapRectToScene(item.boundingRect()))
+
+                # Run export dialog
+                exportScale = (self._exportPixelsPerInch if (self._drawing.units() == OdgUnits.Inches) else
+                               self._exportPixelsPerInch / 25)
+
+                dialog = ExportDialog('Export PNG', path, self._exportPageContentOnly, exportScale,
+                                      pageRect, itemsRect, self._promptOverwrite)
+                if (dialog.exec() == ExportDialog.DialogCode.Accepted):
+                    # Save export settings for next time
+                    self._exportPageContentOnly = dialog.exportPageContentOnly()
+                    self._exportPixelsPerInch = (dialog.exportScale() if (self._drawing.units() == OdgUnits.Inches) else
+                                                 dialog.exportScale() * 25)
+
+                    # Export the PNG image
+                    exportSize = dialog.exportSize()
+                    exportRect = dialog.exportRect()
+
+                    pngImage = QImage(exportSize.width(), exportSize.height(), QImage.Format.Format_ARGB32)
+                    with QPainter(pngImage) as painter:
+                        painter.scale(dialog.exportScale(), dialog.exportScale())
+                        painter.translate(-exportRect.left(), -exportRect.top())
+                        painter.setRenderHints((QPainter.RenderHint.Antialiasing |
+                                                QPainter.RenderHint.TextAntialiasing), True)
+                        self._drawing.paint(painter, export=True)
+                    pngImage.save(dialog.exportPath())
 
     def exportSvg(self) -> None:
-        pass
+        if (self.isDrawingVisible()):
+            page = self._drawing.currentPage()
+            if (isinstance(page, OdgPage)):
+                # Determine export file path
+                if (self._filePath.startswith('Untitled')):
+                    path = os.path.join(self._workingDir, f'{page.name()}.svg')
+                else:
+                    path = os.path.join(os.path.dirname(self._filePath), f'{page.name()}.svg')
+
+                # Calculate page and items' bounding rects
+                pageRect = self._drawing.pageRect()
+
+                itemsRect = QRectF()
+                for item in page.items():
+                    itemsRect = itemsRect.united(item.mapRectToScene(item.boundingRect()))
+
+                # Run export dialog
+                exportScale = (self._exportPixelsPerInch if (self._drawing.units() == OdgUnits.Inches) else
+                               self._exportPixelsPerInch / 25)
+
+                dialog = ExportDialog('Export SVG', path, self._exportPageContentOnly, exportScale,
+                                      pageRect, itemsRect, self._promptOverwrite)
+                if (dialog.exec() == ExportDialog.DialogCode.Accepted):
+                    # Save export settings for next time
+                    self._exportPageContentOnly = dialog.exportPageContentOnly()
+                    self._exportPixelsPerInch = (dialog.exportScale() if (self._drawing.units() == OdgUnits.Inches) else
+                                                 dialog.exportScale() * 25)
+
+                    # Export the SVG image
+                    # svgWriter = SvgWriter(page, dialog.exportRect(), dialog.exportSize())
+                    # svgWriter.write(path)
 
     # ==================================================================================================================
 
